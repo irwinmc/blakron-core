@@ -5,6 +5,8 @@ export const StageScaleMode = {
 	NO_BORDER: 'noBorder',
 	FIXED_WIDTH: 'fixedWidth',
 	FIXED_HEIGHT: 'fixedHeight',
+	FIXED_NARROW: 'fixedNarrow',
+	FIXED_WIDE: 'fixedWide',
 } as const;
 
 export type StageScaleMode = (typeof StageScaleMode)[keyof typeof StageScaleMode];
