@@ -58,6 +58,15 @@ export class CanvasRenderer {
 		this.drawDisplayObject(displayObject, ctx, offsetX, offsetY, true);
 	}
 
+	/** @internal Used by WebGLRenderer to rasterize a Graphics object into a Canvas 2D context. */
+	public renderGraphicsToContext(
+		graphics: Graphics,
+		ctx: CanvasRenderingContext2D,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		this.renderGraphics(graphics, ctx, offsetX, offsetY);
+	}
 	// ── Private: tree traversal ───────────────────────────────────────────────
 
 	private drawDisplayObject(

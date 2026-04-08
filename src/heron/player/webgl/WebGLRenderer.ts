@@ -1,8 +1,9 @@
 import { DisplayObject, RenderMode, Bitmap, Shape, Sprite, Mesh, Graphics } from '../../display/index.js';
-import { Matrix } from '../../geom/index.js';
+import { Matrix, Rectangle } from '../../geom/index.js';
 import { ColorMatrixFilter } from '../../filters/index.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { CanvasRenderer } from '../CanvasRenderer.js';
+import { RenderBuffer } from '../RenderBuffer.js';
 
 const BLEND_MODES: Record<number, string> = {
 	0: 'source-over',
@@ -10,9 +11,18 @@ const BLEND_MODES: Record<number, string> = {
 	2: 'destination-out',
 };
 
+interface GraphicsCache {
+	renderBuffer: RenderBuffer;
+	texture: WebGLTexture | undefined;
+	textureWidth: number;
+	textureHeight: number;
+	dirty: boolean;
+}
+
 export class WebGLRenderer {
 	private _nestLevel = 0;
 	private _canvasRenderer = new CanvasRenderer();
+	private _graphicsCache = new WeakMap<Graphics, GraphicsCache>();
 
 	public render(displayObject: DisplayObject, buffer: WebGLRenderBuffer, matrix: Matrix): number {
 		this._nestLevel++;
@@ -449,11 +459,67 @@ export class WebGLRenderer {
 
 	private _renderGraphics(graphics: Graphics, buffer: WebGLRenderBuffer): number {
 		if (graphics.commands.length === 0) return 0;
-		// Graphics rendering via WebGL requires building geometry from commands.
-		// For now, fall back to Canvas 2D offscreen rendering for graphics.
-		// TODO: implement native WebGL path rendering.
+
+		const bounds = new Rectangle();
+		graphics.measureContentBounds(bounds);
+		const w = Math.ceil(bounds.width);
+		const h = Math.ceil(bounds.height);
+		if (w <= 0 || h <= 0) return 0;
+
+		const ox = buffer.offsetX;
+		const oy = buffer.offsetY;
 		buffer.offsetX = 0;
 		buffer.offsetY = 0;
-		return 0;
+
+		let cache = this._graphicsCache.get(graphics);
+		if (!cache) {
+			cache = {
+				renderBuffer: new RenderBuffer(w, h),
+				texture: undefined,
+				textureWidth: 0,
+				textureHeight: 0,
+				dirty: true,
+			};
+			this._graphicsCache.set(graphics, cache);
+		}
+
+		const dirty =
+			cache.dirty ||
+			cache.textureWidth !== w ||
+			cache.textureHeight !== h ||
+			(graphics.targetDisplay?.renderDirty ?? false);
+
+		if (dirty) {
+			if (cache.renderBuffer.width !== w || cache.renderBuffer.height !== h) {
+				cache.renderBuffer.resize(w, h);
+			}
+			cache.renderBuffer.clear();
+
+			this._canvasRenderer.renderGraphicsToContext(graphics, cache.renderBuffer.context, -bounds.x, -bounds.y);
+
+			const surface = cache.renderBuffer.surface;
+			if (!cache.texture) {
+				cache.texture = buffer.context.createTexture(surface);
+			} else {
+				buffer.context.updateTexture(cache.texture, surface);
+			}
+			cache.textureWidth = w;
+			cache.textureHeight = h;
+			cache.dirty = false;
+		}
+
+		if (!cache.texture) return 0;
+
+		if (bounds.x !== 0 || bounds.y !== 0) {
+			buffer.transform(1, 0, 0, 1, ox + bounds.x, oy + bounds.y);
+		}
+
+		buffer.context.drawTexture(cache.texture, 0, 0, w, h, 0, 0, w, h, w, h);
+
+		if (bounds.x !== 0 || bounds.y !== 0) {
+			buffer.transform(1, 0, 0, 1, -(ox + bounds.x), -(oy + bounds.y));
+		}
+
+		return 1;
 	}
 }
