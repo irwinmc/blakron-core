@@ -1,18 +1,7 @@
-import {
-	DisplayObject,
-	RenderMode,
-	Bitmap,
-	Shape,
-	Sprite,
-	Mesh,
-	Graphics,
-	PathCommandType,
-} from '../../display/index.js';
+import { DisplayObject, RenderMode, Bitmap, Shape, Sprite, Mesh, Graphics } from '../../display/index.js';
 import { Matrix } from '../../geom/index.js';
-import { ColorMatrixFilter, BlurFilter, GlowFilter, DropShadowFilter } from '../../filters/index.js';
+import { ColorMatrixFilter } from '../../filters/index.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
-import { WebGLRenderContext } from './WebGLRenderContext.js';
-import { DisplayList } from '../DisplayList.js';
 import { CanvasRenderer } from '../CanvasRenderer.js';
 
 const BLEND_MODES: Record<number, string> = {
@@ -284,6 +273,8 @@ export class WebGLRenderer {
 			const mw = maskBuffer.rootRenderTarget.width;
 			const mh = maskBuffer.rootRenderTarget.height;
 			if (maskBuffer.rootRenderTarget.texture) {
+				// Y-flip for WebGL coordinate system, matching old Egret behaviour
+				displayBuffer.setTransform(1, 0, 0, -1, 0, maskBuffer.height);
 				displayBuffer.context.drawTexture(
 					maskBuffer.rootRenderTarget.texture,
 					0,
@@ -297,6 +288,7 @@ export class WebGLRenderer {
 					mw,
 					mh,
 				);
+				displayBuffer.setTransform(1, 0, 0, 1, 0, 0);
 			}
 			displayBuffer.context.setGlobalCompositeOperation('source-over');
 			WebGLRenderBuffer.release(maskBuffer);

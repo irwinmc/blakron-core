@@ -45,13 +45,13 @@ export class TouchHandler {
 	}
 
 	public dispose(): void {
-		this._canvas.removeEventListener('touchstart', this.handleTouchStart);
-		this._canvas.removeEventListener('touchmove', this.handleTouchMove);
-		this._canvas.removeEventListener('touchend', this.handleTouchEnd);
-		this._canvas.removeEventListener('touchcancel', this.handleTouchEnd);
-		this._canvas.removeEventListener('mousedown', this.handleMouseDown);
-		this._canvas.removeEventListener('mousemove', this.handleMouseMove);
-		this._canvas.removeEventListener('mouseup', this.handleMouseUp);
+		this._canvas.removeEventListener('touchstart', this.onTouchStartEvent);
+		this._canvas.removeEventListener('touchmove', this.onTouchMoveEvent);
+		this._canvas.removeEventListener('touchend', this.onTouchEndEvent);
+		this._canvas.removeEventListener('touchcancel', this.onTouchEndEvent);
+		this._canvas.removeEventListener('mousedown', this.onMouseDown);
+		this._canvas.removeEventListener('mousemove', this.onMouseMove);
+		this._canvas.removeEventListener('mouseup', this.onMouseUp);
 	}
 
 	// ── Touch event handlers ──────────────────────────────────────────────────
@@ -119,19 +119,16 @@ export class TouchHandler {
 	}
 
 	private bindEvents(): void {
-		// Touch events
-		this._canvas.addEventListener('touchstart', this.handleTouchStart, { passive: false });
-		this._canvas.addEventListener('touchmove', this.handleTouchMove, { passive: false });
-		this._canvas.addEventListener('touchend', this.handleTouchEnd);
-		this._canvas.addEventListener('touchcancel', this.handleTouchEnd);
-
-		// Mouse fallback
-		this._canvas.addEventListener('mousedown', this.handleMouseDown);
-		this._canvas.addEventListener('mousemove', this.handleMouseMove);
-		this._canvas.addEventListener('mouseup', this.handleMouseUp);
+		this._canvas.addEventListener('touchstart', this.onTouchStartEvent, { passive: false });
+		this._canvas.addEventListener('touchmove', this.onTouchMoveEvent, { passive: false });
+		this._canvas.addEventListener('touchend', this.onTouchEndEvent);
+		this._canvas.addEventListener('touchcancel', this.onTouchEndEvent);
+		this._canvas.addEventListener('mousedown', this.onMouseDown);
+		this._canvas.addEventListener('mousemove', this.onMouseMove);
+		this._canvas.addEventListener('mouseup', this.onMouseUp);
 	}
 
-	private handleTouchStart = (e: globalThis.TouchEvent): void => {
+	private onTouchStartEvent = (e: globalThis.TouchEvent): void => {
 		e.preventDefault();
 		for (let i = 0; i < e.changedTouches.length; i++) {
 			const touch = e.changedTouches[i];
@@ -140,7 +137,7 @@ export class TouchHandler {
 		}
 	};
 
-	private handleTouchMove = (e: globalThis.TouchEvent): void => {
+	private onTouchMoveEvent = (e: globalThis.TouchEvent): void => {
 		e.preventDefault();
 		for (let i = 0; i < e.changedTouches.length; i++) {
 			const touch = e.changedTouches[i];
@@ -149,7 +146,7 @@ export class TouchHandler {
 		}
 	};
 
-	private handleTouchEnd = (e: globalThis.TouchEvent): void => {
+	private onTouchEndEvent = (e: globalThis.TouchEvent): void => {
 		for (let i = 0; i < e.changedTouches.length; i++) {
 			const touch = e.changedTouches[i];
 			const { x, y } = this.getStageCoords(touch.clientX, touch.clientY);
@@ -157,17 +154,17 @@ export class TouchHandler {
 		}
 	};
 
-	private handleMouseDown = (e: MouseEvent): void => {
+	private onMouseDown = (e: MouseEvent): void => {
 		const { x, y } = this.getStageCoords(e.clientX, e.clientY);
 		this.onTouchBegin(x, y, 0);
 	};
 
-	private handleMouseMove = (e: MouseEvent): void => {
+	private onMouseMove = (e: MouseEvent): void => {
 		const { x, y } = this.getStageCoords(e.clientX, e.clientY);
 		this.onTouchMove(x, y, 0);
 	};
 
-	private handleMouseUp = (e: MouseEvent): void => {
+	private onMouseUp = (e: MouseEvent): void => {
 		const { x, y } = this.getStageCoords(e.clientX, e.clientY);
 		this.onTouchEnd(x, y, 0);
 	};

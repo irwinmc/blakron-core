@@ -1,6 +1,5 @@
 import { WebGLVertexArrayObject } from './WebGLVertexArrayObject.js';
 import { WebGLDrawCmdManager, DrawCmdType } from './WebGLDrawCmdManager.js';
-import { WebGLRenderTarget } from './WebGLRenderTarget.js';
 import { WebGLProgram } from './WebGLProgram.js';
 import { ShaderLib } from './ShaderLib.js';
 import { SYM_GL_CONTEXT, SYM_PREMULTIPLIED, SYM_DEFAULT_EMPTY, SYM_SMOOTHING } from './WebGLUtils.js';

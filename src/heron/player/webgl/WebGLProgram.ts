@@ -1,4 +1,4 @@
-import { compileShader, createProgram } from './WebGLUtils.js';
+import { createProgram } from './WebGLUtils.js';
 
 export type UniformMap = Record<string, WebGLUniformLocation | null>;
 export type AttributeMap = Record<string, number>;

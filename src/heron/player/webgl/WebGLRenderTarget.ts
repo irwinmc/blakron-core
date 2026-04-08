@@ -3,7 +3,7 @@ export class WebGLRenderTarget {
 	public width: number;
 	public height: number;
 	public useFrameBuffer = true;
-	public clearColor = [0, 0, 0, 0];
+	public clearColor: [number, number, number, number] = [0, 0, 0, 0];
 
 	private _gl: WebGLRenderingContext;
 	private _frameBuffer: WebGLFramebuffer | undefined = undefined;
