@@ -12,8 +12,6 @@ export class Timer extends EventDispatcher {
 	private _delay = 0;
 	private _currentCount = 0;
 	private _running = false;
-	private _updateInterval = 1000;
-	private _lastCount = 1000;
 	private _lastTimeStamp = 0;
 
 	public constructor(delay: number, repeatCount = 0) {
@@ -27,9 +25,7 @@ export class Timer extends EventDispatcher {
 	}
 	public set delay(value: number) {
 		if (value < 1) value = 1;
-		if (this._delay === value) return;
 		this._delay = value;
-		this._lastCount = this._updateInterval = Math.round(60 * value);
 	}
 
 	public get currentCount(): number {
@@ -47,7 +43,6 @@ export class Timer extends EventDispatcher {
 
 	public start(): void {
 		if (this._running) return;
-		this._lastCount = this._updateInterval;
 		this._lastTimeStamp = getTimer();
 		ticker.startTick(this._update, this);
 		this._running = true;
@@ -61,13 +56,7 @@ export class Timer extends EventDispatcher {
 
 	private _update = (timeStamp: number): boolean => {
 		const deltaTime = timeStamp - this._lastTimeStamp;
-		if (deltaTime >= this._delay) {
-			this._lastCount = this._updateInterval;
-		} else {
-			this._lastCount -= 1000;
-			if (this._lastCount > 0) return false;
-			this._lastCount += this._updateInterval;
-		}
+		if (deltaTime < this._delay) return false;
 		this._lastTimeStamp = timeStamp;
 		this._currentCount++;
 		const complete = this.repeatCount > 0 && this._currentCount >= this.repeatCount;

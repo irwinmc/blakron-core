@@ -186,8 +186,8 @@ export class CanvasRenderer {
 		if (bounds.width <= 0 || bounds.height <= 0) return 0;
 
 		// Draw the object into an offscreen buffer
-		const bufferW = Math.ceil(bounds.width - bounds.x);
-		const bufferH = Math.ceil(bounds.height - bounds.y);
+		const bufferW = Math.ceil(bounds.width);
+		const bufferH = Math.ceil(bounds.height);
 		const offscreen = new RenderBuffer(bufferW, bufferH);
 		const offCtx = offscreen.context;
 
@@ -380,6 +380,7 @@ export class CanvasRenderer {
 			}
 			case PathCommandType.EndFill:
 				ctx.fill();
+				ctx.stroke();
 				break;
 			case PathCommandType.LineStyle:
 				ctx.lineWidth = cmd.thickness;
@@ -394,15 +395,12 @@ export class CanvasRenderer {
 				break;
 			case PathCommandType.LineTo:
 				ctx.lineTo(cmd.x, cmd.y);
-				ctx.stroke();
 				break;
 			case PathCommandType.CurveTo:
 				ctx.quadraticCurveTo(cmd.cx, cmd.cy, cmd.ax, cmd.ay);
-				ctx.stroke();
 				break;
 			case PathCommandType.CubicCurveTo:
 				ctx.bezierCurveTo(cmd.cx1, cmd.cy1, cmd.cx2, cmd.cy2, cmd.ax, cmd.ay);
-				ctx.stroke();
 				break;
 			case PathCommandType.DrawRect:
 				ctx.beginPath();

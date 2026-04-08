@@ -379,6 +379,7 @@ export class DisplayObject extends EventDispatcher {
 
 	onRemoveFromStage(): void {
 		this.nestLevel = 0;
+		this.internalStage = undefined;
 	}
 
 	getMatrix(): Matrix {

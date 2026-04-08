@@ -257,8 +257,6 @@ export class DisplayObjectContainer extends DisplayObject {
 					removed.hasAddToStage = false;
 					removed.dispatchEventWith(Event.REMOVED_FROM_STAGE);
 				}
-				removed.hasAddToStage = false;
-				removed.internalStage = undefined;
 			}
 		}
 

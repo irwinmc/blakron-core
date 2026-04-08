@@ -83,6 +83,8 @@ export class Video extends DisplayObject {
 			this._bitmapData = new BitmapData(this._video);
 			this._bitmapData.deleteSource = false;
 		}
+		// Invalidate each access so dependent Bitmaps redraw the current video frame
+		BitmapData.invalidate(this._bitmapData);
 		return this._bitmapData;
 	}
 
@@ -193,7 +195,6 @@ export class Video extends DisplayObject {
 	private onVideoEnded = (): void => {
 		this.dispatchEventWith(Event.ENDED);
 	};
-
 	private onVideoError = (): void => {
 		IOErrorEvent.dispatchIOErrorEvent(this);
 	};
