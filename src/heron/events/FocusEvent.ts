@@ -3,8 +3,8 @@ import { Event } from './Event.js';
 export class FocusEvent extends Event {
 	// ── Static constants ──────────────────────────────────────────────────────
 
-	static readonly FOCUS_IN: 'focusIn' = 'focusIn';
-	static readonly FOCUS_OUT: 'focusOut' = 'focusOut';
+	static readonly FOCUS_IN = 'focusIn';
+	static readonly FOCUS_OUT = 'focusOut';
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 

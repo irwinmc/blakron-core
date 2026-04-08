@@ -1,23 +1,16 @@
 import { Event } from './Event.js';
 import type { IEventDispatcher } from './IEventDispatcher.js';
 
-export class ProgressEvent extends Event {
+export class TextEvent extends Event {
 	// ── Static constants ──────────────────────────────────────────────────────
 
-	static readonly PROGRESS = 'progress';
-	static readonly SOCKET_DATA = 'socketData';
+	static readonly LINK = 'link';
 
 	// ── Static methods ────────────────────────────────────────────────────────
 
-	public static dispatchProgressEvent(
-		target: IEventDispatcher,
-		type: string,
-		bytesLoaded = 0,
-		bytesTotal = 0,
-	): boolean {
-		const event = Event.create(ProgressEvent, type);
-		event.bytesLoaded = bytesLoaded;
-		event.bytesTotal = bytesTotal;
+	public static dispatchTextEvent(target: IEventDispatcher, type: string, text: string): boolean {
+		const event = Event.create(TextEvent, type);
+		event.text = text;
 		const result = target.dispatchEvent(event);
 		Event.release(event);
 		return result;
@@ -25,14 +18,12 @@ export class ProgressEvent extends Event {
 
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	public bytesLoaded: number;
-	public bytesTotal: number;
+	public text: string;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
-	public constructor(type: string, bubbles = false, cancelable = false, bytesLoaded = 0, bytesTotal = 0) {
+	public constructor(type: string, bubbles = false, cancelable = false, text = '') {
 		super(type, bubbles, cancelable);
-		this.bytesLoaded = bytesLoaded;
-		this.bytesTotal = bytesTotal;
+		this.text = text;
 	}
 }

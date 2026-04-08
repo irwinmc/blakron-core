@@ -4,7 +4,7 @@ import type { IEventDispatcher } from './IEventDispatcher.js';
 export class HTTPStatusEvent extends Event {
 	// ── Static constants ──────────────────────────────────────────────────────
 
-	static readonly HTTP_STATUS: 'httpStatus' = 'httpStatus';
+	static readonly HTTP_STATUS = 'httpStatus';
 
 	// ── Static methods ────────────────────────────────────────────────────────
 

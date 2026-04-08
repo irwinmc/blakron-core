@@ -1,38 +1,39 @@
 import { Event } from './Event.js';
 import type { IEventDispatcher } from './IEventDispatcher.js';
 
-export class ProgressEvent extends Event {
+export class TimerEvent extends Event {
 	// ── Static constants ──────────────────────────────────────────────────────
 
-	static readonly PROGRESS = 'progress';
-	static readonly SOCKET_DATA = 'socketData';
+	static readonly TIMER = 'timer';
+	static readonly TIMER_COMPLETE = 'timerComplete';
 
 	// ── Static methods ────────────────────────────────────────────────────────
 
-	public static dispatchProgressEvent(
+	public static dispatchTimerEvent(
 		target: IEventDispatcher,
 		type: string,
-		bytesLoaded = 0,
-		bytesTotal = 0,
+		bubbles?: boolean,
+		cancelable?: boolean,
 	): boolean {
-		const event = Event.create(ProgressEvent, type);
-		event.bytesLoaded = bytesLoaded;
-		event.bytesTotal = bytesTotal;
+		const event = Event.create(TimerEvent, type, bubbles, cancelable);
 		const result = target.dispatchEvent(event);
 		Event.release(event);
 		return result;
 	}
 
-	// ── Instance fields ───────────────────────────────────────────────────────
-
-	public bytesLoaded: number;
-	public bytesTotal: number;
-
 	// ── Constructor ───────────────────────────────────────────────────────────
 
-	public constructor(type: string, bubbles = false, cancelable = false, bytesLoaded = 0, bytesTotal = 0) {
+	public constructor(type: string, bubbles?: boolean, cancelable?: boolean) {
 		super(type, bubbles, cancelable);
-		this.bytesLoaded = bytesLoaded;
-		this.bytesTotal = bytesTotal;
+	}
+
+	// ── Public methods ────────────────────────────────────────────────────────
+
+	/**
+	 * Requests an immediate re-render after this event is processed.
+	 * Full implementation requires the player/runtime layer.
+	 */
+	public updateAfterEvent(): void {
+		// TODO: set sys.$requestRenderingFlag when player layer is implemented
 	}
 }

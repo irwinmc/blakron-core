@@ -4,4 +4,9 @@ export type { IEventDispatcher as IHeronEventDispatcher } from './IEventDispatch
 export { EventDispatcher as HeronEventDispatcher } from './EventDispatcher.js';
 export { FocusEvent as HeronFocusEvent } from './FocusEvent.js';
 export { HTTPStatusEvent as HeronHTTPStatusEvent } from './HTTPStatusEvent.js';
+export { IOErrorEvent as HeronIOErrorEvent } from './IOErrorEvent.js';
 export { ProgressEvent as HeronProgressEvent } from './ProgressEvent.js';
+export { StageOrientationEvent as HeronStageOrientationEvent } from './StageOrientationEvent.js';
+export { TextEvent as HeronTextEvent } from './TextEvent.js';
+export { TimerEvent as HeronTimerEvent } from './TimerEvent.js';
+export { TouchEvent as HeronTouchEvent } from './TouchEvent.js';
