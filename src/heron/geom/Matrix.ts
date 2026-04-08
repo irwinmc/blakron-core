@@ -320,10 +320,10 @@ export class Matrix extends HashObject {
 		}
 		const sx = skewX / DEG_TO_RAD,
 			sy = skewY / DEG_TO_RAD;
-		const u = Math.cos(sx),
-			v = Math.sin(sx);
-		this.a = skewX === skewY ? u * scaleX : Math.cos(sy) * scaleX;
-		this.b = skewX === skewY ? v * scaleX : Math.sin(sy) * scaleX;
+		const u = NumberUtils.cos(sx),
+			v = NumberUtils.sin(sx);
+		this.a = skewX === skewY ? u * scaleX : NumberUtils.cos(sy) * scaleX;
+		this.b = skewX === skewY ? v * scaleX : NumberUtils.sin(sy) * scaleX;
 		this.c = -v * scaleY;
 		this.d = u * scaleY;
 	}
