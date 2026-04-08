@@ -1,0 +1,45 @@
+{
+	"name": "@heron/core",
+	"version": "0.1.0",
+	"description": "Egret Next",
+	"author": "",
+	"license": "MIT",
+	"type": "module",
+	"main": ".dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist/**/*",
+		"types/**/*"
+	],
+	"scripts": {
+		"build": "tsc --build && npm run build:types",
+		"build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
+		"dev": "tsc --watch",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"typescript": "^5.6.0",
+		"@types/node": "^22.0.0"
+	},
+	"keywords": [
+		"heron",
+		"h5-game",
+		"webgl",
+		"webgpu",
+		"typescript"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/irwinmc/Heron.git"
+	},
+	"packageManager": "pnpm@10.33.0"
+}
