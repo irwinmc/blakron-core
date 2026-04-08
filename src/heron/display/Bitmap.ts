@@ -5,6 +5,13 @@ import { Texture } from './texture/Texture.js';
 import { BitmapFillMode } from './enums/BitmapFillMode.js';
 import type { Stage } from './Stage.js';
 
+/** @internal Injected by CanvasRenderer to avoid circular dependency. */
+export let bitmapPixelHitTest: ((bitmap: Bitmap, localX: number, localY: number) => boolean) | undefined;
+
+export function setBitmapPixelHitTest(fn: (bitmap: Bitmap, localX: number, localY: number) => boolean): void {
+	bitmapPixelHitTest = fn;
+}
+
 export class Bitmap extends DisplayObject {
 	// ── Static fields ─────────────────────────────────────────────────────────
 
@@ -128,11 +135,11 @@ export class Bitmap extends DisplayObject {
 
 	override hitTest(stageX: number, stageY: number): DisplayObject | undefined {
 		const target = super.hitTest(stageX, stageY);
-		if (target && this._pixelHitTest) {
-			// Pixel-perfect hit test requires renderer
-			// TODO: implement when renderer layer is available
-		}
-		return target;
+		if (!target || !this._pixelHitTest) return target;
+		const m = this.getInvertedConcatenatedMatrix();
+		const localX = m.a * stageX + m.c * stageY + m.tx;
+		const localY = m.b * stageX + m.d * stageY + m.ty;
+		return bitmapPixelHitTest?.(this, localX, localY) === false ? undefined : target;
 	}
 
 	// ── Private methods ───────────────────────────────────────────────────────

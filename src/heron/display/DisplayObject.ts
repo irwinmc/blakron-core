@@ -6,7 +6,7 @@ import { blendModeToNumber, numberToBlendMode } from './enums/index.js';
 import type { Filter } from '../filters/index.js';
 import type { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import type { Stage } from './Stage.js';
-import type { DisplayList } from '../player/DisplayList.js';
+import { DisplayList } from '../player/DisplayList.js';
 
 function clampRotation(value: number): number {
 	value %= 360;
@@ -533,9 +533,21 @@ export class DisplayObject extends EventDispatcher {
 		this.markDirty();
 	}
 
-	setHasDisplayList(_value: boolean): void {
-		// DisplayList creation/destruction is handled by the renderer on next frame.
-		// The renderer checks internalCacheAsBitmap and manages displayList accordingly.
+	setHasDisplayList(value: boolean): void {
+		const hasDisplayList = !!this.displayList;
+		if (hasDisplayList === value) return;
+		if (value) {
+			const dl = DisplayList.create(this);
+			if (dl) {
+				this.displayList = dl;
+				this.cacheDirty = true;
+			}
+		} else {
+			if (this.displayList) {
+				DisplayList.release(this.displayList);
+				this.displayList = undefined;
+			}
+		}
 		this.markDirty();
 	}
 

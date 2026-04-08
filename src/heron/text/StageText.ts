@@ -1,5 +1,4 @@
 import { EventDispatcher } from '../events/EventDispatcher.js';
-import { Event } from '../events/Event.js';
 import type { TextField } from './TextField.js';
 
 /**
@@ -69,28 +68,54 @@ export class StageText extends EventDispatcher {
 		const tf = this._textField;
 		const el = this._inputElement;
 
+		// ── Font styles ───────────────────────────────────────────────────────
+		// Scale font size by the canvas CSS scale so the input text matches
+		// the rendered text size exactly.
+		const scaleY = this.getCanvasScaleY();
 		el.style.fontFamily = tf.fontFamily;
-		el.style.fontSize = tf.size + 'px';
+		el.style.fontSize = tf.size * scaleY + 'px';
 		el.style.fontWeight = tf.bold ? 'bold' : 'normal';
 		el.style.fontStyle = tf.italic ? 'italic' : 'normal';
 		el.style.textAlign = tf.textAlign;
+		el.style.color = this.colorString(tf.textColor);
 
 		if (el instanceof HTMLInputElement) {
 			el.type = tf.inputType;
 			el.maxLength = tf.maxChars > 0 ? tf.maxChars : -1;
 		}
+
+		// ── Position ──────────────────────────────────────────────────────────
+		// Convert TextField's local origin to stage (global) coords, then to
+		// CSS pixels using the canvas bounding rect.
+		const globalPos = tf.localToGlobal(0, 0);
+		const canvas = this.getCanvas();
+		if (canvas) {
+			const rect = canvas.getBoundingClientRect();
+			// canvas.width is the logical pixel size; rect.width is the CSS size
+			const cssScaleX = rect.width / (canvas.width || 1);
+			const cssScaleY = rect.height / (canvas.height || 1);
+			el.style.left = rect.left + globalPos.x * cssScaleX + 'px';
+			el.style.top = rect.top + globalPos.y * cssScaleY + 'px';
+			el.style.width = tf.width * cssScaleX + 'px';
+			el.style.height = tf.height * cssScaleY + 'px';
+		} else {
+			el.style.left = globalPos.x + 'px';
+			el.style.top = globalPos.y + 'px';
+			el.style.width = tf.width + 'px';
+			el.style.height = tf.height + 'px';
+		}
 	}
+
+	// ── Private ───────────────────────────────────────────────────────────────
 
 	private createInput(): void {
 		if (this._inputElement) return;
 		if (!this._textField) return;
 
 		const tf = this._textField;
-		const isMultiline = tf.multiline;
+		const el = tf.multiline ? document.createElement('textarea') : document.createElement('input');
 
-		const el = isMultiline ? document.createElement('textarea') : document.createElement('input');
-
-		el.style.position = 'absolute';
+		el.style.position = 'fixed';
 		el.style.outline = 'none';
 		el.style.border = 'none';
 		el.style.background = 'transparent';
@@ -98,27 +123,41 @@ export class StageText extends EventDispatcher {
 		el.style.margin = '0';
 		el.style.display = 'none';
 		el.style.zIndex = '10000';
+		el.style.boxSizing = 'border-box';
 		el.value = this._text;
 
 		el.addEventListener('input', () => {
 			this._text = el.value;
 			this.dispatchEventWith('updateText');
 		});
+		el.addEventListener('focus', () => this.dispatchEventWith('focus'));
+		el.addEventListener('blur', () => this.dispatchEventWith('blur'));
 
-		el.addEventListener('focus', () => {
-			this.dispatchEventWith('focus');
-		});
-
-		el.addEventListener('blur', () => {
-			this.dispatchEventWith('blur');
-		});
-
-		// Append to canvas parent or body
-		const canvas = tf.stage ? document.querySelector('canvas') : undefined;
-		const container = canvas?.parentElement ?? document.body;
-		container.appendChild(el);
+		document.body.appendChild(el);
 		this._inputElement = el;
 
 		this.resetStageText();
+	}
+
+	private getCanvas(): HTMLCanvasElement | undefined {
+		const stage = this._textField?.stage;
+		if (!stage) return undefined;
+		// Walk up from the stage's canvas — ScreenAdapter sets canvas.width/height
+		// We find the canvas by querying the document
+		return (document.querySelector('canvas') as HTMLCanvasElement | undefined) ?? undefined;
+	}
+
+	private getCanvasScaleY(): number {
+		const canvas = this.getCanvas();
+		if (!canvas) return 1;
+		const rect = canvas.getBoundingClientRect();
+		return rect.height / (canvas.height || 1);
+	}
+
+	private colorString(color: number): string {
+		const r = (color >> 16) & 0xff;
+		const g = (color >> 8) & 0xff;
+		const b = color & 0xff;
+		return `rgb(${r},${g},${b})`;
 	}
 }

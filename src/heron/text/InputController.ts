@@ -137,14 +137,14 @@ export class InputController {
 		const restrictAnd = this._text.restrictAnd;
 		const restrictNot = this._text.restrictNot;
 		if (restrictAnd !== undefined) {
+			// Whitelist: keep only characters matching the pattern
 			const reg = new RegExp('[' + restrictAnd + ']', 'g');
 			const result = textValue.match(reg);
 			textValue = result ? result.join('') : '';
 		}
 		if (restrictNot !== undefined) {
-			const reg = new RegExp('[^' + restrictNot + ']', 'g');
-			const result = textValue.match(reg);
-			textValue = result ? result.join('') : '';
+			// Blacklist: remove characters matching the pattern
+			textValue = textValue.replace(new RegExp('[' + restrictNot + ']', 'g'), '');
 		}
 		if (this.stageText.getText() !== textValue) {
 			this.stageText.setText(textValue);

@@ -58,10 +58,21 @@ export class BitmapFont extends SpriteSheet {
 
 	private _parseConfig(fntText: string): Record<string, CharConfig> {
 		const lines = fntText.replace(/\r\n/g, '\n').split('\n');
-		const charsCount = this._getConfigByKey(lines[3], 'count');
+		// Find the "chars count=N" line dynamically instead of assuming line index
+		let charsCount = 0;
+		let charsStartLine = -1;
+		for (let i = 0; i < lines.length; i++) {
+			if (lines[i].startsWith('chars ')) {
+				charsCount = this._getConfigByKey(lines[i], 'count');
+				charsStartLine = i + 1;
+				break;
+			}
+		}
+		if (charsStartLine < 0) return {};
 		const chars: Record<string, CharConfig> = {};
-		for (let i = 4; i < 4 + charsCount; i++) {
+		for (let i = charsStartLine; i < charsStartLine + charsCount && i < lines.length; i++) {
 			const line = lines[i];
+			if (!line.startsWith('char ')) continue;
 			const letter = String.fromCharCode(this._getConfigByKey(line, 'id'));
 			chars[letter] = {
 				x: this._getConfigByKey(line, 'x'),

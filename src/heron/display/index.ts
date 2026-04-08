@@ -15,7 +15,7 @@ export { BitmapData, CompressedTextureData } from './texture/BitmapData.js';
 export { Texture, textureScaleFactor } from './texture/Texture.js';
 export { RenderTexture } from './texture/RenderTexture.js';
 export { SpriteSheet } from './texture/SpriteSheet.js';
-export { Bitmap } from './Bitmap.js';
+export { Bitmap, setBitmapPixelHitTest } from './Bitmap.js';
 export { Mesh } from './Mesh.js';
 export type { GraphicsCommand } from './GraphicsPath.js';
 export { PathCommandType } from './GraphicsPath.js';

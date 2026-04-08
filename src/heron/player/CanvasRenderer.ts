@@ -9,10 +9,10 @@ import {
 	PathCommandType,
 	type GraphicsCommand,
 	setGraphicsHitTest,
+	setBitmapPixelHitTest,
 } from '../display/index.js';
 import { Matrix } from '../geom/index.js';
 import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
-import { DisplayList } from './DisplayList.js';
 import { BlurFilter, ColorMatrixFilter, GlowFilter, DropShadowFilter } from '../filters/index.js';
 
 const CAPS_MAP: Record<string, CanvasLineCap> = { none: 'butt', square: 'square', round: 'round' };
@@ -68,6 +68,16 @@ export class CanvasRenderer {
 		forHitTest = false,
 	): void {
 		this.renderGraphics(graphics, ctx, offsetX, offsetY, forHitTest);
+	}
+
+	/** @internal Used by Bitmap pixel hit test. */
+	public renderBitmapToContext(
+		bitmap: Bitmap,
+		ctx: CanvasRenderingContext2D,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		this.renderBitmap(bitmap, ctx, offsetX, offsetY);
 	}
 	// ── Private: tree traversal ───────────────────────────────────────────────
 
@@ -724,6 +734,23 @@ setGraphicsHitTest((graphics: Graphics, localX: number, localY: number): boolean
 	// Translate so localX/Y maps to pixel (1,1) in the 3×3 buffer
 	ctx.setTransform(1, 0, 0, 1, 1 - localX, 1 - localY);
 	_hitRenderer.renderGraphicsToContext(graphics, ctx, 0, 0, true);
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	try {
+		return buf.getPixels(1, 1)[3] !== 0;
+	} catch {
+		return false;
+	}
+});
+
+// ── Bitmap pixel-perfect hit test ────────────────────────────────────────────
+// Renders the Bitmap into the shared 3×3 buffer at the test point and reads alpha.
+
+setBitmapPixelHitTest((bitmap: Bitmap, localX: number, localY: number): boolean => {
+	const buf = hitTestBuffer;
+	buf.clear();
+	const ctx = buf.context;
+	ctx.setTransform(1, 0, 0, 1, 1 - localX, 1 - localY);
+	_hitRenderer.renderBitmapToContext(bitmap, ctx, 0, 0);
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	try {
 		return buf.getPixels(1, 1)[3] !== 0;
