@@ -5,7 +5,7 @@ import { Matrix } from '../geom/Matrix.js';
 import { Point } from '../geom/Point.js';
 import { Rectangle } from '../geom/Rectangle.js';
 import { sharedMatrix, sharedRectangle } from '../geom/index.js';
-import { blendModeToNumber, numberToBlendMode } from './BlendMode.js';
+import { blendModeToNumber, numberToBlendMode } from './enums/BlendMode.js';
 import type { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import type { Stage } from './Stage.js';
 

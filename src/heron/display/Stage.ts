@@ -1,7 +1,7 @@
 import { Event } from '../events/Event.js';
 import { DisplayObjectContainer } from './DisplayObjectContainer.js';
-import { OrientationMode } from './OrientationMode.js';
-import { StageScaleMode } from './StageScaleMode.js';
+import { OrientationMode } from './enums/OrientationMode.js';
+import { StageScaleMode } from './enums/StageScaleMode.js';
 
 export class Stage extends DisplayObjectContainer {
 	// ── Instance fields ───────────────────────────────────────────────────────
