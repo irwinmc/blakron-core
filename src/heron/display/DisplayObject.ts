@@ -682,7 +682,7 @@ export class DisplayObject extends EventDispatcher {
 		this.markDirty();
 	}
 
-	private markDirty(): void {
+	markDirty(): void {
 		const p = this.internalParent;
 		if (p && !p.cacheDirty) {
 			p.cacheDirty = true;
