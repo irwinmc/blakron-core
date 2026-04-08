@@ -6,5 +6,6 @@ export * from './heron/net/index.js';
 export * from './heron/filters/index.js';
 export * from './heron/media/index.js';
 export * from './heron/player/index.js';
+export * from './heron/text/index.js';
 export * as localStorage from './heron/localStorage/localStorage.js';
 export { ExternalInterface } from './heron/external/ExternalInterface.js';
