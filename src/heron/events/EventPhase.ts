@@ -1,2 +1,5 @@
-// This file intentionally left as a script that contributes to the `heron` namespace.
-// All event types are defined in ./Event.ts
+export const enum EventPhase {
+	CAPTURING_PHASE = 1,
+	AT_TARGET = 2,
+	BUBBLING_PHASE = 3,
+}
