@@ -14,10 +14,14 @@ interface EventBin {
 const ONCE_LIST: EventBin[] = [];
 
 export class EventDispatcher extends HashObject implements IEventDispatcher {
+	// ── Instance fields ───────────────────────────────────────────────────────
+
 	private _target: IEventDispatcher;
 	private _listeners: Map<string, EventBin[]>;
 	private _captureListeners: Map<string, EventBin[]>;
 	private _notifyLevel = 0;
+
+	// ── Constructor ───────────────────────────────────────────────────────────
 
 	public constructor(target?: IEventDispatcher) {
 		super();
@@ -26,9 +30,7 @@ export class EventDispatcher extends HashObject implements IEventDispatcher {
 		this._captureListeners = new Map();
 	}
 
-	private getMap(useCapture?: boolean): Map<string, EventBin[]> {
-		return useCapture ? this._captureListeners : this._listeners;
-	}
+	// ── Public methods ────────────────────────────────────────────────────────
 
 	public addEventListener(
 		type: string,
@@ -75,6 +77,12 @@ export class EventDispatcher extends HashObject implements IEventDispatcher {
 		const result = this.dispatchEvent(event);
 		Event.release(event);
 		return result;
+	}
+
+	// ── Private methods ───────────────────────────────────────────────────────
+
+	private getMap(useCapture?: boolean): Map<string, EventBin[]> {
+		return useCapture ? this._captureListeners : this._listeners;
 	}
 
 	private addListener(

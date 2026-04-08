@@ -2,7 +2,22 @@ import { HashObject } from '../utils/HashObject.js';
 import { EventPhase } from './EventPhase.js';
 import type { IEventDispatcher } from './IEventDispatcher.js';
 
+type EventConstructor<T extends Event> = new (type: string, bubbles?: boolean, cancelable?: boolean) => T;
+
+const eventPools = new WeakMap<EventConstructor<Event>, Event[]>();
+
+function getPool<T extends Event>(EventClass: EventConstructor<T>): T[] {
+	let pool = eventPools.get(EventClass) as T[] | undefined;
+	if (!pool) {
+		pool = [];
+		eventPools.set(EventClass, pool);
+	}
+	return pool;
+}
+
 export class Event extends HashObject {
+	// ── Static constants ──────────────────────────────────────────────────────
+
 	static readonly ADDED_TO_STAGE = 'addedToStage';
 	static readonly REMOVED_FROM_STAGE = 'removedFromStage';
 	static readonly ADDED = 'added';
@@ -24,7 +39,37 @@ export class Event extends HashObject {
 	static readonly LEAVE_STAGE = 'leaveStage';
 	static readonly SOUND_COMPLETE = 'soundComplete';
 
-	public static _pool: Event[] = [];
+	// ── Static methods ────────────────────────────────────────────────────────
+
+	public static create<T extends Event>(
+		EventClass: EventConstructor<T>,
+		type: string,
+		bubbles?: boolean,
+		cancelable?: boolean,
+	): T {
+		const pool = getPool(EventClass);
+		if (pool.length) {
+			const event = pool.pop() as T;
+			event.resetForPool(type, bubbles, cancelable);
+			return event;
+		}
+		return new EventClass(type, bubbles, cancelable);
+	}
+
+	public static release(event: Event): void {
+		event.clean();
+		getPool(event.constructor as EventConstructor<Event>).push(event);
+	}
+
+	public static dispatch(target: IEventDispatcher, type: string, bubbles = false, data?: unknown): boolean {
+		const event = Event.create(Event, type, bubbles);
+		event.data = data;
+		const result = target.dispatchEvent(event);
+		Event.release(event);
+		return result;
+	}
+
+	// ── Instance fields ───────────────────────────────────────────────────────
 
 	public data: unknown;
 
@@ -38,6 +83,8 @@ export class Event extends HashObject {
 	private _isPropagationStopped = false;
 	private _isPropagationImmediateStopped = false;
 
+	// ── Constructor ───────────────────────────────────────────────────────────
+
 	public constructor(type: string, bubbles?: boolean, cancelable?: boolean, data?: unknown) {
 		super();
 		this._type = type;
@@ -46,30 +93,41 @@ export class Event extends HashObject {
 		this.data = data;
 	}
 
+	// ── Getters ───────────────────────────────────────────────────────────────
+
 	public get type(): string {
 		return this._type;
 	}
+
 	public get bubbles(): boolean {
 		return this._bubbles;
 	}
+
 	public get cancelable(): boolean {
 		return this._cancelable;
 	}
+
 	public get eventPhase(): number {
 		return this._eventPhase;
 	}
+
 	public get currentTarget(): IEventDispatcher | undefined {
 		return this._currentTarget;
 	}
+
 	public get target(): IEventDispatcher | undefined {
 		return this._target;
 	}
+
 	public get isPropagationStopped(): boolean {
 		return this._isPropagationStopped;
 	}
+
 	public get isPropagationImmediateStopped(): boolean {
 		return this._isPropagationImmediateStopped;
 	}
+
+	// ── Public methods ────────────────────────────────────────────────────────
 
 	public isDefaultPrevented(): boolean {
 		return this._isDefaultPrevented;
@@ -86,6 +144,8 @@ export class Event extends HashObject {
 	public stopImmediatePropagation(): void {
 		this._isPropagationImmediateStopped = true;
 	}
+
+	// ── Internal methods (used by EventDispatcher) ────────────────────────────
 
 	setDispatchContext(target: IEventDispatcher, phase: number): void {
 		this._target = target;
@@ -109,37 +169,11 @@ export class Event extends HashObject {
 		this._target = undefined;
 	}
 
+	// ── Protected methods ─────────────────────────────────────────────────────
+
 	protected clean(): void {
 		this.data = undefined;
 		this._currentTarget = undefined;
 		this._target = undefined;
-	}
-
-	public static create<T extends Event>(
-		EventClass: (new (type: string, bubbles?: boolean, cancelable?: boolean) => T) & { _pool: Event[] },
-		type: string,
-		bubbles?: boolean,
-		cancelable?: boolean,
-	): T {
-		const pool = EventClass._pool;
-		if (pool.length) {
-			const event = pool.pop() as T;
-			event.resetForPool(type, bubbles, cancelable);
-			return event;
-		}
-		return new EventClass(type, bubbles, cancelable);
-	}
-
-	public static release(event: Event): void {
-		event.clean();
-		(event.constructor as typeof Event)._pool.push(event);
-	}
-
-	public static dispatch(target: IEventDispatcher, type: string, bubbles = false, data?: unknown): boolean {
-		const event = Event.create(Event, type, bubbles);
-		event.data = data;
-		const result = target.dispatchEvent(event);
-		Event.release(event);
-		return result;
 	}
 }
