@@ -95,4 +95,4 @@ export class Point extends HashObject {
 }
 
 /** @internal Reusable temp instance for framework internals — do not hold references. */
-export const $TempPoint: Point = new Point();
+export const sharedPoint: Point = new Point();

@@ -1,3 +1,3 @@
-export { Point, $TempPoint } from './Point.js';
-export { Rectangle, $TempRectangle } from './Rectangle.js';
-export { Matrix, $TempMatrix } from './Matrix.js';
+export { Point, sharedPoint } from './Point.js';
+export { Rectangle, sharedRectangle } from './Rectangle.js';
+export { Matrix, sharedMatrix } from './Matrix.js';

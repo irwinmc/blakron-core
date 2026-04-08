@@ -218,4 +218,4 @@ export class Rectangle extends HashObject {
 }
 
 /** @internal Reusable temp instance for framework internals — do not hold references. */
-export const $TempRectangle: Rectangle = new Rectangle();
+export const sharedRectangle: Rectangle = new Rectangle();

@@ -360,4 +360,4 @@ export class Matrix extends HashObject {
 }
 
 /** @internal Reusable temp instance for framework internals — do not hold references. */
-export const $TempMatrix: Matrix = new Matrix();
+export const sharedMatrix: Matrix = new Matrix();
