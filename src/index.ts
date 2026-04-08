@@ -1,2 +1,3 @@
 export * from './heron/events/index.js';
-export * from './heron/utils/HashObject.js';
+export * from './heron/geom/index.js';
+export * from './heron/utils/index.js';
