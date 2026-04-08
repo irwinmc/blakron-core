@@ -1,4 +1,4 @@
-import { HashObject } from '../utils/HashObject.js';
+import { HashObject } from '../utils/index.js';
 import { EventPhase } from './EventPhase.js';
 import type { IEventDispatcher } from './IEventDispatcher.js';
 

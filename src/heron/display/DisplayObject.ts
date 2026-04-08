@@ -1,11 +1,9 @@
 import { EventDispatcher } from '../events/EventDispatcher.js';
 import { Event } from '../events/Event.js';
 import { EventPhase } from '../events/EventPhase.js';
-import { Matrix } from '../geom/Matrix.js';
-import { Point } from '../geom/Point.js';
-import { Rectangle } from '../geom/Rectangle.js';
-import { sharedMatrix, sharedRectangle } from '../geom/index.js';
-import { blendModeToNumber, numberToBlendMode } from './enums/BlendMode.js';
+import { Matrix, Point, Rectangle, sharedMatrix, sharedRectangle } from '../geom/index.js';
+import { blendModeToNumber, numberToBlendMode } from './enums/index.js';
+import type { Filter } from '../filters/index.js';
 import type { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import type { Stage } from './Stage.js';
 
@@ -60,8 +58,7 @@ export class DisplayObject extends EventDispatcher {
 	/** @internal */ internalMask: DisplayObject | undefined = undefined;
 	/** @internal */ internalMaskRect: Rectangle | undefined = undefined;
 	/** @internal */ internalCacheAsBitmap = false;
-
-	// TODO: internalFilters: Filter[] — add when Filter/CustomFilter classes are implemented
+	/** @internal */ internalFilters: Filter[] = [];
 
 	private _name = '';
 	private _matrix: Matrix = new Matrix();
@@ -206,6 +203,15 @@ export class DisplayObject extends EventDispatcher {
 	public set cacheAsBitmap(value: boolean) {
 		this.internalCacheAsBitmap = value;
 		this.setHasDisplayList(value);
+	}
+
+	public get filters(): Filter[] {
+		return this.internalFilters;
+	}
+	public set filters(value: Filter[]) {
+		this.internalFilters = value ? [...value] : [];
+		this.updateRenderMode();
+		this.markDirty();
 	}
 
 	public get alpha(): number {
@@ -547,9 +553,8 @@ export class DisplayObject extends EventDispatcher {
 	updateRenderMode(): void {
 		if (!this.internalVisible || this.internalAlpha <= 0 || this.maskedObject) {
 			this.renderMode = RenderMode.NONE;
-			// TODO: add RenderMode.FILTER when Filter is implemented
-			// } else if (this.internalFilters?.length) {
-			// 	this.renderMode = RenderMode.FILTER;
+		} else if (this.internalFilters.length > 0) {
+			this.renderMode = RenderMode.FILTER;
 		} else if (this.internalBlendMode !== 0 || (this.internalMask && this.internalMask.internalStage)) {
 			this.renderMode = RenderMode.CLIP;
 		} else if (this.internalScrollRect || this.internalMaskRect) {

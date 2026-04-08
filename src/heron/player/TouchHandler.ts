@@ -1,5 +1,4 @@
-import { Stage } from '../display/Stage.js';
-import { DisplayObject } from '../display/DisplayObject.js';
+import { Stage, DisplayObject } from '../display/index.js';
 import { TouchEvent } from '../events/TouchEvent.js';
 
 /**

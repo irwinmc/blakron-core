@@ -1,8 +1,7 @@
-import { DisplayObject } from '../display/DisplayObject.js';
+import { DisplayObject, BitmapData } from '../display/index.js';
 import { Event } from '../events/Event.js';
 import { IOErrorEvent } from '../events/IOErrorEvent.js';
-import { BitmapData } from '../display/texture/BitmapData.js';
-import { Rectangle } from '../geom/Rectangle.js';
+import { Rectangle } from '../geom/index.js';
 
 export class Video extends DisplayObject {
 	// ── Instance fields ───────────────────────────────────────────────────────

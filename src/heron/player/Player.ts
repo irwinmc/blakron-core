@@ -1,5 +1,4 @@
-import { Stage } from '../display/Stage.js';
-import { DisplayObject } from '../display/DisplayObject.js';
+import { Stage, DisplayObject } from '../display/index.js';
 import { RenderBuffer } from './RenderBuffer.js';
 import { CanvasRenderer } from './CanvasRenderer.js';
 import { ticker, type Renderable } from './SystemTicker.js';

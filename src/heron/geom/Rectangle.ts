@@ -1,4 +1,4 @@
-import { HashObject } from '../utils/HashObject.js';
+import { HashObject } from '../utils/index.js';
 import { Point } from './Point.js';
 
 const rectanglePool: Rectangle[] = [];

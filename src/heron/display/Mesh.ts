@@ -1,4 +1,4 @@
-import { Rectangle } from '../geom/Rectangle.js';
+import { Rectangle } from '../geom/index.js';
 import { Bitmap } from './Bitmap.js';
 import type { Texture } from './texture/Texture.js';
 

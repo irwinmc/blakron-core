@@ -1,7 +1,5 @@
-import { HashObject } from '../utils/HashObject.js';
-import { Matrix } from '../geom/Matrix.js';
-import { Rectangle } from '../geom/Rectangle.js';
-import { Point } from '../geom/Point.js';
+import { HashObject } from '../utils/index.js';
+import { Matrix, Point, Rectangle } from '../geom/index.js';
 import { PathCommandType, type GraphicsCommand } from './GraphicsPath.js';
 import type { DisplayObject } from './DisplayObject.js';
 

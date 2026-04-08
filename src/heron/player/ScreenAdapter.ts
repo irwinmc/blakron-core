@@ -1,5 +1,4 @@
-import { Stage } from '../display/Stage.js';
-import { StageScaleMode } from '../display/enums/StageScaleMode.js';
+import { Stage, StageScaleMode } from '../display/index.js';
 import { Player } from './Player.js';
 import { TouchHandler } from './TouchHandler.js';
 

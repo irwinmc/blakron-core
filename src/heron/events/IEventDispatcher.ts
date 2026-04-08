@@ -1,4 +1,4 @@
-import type { IHashObject } from '../utils/HashObject.js';
+import type { IHashObject } from '../utils/index.js';
 import type { Event } from './Event.js';
 
 export interface IEventDispatcher extends IHashObject {

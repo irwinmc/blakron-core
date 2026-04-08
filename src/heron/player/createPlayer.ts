@@ -1,7 +1,4 @@
-import { Stage } from '../display/Stage.js';
-import { StageScaleMode } from '../display/enums/StageScaleMode.js';
-import { OrientationMode } from '../display/enums/OrientationMode.js';
-import { DisplayObject } from '../display/DisplayObject.js';
+import { Stage, StageScaleMode, OrientationMode, DisplayObject } from '../display/index.js';
 import { Player } from './Player.js';
 import { TouchHandler } from './TouchHandler.js';
 import { ScreenAdapter } from './ScreenAdapter.js';
