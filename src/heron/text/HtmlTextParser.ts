@@ -1,4 +1,4 @@
-import type { ITextElement, ITextStyle } from './ITextElement.js';
+import type { ITextElement, ITextStyle } from './types/ITextElement.js';
 
 const REPLACE_PAIRS: [RegExp, string][] = [
 	[/&lt;/g, '<'],

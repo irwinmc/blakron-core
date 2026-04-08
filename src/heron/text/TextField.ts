@@ -2,11 +2,11 @@ import { DisplayObject } from '../display/DisplayObject.js';
 import type { Stage } from '../display/Stage.js';
 import { Rectangle } from '../geom/index.js';
 import { measureText, getFontString } from './TextMeasurer.js';
-import type { ITextElement, ILineElement, IWTextElement } from './ITextElement.js';
-import { HorizontalAlign } from './HorizontalAlign.js';
-import { VerticalAlign } from './VerticalAlign.js';
-import { TextFieldType } from './TextFieldType.js';
-import { TextFieldInputType } from './TextFieldInputType.js';
+import type { ITextElement, ILineElement, IWTextElement } from './types/ITextElement.js';
+import { HorizontalAlign } from './enums/HorizontalAlign.js';
+import { VerticalAlign } from './enums/VerticalAlign.js';
+import { TextFieldType } from './enums/TextFieldType.js';
+import { TextFieldInputType } from './enums/TextFieldInputType.js';
 import { InputController } from './InputController.js';
 
 /**
