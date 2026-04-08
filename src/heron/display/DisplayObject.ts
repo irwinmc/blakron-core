@@ -302,21 +302,17 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public hitTestPoint(x: number, y: number, shapeFlag?: boolean): boolean {
-		if (!shapeFlag) {
-			if (this._scaleX === 0 || this._scaleY === 0) return false;
-			const m = this.getInvertedConcatenatedMatrix();
-			const bounds = this.getBounds(undefined, false);
-			const localX = m.a * x + m.c * y + m.tx;
-			const localY = m.b * x + m.d * y + m.ty;
-			if (bounds.contains(localX, localY)) {
-				const rect = this.internalScrollRect ?? this.internalMaskRect;
-				if (rect && !rect.contains(localX, localY)) return false;
-				return true;
-			}
-			return false;
-		}
-		// Pixel-perfect hit test requires renderer — delegate to subclass or renderer
-		return false;
+		if (this._scaleX === 0 || this._scaleY === 0) return false;
+		const m = this.getInvertedConcatenatedMatrix();
+		const bounds = this.getBounds(undefined, false);
+		const localX = m.a * x + m.c * y + m.tx;
+		const localY = m.b * x + m.d * y + m.ty;
+		if (!bounds.contains(localX, localY)) return false;
+		const rect = this.internalScrollRect ?? this.internalMaskRect;
+		if (rect && !rect.contains(localX, localY)) return false;
+		if (!shapeFlag) return true;
+		// Pixel-perfect: delegate to hitTest which Shape/Sprite override
+		return this.hitTest(x, y) !== undefined;
 	}
 
 	public sortChildren(): void {

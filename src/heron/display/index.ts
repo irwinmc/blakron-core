@@ -8,7 +8,7 @@ export { StageScaleMode } from './enums/StageScaleMode.js';
 export { DisplayObject, RenderMode } from './DisplayObject.js';
 export { DisplayObjectContainer } from './DisplayObjectContainer.js';
 export { Stage } from './Stage.js';
-export { Graphics } from './Graphics.js';
+export { Graphics, setGraphicsHitTest } from './Graphics.js';
 export { Shape } from './Shape.js';
 export { Sprite } from './Sprite.js';
 export { BitmapData, CompressedTextureData } from './texture/BitmapData.js';

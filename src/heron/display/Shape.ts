@@ -31,9 +31,11 @@ export class Shape extends DisplayObject {
 	override hitTest(stageX: number, stageY: number): DisplayObject | undefined {
 		const target = super.hitTest(stageX, stageY);
 		if (target !== this) return target;
-		// Pixel-perfect hit test for graphics requires renderer
-		// For now fall back to bounds-based test from super
-		return target;
+		// Pixel-perfect: transform stage coords to local space and test against graphics
+		const m = this.getInvertedConcatenatedMatrix();
+		const localX = m.a * stageX + m.c * stageY + m.tx;
+		const localY = m.b * stageX + m.d * stageY + m.ty;
+		return this._graphics.hitTest(localX, localY) ? this : undefined;
 	}
 
 	override onRemoveFromStage(): void {

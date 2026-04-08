@@ -8,9 +8,10 @@ import {
 	Graphics,
 	PathCommandType,
 	type GraphicsCommand,
+	setGraphicsHitTest,
 } from '../display/index.js';
 import { Matrix } from '../geom/index.js';
-import { RenderBuffer } from './RenderBuffer.js';
+import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 import { DisplayList } from './DisplayList.js';
 import { BlurFilter, ColorMatrixFilter, GlowFilter, DropShadowFilter } from '../filters/index.js';
 
@@ -64,8 +65,9 @@ export class CanvasRenderer {
 		ctx: CanvasRenderingContext2D,
 		offsetX: number,
 		offsetY: number,
+		forHitTest = false,
 	): void {
-		this.renderGraphics(graphics, ctx, offsetX, offsetY);
+		this.renderGraphics(graphics, ctx, offsetX, offsetY, forHitTest);
 	}
 	// ── Private: tree traversal ───────────────────────────────────────────────
 
@@ -345,6 +347,7 @@ export class CanvasRenderer {
 		ctx: CanvasRenderingContext2D,
 		offsetX: number,
 		offsetY: number,
+		forHitTest = false,
 	): number {
 		if (graphics.commands.length === 0) return 0;
 
@@ -352,20 +355,27 @@ export class CanvasRenderer {
 		ctx.translate(offsetX, offsetY);
 
 		for (const cmd of graphics.commands) {
-			this.executeGraphicsCommand(cmd, ctx);
+			this.executeGraphicsCommand(cmd, ctx, forHitTest);
 		}
 
 		ctx.restore();
 		return 1;
 	}
 
-	private executeGraphicsCommand(cmd: GraphicsCommand, ctx: CanvasRenderingContext2D): void {
+	private executeGraphicsCommand(cmd: GraphicsCommand, ctx: CanvasRenderingContext2D, forHitTest = false): void {
 		switch (cmd.type) {
 			case PathCommandType.BeginFill:
-				ctx.fillStyle = `rgba(${(cmd.color >> 16) & 0xff},${(cmd.color >> 8) & 0xff},${cmd.color & 0xff},${cmd.alpha})`;
+				ctx.fillStyle = forHitTest
+					? '#000'
+					: `rgba(${(cmd.color >> 16) & 0xff},${(cmd.color >> 8) & 0xff},${cmd.color & 0xff},${cmd.alpha})`;
 				ctx.beginPath();
 				break;
 			case PathCommandType.BeginGradientFill: {
+				if (forHitTest) {
+					ctx.fillStyle = '#000';
+					ctx.beginPath();
+					break;
+				}
 				let gradient: CanvasGradient;
 				if (cmd.gradientType === 'radial') {
 					gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
@@ -393,7 +403,9 @@ export class CanvasRenderer {
 				break;
 			case PathCommandType.LineStyle:
 				ctx.lineWidth = cmd.thickness;
-				ctx.strokeStyle = `rgba(${(cmd.color >> 16) & 0xff},${(cmd.color >> 8) & 0xff},${cmd.color & 0xff},${cmd.alpha})`;
+				ctx.strokeStyle = forHitTest
+					? '#000'
+					: `rgba(${(cmd.color >> 16) & 0xff},${(cmd.color >> 8) & 0xff},${cmd.color & 0xff},${cmd.alpha})`;
 				ctx.lineCap = CAPS_MAP[cmd.caps ?? 'none'] ?? 'butt';
 				ctx.lineJoin = (cmd.joints ?? 'round') as CanvasLineJoin;
 				ctx.miterLimit = cmd.miterLimit;
@@ -697,3 +709,25 @@ function applyDropShadow(data: Uint8ClampedArray, w: number, h: number, filter: 
 		}
 	}
 }
+
+// ── Graphics pixel-perfect hit test ──────────────────────────────────────────
+// Registered here to avoid circular dependency between display/ and player/.
+// Uses the shared 3×3 hitTestBuffer: translate so the test point lands at (1,1),
+// render with forHitTest=true (all shapes drawn as opaque black), then read alpha.
+
+const _hitRenderer = new CanvasRenderer();
+
+setGraphicsHitTest((graphics: Graphics, localX: number, localY: number): boolean => {
+	const buf = hitTestBuffer;
+	buf.clear();
+	const ctx = buf.context;
+	// Translate so localX/Y maps to pixel (1,1) in the 3×3 buffer
+	ctx.setTransform(1, 0, 0, 1, 1 - localX, 1 - localY);
+	_hitRenderer.renderGraphicsToContext(graphics, ctx, 0, 0, true);
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	try {
+		return buf.getPixels(1, 1)[3] !== 0;
+	} catch {
+		return false;
+	}
+});

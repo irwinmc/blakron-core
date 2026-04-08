@@ -2,15 +2,17 @@ import { DisplayObject, BitmapData } from '../display/index.js';
 import { Event } from '../events/Event.js';
 import { IOErrorEvent } from '../events/IOErrorEvent.js';
 import { Rectangle } from '../geom/index.js';
+import { ImageLoader } from '../net/ImageLoader.js';
 
 export class Video extends DisplayObject {
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	public poster = '';
 	public fullscreen = true;
 
 	private _video: HTMLVideoElement;
 	private _src = '';
+	private _poster = '';
+	private _posterData: BitmapData | undefined = undefined;
 	private _loop = false;
 	private _loaded = false;
 	private _bitmapData: BitmapData | undefined = undefined;
@@ -19,6 +21,7 @@ export class Video extends DisplayObject {
 	private _waiting = false;
 	private _userPause = false;
 	private _userPlay = false;
+	private _isPlayed = false;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
@@ -26,6 +29,7 @@ export class Video extends DisplayObject {
 		super();
 		this._video = document.createElement('video');
 		this._video.setAttribute('playsinline', '');
+		this._video.setAttribute('webkit-playsinline', 'true');
 		this._video.controls = false;
 
 		this._video.addEventListener('canplaythrough', this.onVideoLoaded);
@@ -53,6 +57,15 @@ export class Video extends DisplayObject {
 		this._video.src = value;
 	}
 
+	public get poster(): string {
+		return this._poster;
+	}
+	public set poster(value: string) {
+		if (this._poster === value) return;
+		this._poster = value;
+		if (value) this.loadPoster(value);
+	}
+
 	public get volume(): number {
 		return this._video.volume;
 	}
@@ -76,7 +89,7 @@ export class Video extends DisplayObject {
 	}
 
 	public get bitmapData(): BitmapData | undefined {
-		if (!this._video || !this._loaded) return undefined;
+		if (!this._video || !this._loaded) return this._posterData;
 		if (!this._bitmapData) {
 			this._video.width = this._video.videoWidth;
 			this._video.height = this._video.videoHeight;
@@ -124,10 +137,16 @@ export class Video extends DisplayObject {
 			this.once(Event.COMPLETE, () => this.play(startTime, loop));
 			return;
 		}
+		this._isPlayed = true;
 		this._loop = loop;
 		this._video.loop = loop;
 		if (startTime !== undefined) this._video.currentTime = startTime;
-		this.videoPlay();
+
+		if (this.fullscreen) {
+			this.enterFullscreen();
+		} else {
+			this.videoPlay();
+		}
 	}
 
 	public pause(): void {
@@ -148,6 +167,7 @@ export class Video extends DisplayObject {
 		this._video.src = '';
 		this._loaded = false;
 		this._bitmapData = undefined;
+		this._isPlayed = false;
 	}
 
 	// ── Internal methods ──────────────────────────────────────────────────────
@@ -171,9 +191,51 @@ export class Video extends DisplayObject {
 		this._video.play();
 	}
 
+	private enterFullscreen(): void {
+		const video = this._video;
+		// Append to body so fullscreen API works
+		if (!video.parentElement) document.body.appendChild(video);
+
+		const req =
+			(video as unknown as Record<string, unknown>)['requestFullscreen'] ??
+			(video as unknown as Record<string, unknown>)['webkitRequestFullscreen'] ??
+			(video as unknown as Record<string, unknown>)['mozRequestFullScreen'];
+
+		if (typeof req === 'function') {
+			(req as () => void).call(video);
+		}
+
+		this.videoPlay();
+	}
+
+	private exitFullscreen(): void {
+		const doc = document as unknown as Record<string, unknown>;
+		const exit = doc['exitFullscreen'] ?? doc['webkitExitFullscreen'] ?? doc['mozCancelFullScreen'];
+		if (typeof exit === 'function') (exit as () => void).call(document);
+
+		if (this._video.parentElement) {
+			this._video.parentElement.removeChild(this._video);
+		}
+	}
+
+	private loadPoster(url: string): void {
+		const loader = new ImageLoader();
+		loader.once(Event.COMPLETE, () => {
+			if (loader.data) {
+				this._posterData = loader.data;
+				this._posterData.width = this.getPlayWidth() || loader.data.width;
+				this._posterData.height = this.getPlayHeight() || loader.data.height;
+				this.renderDirty = true;
+				this.markDirty();
+			}
+		});
+		loader.load(url);
+	}
+
 	private getPlayWidth(): number {
 		if (!isNaN(this._widthSet)) return this._widthSet;
 		if (this._bitmapData) return this._bitmapData.width;
+		if (this._posterData) return this._posterData.width;
 		if (this._video.videoWidth) return this._video.videoWidth;
 		return 0;
 	}
@@ -181,6 +243,7 @@ export class Video extends DisplayObject {
 	private getPlayHeight(): number {
 		if (!isNaN(this._heightSet)) return this._heightSet;
 		if (this._bitmapData) return this._bitmapData.height;
+		if (this._posterData) return this._posterData.height;
 		if (this._video.videoHeight) return this._video.videoHeight;
 		return 0;
 	}
@@ -193,8 +256,12 @@ export class Video extends DisplayObject {
 	};
 
 	private onVideoEnded = (): void => {
+		this.pause();
+		this._isPlayed = false;
+		if (this.fullscreen) this.exitFullscreen();
 		this.dispatchEventWith(Event.ENDED);
 	};
+
 	private onVideoError = (): void => {
 		IOErrorEvent.dispatchIOErrorEvent(this);
 	};

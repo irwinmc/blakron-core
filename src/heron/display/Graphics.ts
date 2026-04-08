@@ -3,6 +3,13 @@ import { Matrix, Point, Rectangle } from '../geom/index.js';
 import { PathCommandType, type GraphicsCommand } from './GraphicsPath.js';
 import type { DisplayObject } from './DisplayObject.js';
 
+/** @internal Injected by CanvasRenderer at startup to avoid circular dependency. */
+export let graphicsHitTest: ((graphics: Graphics, localX: number, localY: number) => boolean) | undefined;
+
+export function setGraphicsHitTest(fn: (graphics: Graphics, localX: number, localY: number) => boolean): void {
+	graphicsHitTest = fn;
+}
+
 function clampAngle(value: number): number {
 	value %= Math.PI * 2;
 	if (value < 0) value += Math.PI * 2;
@@ -268,6 +275,12 @@ export class Graphics extends HashObject {
 		} else {
 			bounds.setTo(this._minX, this._minY, this._maxX - this._minX, this._maxY - this._minY);
 		}
+	}
+
+	/** @internal Pixel-perfect hit test at the given local coordinates. */
+	hitTest(localX: number, localY: number): boolean {
+		if (!graphicsHitTest || this.commands.length === 0) return false;
+		return graphicsHitTest(this, localX, localY);
 	}
 
 	onRemoveFromStage(): void {
