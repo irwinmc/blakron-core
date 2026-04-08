@@ -36,6 +36,7 @@ export class InputController {
 		this.stageText.addEventListener('focus', this.onFocus);
 		this.stageText.addEventListener('blur', this.onBlur);
 		this._text.addEventListener(TouchEvent.TOUCH_BEGIN, this.onTouchBegin);
+		this._text.addEventListener(TouchEvent.TOUCH_MOVE, this.onTouchMove);
 
 		this._stageTextAdded = true;
 	}
@@ -48,6 +49,7 @@ export class InputController {
 		this.stageText.removeEventListener('focus', this.onFocus);
 		this.stageText.removeEventListener('blur', this.onBlur);
 		this._text.removeEventListener(TouchEvent.TOUCH_BEGIN, this.onTouchBegin);
+		this._text.removeEventListener(TouchEvent.TOUCH_MOVE, this.onTouchMove);
 		this._text.stage?.removeEventListener(TouchEvent.TOUCH_BEGIN, this.onStageDown);
 
 		if (this._isFocus) {
@@ -118,6 +120,10 @@ export class InputController {
 
 	private onTouchBegin = (): void => {
 		this.focus();
+	};
+
+	private onTouchMove = (): void => {
+		this.stageText.hide();
 	};
 
 	private onStageDown = (e: Event): void => {

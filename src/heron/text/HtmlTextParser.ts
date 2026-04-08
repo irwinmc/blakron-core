@@ -105,7 +105,6 @@ export class HtmlTextParser {
 	public parse(htmltext: string): ITextElement[] {
 		this._stack = [];
 		this._result = [];
-
 		let firstIdx = 0;
 		const length = htmltext.length;
 
@@ -141,6 +140,11 @@ export class HtmlTextParser {
 		}
 
 		return this._result;
+	}
+
+	/** @deprecated Use parse() instead. */
+	public parser(htmltext: string): ITextElement[] {
+		return this.parse(htmltext);
 	}
 
 	private addText(value: string): void {

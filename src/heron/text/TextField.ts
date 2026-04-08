@@ -8,6 +8,8 @@ import { VerticalAlign } from './enums/VerticalAlign.js';
 import { TextFieldType } from './enums/TextFieldType.js';
 import { TextFieldInputType } from './enums/TextFieldInputType.js';
 import { InputController } from './InputController.js';
+import { getWordWrapRegex } from './WordWrap.js';
+import { HeronEvent, HeronTouchEvent, HeronTextEvent } from '../events/index.js';
 
 /**
  * TextField displays text content. Supports single-line, multi-line, word wrap,
@@ -177,6 +179,7 @@ export class TextField extends DisplayObject {
 	}
 	public set wordWrap(value: boolean) {
 		if (this._wordWrap !== value) {
+			if (this._displayAsPassword) return;
 			this._wordWrap = value;
 			this.invalidateText();
 		}
@@ -203,6 +206,9 @@ export class TextField extends DisplayObject {
 				this._inputController = new InputController(this);
 			}
 			this.touchEnabled = true;
+			// Set default size if not explicitly set, matching old Egret behaviour
+			if (isNaN(this.explicitWidth)) this.width = 100;
+			if (isNaN(this.explicitHeight)) this.height = 30;
 			if (this.stage) {
 				this._inputController.addStageText();
 			}
@@ -269,7 +275,17 @@ export class TextField extends DisplayObject {
 
 	public get maxScrollV(): number {
 		this.ensureLines();
-		return Math.max(1, this._numLines);
+		if (!this._multiline) return Math.max(1, this._numLines);
+		const lineHeight = this._fontSize + this._lineSpacing;
+		const visibleLines =
+			lineHeight > 0 && !isNaN(this.explicitHeight)
+				? Math.max(
+						1,
+						Math.floor(this.explicitHeight / lineHeight) +
+							(this.explicitHeight % lineHeight > this._fontSize / 2 ? 1 : 0),
+					)
+				: this._numLines;
+		return Math.max(1, this._numLines - visibleLines + 1);
 	}
 
 	public get numLines(): number {
@@ -396,6 +412,11 @@ export class TextField extends DisplayObject {
 		return this._selectionActive;
 	}
 
+	/** @internal Whether the user is currently typing (INPUT mode). Used by renderer. */
+	get isTyping(): boolean {
+		return this._isTyping;
+	}
+
 	/** @internal Computed line layout data. */
 	getLinesArr(): ILineElement[] {
 		this.ensureLines();
@@ -405,10 +426,15 @@ export class TextField extends DisplayObject {
 	// ── Public methods ────────────────────────────────────────────────────────
 
 	public appendText(text: string): void {
-		this.text = this._text + text;
+		this.appendElement({ text });
 	}
 
 	public appendElement(element: ITextElement): void {
+		if (this._displayAsPassword) {
+			// In password mode, only update the raw text, don't expose textFlow
+			this.text = this._text + element.text;
+			return;
+		}
 		const flow = this._textFlow ? [...this._textFlow] : [];
 		flow.push(element);
 		this.textFlow = flow;
@@ -443,6 +469,7 @@ export class TextField extends DisplayObject {
 		if (this._type === TextFieldType.INPUT && this._inputController) {
 			this._inputController.addStageText();
 		}
+		this.addEventListener(HeronTouchEvent.TOUCH_TAP, this.onTapHandler as (e: HeronEvent) => void);
 	}
 
 	override onRemoveFromStage(): void {
@@ -450,6 +477,7 @@ export class TextField extends DisplayObject {
 		if (this._inputController) {
 			this._inputController.removeStageText();
 		}
+		this.removeEventListener(HeronTouchEvent.TOUCH_TAP, this.onTapHandler as (e: HeronEvent) => void);
 	}
 
 	override measureContentBounds(bounds: Rectangle): void {
@@ -493,49 +521,137 @@ export class TextField extends DisplayObject {
 
 	private calculateLines(): ILineElement[] {
 		const elements = this._textFlow ?? [{ text: this.getDisplayText() }];
-		const maxWidth = !isNaN(this.explicitWidth) ? this.explicitWidth : Infinity;
+		const maxWidth = !isNaN(this.explicitWidth) ? this.explicitWidth : NaN;
+		const isInput = this._type === TextFieldType.INPUT;
 		const lines: ILineElement[] = [];
+
+		// Width == 0: return empty placeholder (matches old behaviour)
+		if (!isNaN(maxWidth) && maxWidth === 0) {
+			return [{ width: 0, height: 0, charNum: 0, hasNextLine: false, elements: [] }];
+		}
 
 		let currentLine: IWTextElement[] = [];
 		let lineWidth = 0;
+		// INPUT mode: line height is always fontSize, not per-style max
 		let lineHeight = this._fontSize;
+		let lineCharNum = 0;
+
+		const flushLine = (hasNext: boolean): void => {
+			lines.push({
+				width: lineWidth,
+				height: lineHeight,
+				charNum: lineCharNum + (hasNext ? 1 : 0),
+				hasNextLine: hasNext,
+				elements: currentLine,
+			});
+			currentLine = [];
+			lineWidth = 0;
+			lineHeight = this._fontSize;
+			lineCharNum = 0;
+		};
 
 		for (const element of elements) {
-			const style = element.style;
-			const fontSize = style?.size ?? this._fontSize;
-			const fontFamily = style?.fontFamily ?? this._fontFamily;
-			const bold = style?.bold ?? this._bold;
-			const italic = style?.italic ?? this._italic;
-			const text = element.text;
+			if (!element.text) continue;
+			const style = element.style ?? {};
+			const fontSize = typeof style.size === 'number' ? style.size : this._fontSize;
+			const fontFamily = style.fontFamily ?? this._fontFamily;
+			const bold = style.bold ?? this._bold;
+			const italic = style.italic ?? this._italic;
 
-			for (let i = 0; i < text.length; i++) {
-				const char = text[i];
+			// Split by line breaks first (\r\n, \r, \n)
+			const segments = element.text.split(/\r\n|\r|\n/);
 
-				if (char === '\n') {
-					lines.push(this.buildLine(currentLine, lineWidth, lineHeight));
-					currentLine = [];
-					lineWidth = 0;
-					lineHeight = fontSize;
+			for (let si = 0; si < segments.length; si++) {
+				const seg = segments[si];
+				const isLastSeg = si === segments.length - 1;
+
+				if (seg === '') {
+					if (!isLastSeg) {
+						// explicit newline
+						flushLine(true);
+					}
 					continue;
 				}
 
-				const charWidth = measureText(char, fontFamily, fontSize, bold, italic);
+				if (isNaN(maxWidth)) {
+					// No width constraint — whole segment goes on current line
+					const w = measureText(seg, fontFamily, fontSize, bold, italic);
+					currentLine.push({ text: seg, width: w, style: element.style });
+					lineWidth += w;
+					if (!isInput) lineHeight = Math.max(lineHeight, fontSize);
+					lineCharNum += seg.length;
+					if (!isLastSeg) flushLine(true);
+				} else {
+					// Width constrained — need to break the segment
+					const totalSegWidth = measureText(seg, fontFamily, fontSize, bold, italic);
 
-				if (this._wordWrap && lineWidth + charWidth > maxWidth && currentLine.length > 0) {
-					lines.push(this.buildLine(currentLine, lineWidth, lineHeight));
-					currentLine = [];
-					lineWidth = 0;
-					lineHeight = fontSize;
+					if (lineWidth + totalSegWidth <= maxWidth) {
+						// Fits on current line
+						currentLine.push({ text: seg, width: totalSegWidth, style: element.style });
+						lineWidth += totalSegWidth;
+						if (!isInput) lineHeight = Math.max(lineHeight, fontSize);
+						lineCharNum += seg.length;
+						if (!isLastSeg) flushLine(true);
+					} else {
+						// Need to break — split by word or character
+						let words: string[];
+						if (this._wordWrap) {
+							words = seg.split(getWordWrapRegex());
+						} else {
+							words = seg.match(/[\s\S]/gu) ?? seg.split('');
+						}
+
+						let ww = 0;
+						let charNum = 0;
+
+						for (let k = 0; k < words.length; k++) {
+							const word = words[k];
+							if (!word) continue;
+							const w = measureText(word, fontFamily, fontSize, bold, italic);
+
+							if (lineWidth !== 0 && lineWidth + w > maxWidth) {
+								// Flush current line and start new one
+								flushLine(false);
+							}
+
+							if (w > maxWidth) {
+								// Single word wider than field — break char by char
+								const chars = word.match(/[\s\S]/gu) ?? word.split('');
+								for (const ch of chars) {
+									const cw = measureText(ch, fontFamily, fontSize, bold, italic);
+									if (lineWidth !== 0 && lineWidth + cw > maxWidth) {
+										flushLine(false);
+									}
+									currentLine.push({ text: ch, width: cw, style: element.style });
+									lineWidth += cw;
+									if (!isInput) lineHeight = Math.max(lineHeight, fontSize);
+									lineCharNum++;
+									charNum++;
+								}
+							} else {
+								currentLine.push({ text: word, width: w, style: element.style });
+								lineWidth += w;
+								if (!isInput) lineHeight = Math.max(lineHeight, fontSize);
+								lineCharNum += word.length;
+								charNum += word.length;
+								ww += w;
+							}
+						}
+
+						if (!isLastSeg) flushLine(true);
+					}
 				}
-
-				currentLine.push({ text: char, width: charWidth, style });
-				lineWidth += charWidth;
-				if (fontSize > lineHeight) lineHeight = fontSize;
 			}
 		}
 
 		if (currentLine.length > 0) {
-			lines.push(this.buildLine(currentLine, lineWidth, lineHeight));
+			lines.push({
+				width: lineWidth,
+				height: lineHeight,
+				charNum: lineCharNum,
+				hasNextLine: false,
+				elements: currentLine,
+			});
 		}
 
 		if (lines.length === 0) {
@@ -545,14 +661,41 @@ export class TextField extends DisplayObject {
 		return lines;
 	}
 
-	private buildLine(elements: IWTextElement[], width: number, height: number): ILineElement {
-		let charNum = 0;
-		for (const e of elements) charNum += e.text.length;
-		return { width, height, charNum, hasNextLine: true, elements };
+	private getDisplayText(): string {
+		if (this._displayAsPassword) return '*'.repeat(this._text.length);
+		return this._text;
 	}
 
-	private getDisplayText(): string {
-		if (this._displayAsPassword) return '•'.repeat(this._text.length);
-		return this._text;
+	private onTapHandler = (e: HeronEvent): void => {
+		if (this._type === TextFieldType.INPUT) return;
+		const te = e as HeronTouchEvent;
+		const element = this.getTextElementAt(te.localX, te.localY);
+		if (!element?.style?.href) return;
+		const href = element.style.href;
+		if (href.startsWith('event:')) {
+			HeronTextEvent.dispatchTextEvent(this, HeronTextEvent.LINK, href.substring('event:'.length));
+		} else {
+			open(href, element.style.target ?? '_blank');
+		}
+	};
+
+	/** @internal Hit-test to find the ITextElement at a given local coordinate. */
+	private getTextElementAt(x: number, y: number): ITextElement | undefined {
+		this.ensureLines();
+		const lines = this._linesArr ?? [];
+		let lineY = 0;
+		for (const line of lines) {
+			if (y < lineY || y > lineY + line.height) {
+				lineY += line.height + this._lineSpacing;
+				continue;
+			}
+			let lineX = 0;
+			for (const el of line.elements) {
+				if (x >= lineX && x < lineX + el.width) return el;
+				lineX += el.width;
+			}
+			break;
+		}
+		return undefined;
 	}
 }
