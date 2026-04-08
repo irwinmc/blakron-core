@@ -100,6 +100,9 @@ export class BitmapData extends HashObject {
 	public debugCompressedTextureURL = '';
 	public etcAlphaMask: BitmapData | undefined = undefined;
 
+	/** @internal Cached WebGL texture, set by WebGLRenderContext. */
+	public webGLTexture: WebGLTexture | undefined = undefined;
+
 	/** The underlying image/canvas/video source. */
 	private _source: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | ArrayBuffer | undefined;
 

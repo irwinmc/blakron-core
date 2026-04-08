@@ -1,0 +1,241 @@
+import { premultiplyTint, SYM_PREMULTIPLIED } from './WebGLUtils.js';
+import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
+
+// Vertex layout: x(f32) y(f32) u(f32) v(f32) color(u32) = 5 floats = 20 bytes
+const VERT_SIZE = 5;
+const VERT_BYTE_SIZE = VERT_SIZE * 4;
+const MAX_QUADS = 2048;
+const MAX_VERTS = MAX_QUADS * 4;
+const MAX_INDICES = MAX_QUADS * 6;
+
+export class WebGLVertexArrayObject {
+	private readonly _buffer: ArrayBuffer;
+	private readonly _float32: Float32Array;
+	private readonly _uint32: Uint32Array;
+	private readonly _indices: Uint16Array;
+	private readonly _indicesForMesh: Uint16Array;
+
+	private _vertexIndex = 0;
+	private _indexIndex = 0;
+	private _hasMesh = false;
+
+	public constructor() {
+		this._buffer = new ArrayBuffer(MAX_VERTS * VERT_BYTE_SIZE);
+		this._float32 = new Float32Array(this._buffer);
+		this._uint32 = new Uint32Array(this._buffer);
+
+		this._indices = new Uint16Array(MAX_INDICES);
+		this._indicesForMesh = new Uint16Array(MAX_INDICES);
+
+		// Pre-fill quad indices: 0,1,2 / 0,2,3
+		for (let i = 0, j = 0; i < MAX_INDICES; i += 6, j += 4) {
+			this._indices[i] = j;
+			this._indices[i + 1] = j + 1;
+			this._indices[i + 2] = j + 2;
+			this._indices[i + 3] = j;
+			this._indices[i + 4] = j + 2;
+			this._indices[i + 5] = j + 3;
+		}
+	}
+
+	public reachMaxSize(vertexCount = 4, indexCount = 6): boolean {
+		return this._vertexIndex > MAX_VERTS - vertexCount || this._indexIndex > MAX_INDICES - indexCount;
+	}
+
+	public getVertices(): Float32Array {
+		return this._float32.subarray(0, this._vertexIndex * VERT_SIZE);
+	}
+
+	public getIndices(): Uint16Array {
+		return this._indices;
+	}
+
+	public getMeshIndices(): Uint16Array {
+		return this._indicesForMesh;
+	}
+
+	public changeToMeshIndices(): void {
+		if (!this._hasMesh) {
+			for (let i = 0; i < this._indexIndex; i++) {
+				this._indicesForMesh[i] = this._indices[i];
+			}
+			this._hasMesh = true;
+		}
+	}
+
+	public isMesh(): boolean {
+		return this._hasMesh;
+	}
+
+	public cacheArrays(
+		buffer: WebGLRenderBuffer,
+		sourceX: number,
+		sourceY: number,
+		sourceWidth: number,
+		sourceHeight: number,
+		destX: number,
+		destY: number,
+		destWidth: number,
+		destHeight: number,
+		textureSourceWidth: number,
+		textureSourceHeight: number,
+		meshUVs?: number[],
+		meshVertices?: number[],
+		meshIndices?: number[],
+		rotated?: boolean,
+	): void {
+		let alpha = Math.min(buffer.globalAlpha, 1.0);
+		const tint = buffer.globalTintColor;
+		const tex = buffer.currentTexture;
+		const packed =
+			tex && (tex as Record<string, unknown>)[SYM_PREMULTIPLIED]
+				? premultiplyTint(tint, alpha)
+				: tint + ((alpha * 255) << 24);
+
+		const m = buffer.globalMatrix;
+		let a = m.a,
+			b = m.b,
+			c = m.c,
+			d = m.d;
+		let tx = m.tx + buffer.offsetX * a + buffer.offsetY * c;
+		let ty = m.ty + buffer.offsetX * b + buffer.offsetY * d;
+
+		const f32 = this._float32;
+		const u32 = this._uint32;
+
+		if (meshVertices && meshUVs && meshIndices) {
+			let idx = this._vertexIndex * VERT_SIZE;
+			for (let i = 0, l = meshUVs.length; i < l; i += 2) {
+				const x = meshVertices[i],
+					y = meshVertices[i + 1];
+				const u = meshUVs[i],
+					v = meshUVs[i + 1];
+				const base = idx + (i / 2) * VERT_SIZE;
+				f32[base] = a * x + c * y + tx;
+				f32[base + 1] = b * x + d * y + ty;
+				if (rotated) {
+					f32[base + 2] = (sourceX + (1.0 - v) * sourceHeight) / textureSourceWidth;
+					f32[base + 3] = (sourceY + u * sourceWidth) / textureSourceHeight;
+				} else {
+					f32[base + 2] = (sourceX + u * sourceWidth) / textureSourceWidth;
+					f32[base + 3] = (sourceY + v * sourceHeight) / textureSourceHeight;
+				}
+				u32[base + 4] = packed;
+			}
+			if (this._hasMesh) {
+				for (let i = 0; i < meshIndices.length; i++) {
+					this._indicesForMesh[this._indexIndex + i] = meshIndices[i] + this._vertexIndex;
+				}
+			}
+			this._vertexIndex += meshUVs.length / 2;
+			this._indexIndex += meshIndices.length;
+		} else {
+			// Quad
+			if (destX !== 0 || destY !== 0) {
+				tx = destX * a + destY * c + tx;
+				ty = destX * b + destY * d + ty;
+			}
+			const a1 = destWidth / sourceWidth;
+			if (a1 !== 1) {
+				a *= a1;
+				b *= a1;
+			}
+			const d1 = destHeight / sourceHeight;
+			if (d1 !== 1) {
+				c *= d1;
+				d *= d1;
+			}
+
+			const w = sourceWidth,
+				h = sourceHeight;
+			const tw = textureSourceWidth,
+				th = textureSourceHeight;
+			let sx = sourceX / tw,
+				sy = sourceY / th;
+			let sw: number, sh: number;
+
+			let idx = this._vertexIndex * VERT_SIZE;
+			if (rotated) {
+				sw = sourceHeight / tw;
+				sh = sourceWidth / th;
+				// v0
+				f32[idx] = tx;
+				f32[idx + 1] = ty;
+				f32[idx + 2] = sw + sx;
+				f32[idx + 3] = sy;
+				u32[idx + 4] = packed;
+				idx += 5;
+				// v1
+				f32[idx] = a * w + tx;
+				f32[idx + 1] = b * w + ty;
+				f32[idx + 2] = sw + sx;
+				f32[idx + 3] = sh + sy;
+				u32[idx + 4] = packed;
+				idx += 5;
+				// v2
+				f32[idx] = a * w + c * h + tx;
+				f32[idx + 1] = d * h + b * w + ty;
+				f32[idx + 2] = sx;
+				f32[idx + 3] = sh + sy;
+				u32[idx + 4] = packed;
+				idx += 5;
+				// v3
+				f32[idx] = c * h + tx;
+				f32[idx + 1] = d * h + ty;
+				f32[idx + 2] = sx;
+				f32[idx + 3] = sy;
+				u32[idx + 4] = packed;
+			} else {
+				sw = sourceWidth / tw;
+				sh = sourceHeight / th;
+				// v0
+				f32[idx] = tx;
+				f32[idx + 1] = ty;
+				f32[idx + 2] = sx;
+				f32[idx + 3] = sy;
+				u32[idx + 4] = packed;
+				idx += 5;
+				// v1
+				f32[idx] = a * w + tx;
+				f32[idx + 1] = b * w + ty;
+				f32[idx + 2] = sw + sx;
+				f32[idx + 3] = sy;
+				u32[idx + 4] = packed;
+				idx += 5;
+				// v2
+				f32[idx] = a * w + c * h + tx;
+				f32[idx + 1] = d * h + b * w + ty;
+				f32[idx + 2] = sw + sx;
+				f32[idx + 3] = sh + sy;
+				u32[idx + 4] = packed;
+				idx += 5;
+				// v3
+				f32[idx] = c * h + tx;
+				f32[idx + 1] = d * h + ty;
+				f32[idx + 2] = sx;
+				f32[idx + 3] = sh + sy;
+				u32[idx + 4] = packed;
+			}
+
+			if (this._hasMesh) {
+				const im = this._indicesForMesh;
+				const ii = this._indexIndex,
+					vi = this._vertexIndex;
+				im[ii] = vi;
+				im[ii + 1] = vi + 1;
+				im[ii + 2] = vi + 2;
+				im[ii + 3] = vi;
+				im[ii + 4] = vi + 2;
+				im[ii + 5] = vi + 3;
+			}
+			this._vertexIndex += 4;
+			this._indexIndex += 6;
+		}
+	}
+
+	public clear(): void {
+		this._hasMesh = false;
+		this._vertexIndex = 0;
+		this._indexIndex = 0;
+	}
+}

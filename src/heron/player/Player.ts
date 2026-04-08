@@ -1,90 +1,100 @@
 import { Stage, DisplayObject } from '../display/index.js';
+import { Matrix } from '../geom/index.js';
 import { RenderBuffer } from './RenderBuffer.js';
 import { CanvasRenderer } from './CanvasRenderer.js';
 import { ticker, type Renderable } from './SystemTicker.js';
+import { WebGLRenderContext, WebGLRenderBuffer, WebGLRenderer } from './webgl/index.js';
+import { checkWebGLSupport } from './webgl/WebGLUtils.js';
 
 /**
- * The Player is the main controller that ties together a Stage, a RenderBuffer,
- * and the CanvasRenderer. It registers itself with the SystemTicker to receive
- * frame callbacks and renders the display list each frame.
- *
- * Equivalent to Egret's `sys.Player`.
+ * The Player ties together a Stage and a renderer.
+ * Automatically uses WebGL if available, falls back to Canvas 2D.
  */
 export class Player implements Renderable {
-	// ── Instance fields ───────────────────────────────────────────────────────
-
 	public readonly stage: Stage;
 
-	private _buffer: RenderBuffer;
-	private _renderer: CanvasRenderer;
 	private _isPlaying = false;
 	private _root: DisplayObject | undefined = undefined;
 
-	// ── Constructor ───────────────────────────────────────────────────────────
+	// Canvas 2D path
+	private _canvas2dBuffer: RenderBuffer | undefined;
+	private _canvas2dRenderer: CanvasRenderer | undefined;
+
+	// WebGL path
+	private _webglBuffer: WebGLRenderBuffer | undefined;
+	private _webglRenderer: WebGLRenderer | undefined;
+	private _webglContext: WebGLRenderContext | undefined;
 
 	public constructor(canvas: HTMLCanvasElement, stage?: Stage) {
 		this.stage = stage ?? new Stage();
 
+		if (checkWebGLSupport()) {
+			try {
+				this._webglContext = WebGLRenderContext.getInstance(canvas);
+				this._webglBuffer = new WebGLRenderBuffer(
+					this._webglContext,
+					canvas.width || 1,
+					canvas.height || 1,
+					true,
+				);
+				this._webglRenderer = new WebGLRenderer();
+				return;
+			} catch {
+				// WebGL init failed, fall through to Canvas 2D
+				WebGLRenderContext.resetInstance();
+			}
+		}
+
 		const ctx = canvas.getContext('2d');
 		if (!ctx) throw new Error('Failed to get Canvas 2D context');
-
-		this._buffer = new RenderBuffer();
-		// Use the provided canvas as the surface directly
-		(this._buffer as { surface: HTMLCanvasElement }).surface = canvas;
-		(this._buffer as { context: CanvasRenderingContext2D }).context = ctx;
-
-		this._renderer = new CanvasRenderer();
+		this._canvas2dBuffer = new RenderBuffer();
+		(this._canvas2dBuffer as { surface: HTMLCanvasElement }).surface = canvas;
+		(this._canvas2dBuffer as { context: CanvasRenderingContext2D }).context = ctx;
+		this._canvas2dRenderer = new CanvasRenderer();
 	}
 
-	// ── Public methods ────────────────────────────────────────────────────────
+	public get isWebGL(): boolean {
+		return !!this._webglRenderer;
+	}
 
-	/**
-	 * Starts the player. Registers with the global ticker and begins rendering.
-	 */
 	public start(root?: DisplayObject): void {
 		if (this._isPlaying) return;
 		this._isPlaying = true;
-
 		if (root && !this._root) {
 			this._root = root;
 			this.stage.addChild(root);
 		}
-
 		ticker.addPlayer(this);
 		ticker.start();
 	}
 
-	/**
-	 * Stops the player permanently.
-	 */
 	public stop(): void {
 		this.pause();
 	}
 
-	/**
-	 * Pauses the player. Can be resumed with start().
-	 */
 	public pause(): void {
 		if (!this._isPlaying) return;
 		this._isPlaying = false;
 		ticker.removePlayer(this);
 	}
 
-	/**
-	 * Updates the stage size and resizes the render buffer.
-	 */
 	public updateStageSize(width: number, height: number): void {
 		this.stage.resize(width, height);
-		this._buffer.resize(width, height);
+		if (this._webglBuffer) {
+			this._webglBuffer.resize(width, height);
+		} else {
+			this._canvas2dBuffer?.resize(width, height);
+		}
 	}
 
-	// ── Renderable interface ──────────────────────────────────────────────────
-
-	/**
-	 * Called by SystemTicker each frame.
-	 */
 	render(_triggerByFrame: boolean, _costTicker: number): void {
-		this._buffer.clear();
-		this._renderer.render(this.stage, this._buffer);
+		if (this._webglBuffer && this._webglRenderer) {
+			this._webglBuffer.clear();
+			const m = new Matrix();
+			this._webglRenderer.render(this.stage, this._webglBuffer, m);
+		} else if (this._canvas2dBuffer && this._canvas2dRenderer) {
+			this._canvas2dBuffer.clear();
+			this._canvas2dRenderer.render(this.stage, this._canvas2dBuffer);
+		}
 	}
 }

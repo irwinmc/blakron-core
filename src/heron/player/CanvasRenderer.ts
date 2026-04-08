@@ -11,6 +11,7 @@ import {
 } from '../display/index.js';
 import { Matrix } from '../geom/index.js';
 import { RenderBuffer } from './RenderBuffer.js';
+import { DisplayList } from './DisplayList.js';
 import { BlurFilter, ColorMatrixFilter, GlowFilter, DropShadowFilter } from '../filters/index.js';
 
 const CAPS_MAP: Record<string, CanvasLineCap> = { none: 'butt', square: 'square', round: 'round' };
@@ -47,6 +48,16 @@ export class CanvasRenderer {
 		return drawCalls;
 	}
 
+	/** @internal Used by WebGLRenderer for offscreen DisplayList rendering. */
+	public renderToContext(
+		displayObject: DisplayObject,
+		ctx: CanvasRenderingContext2D,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		this.drawDisplayObject(displayObject, ctx, offsetX, offsetY, true);
+	}
+
 	// ── Private: tree traversal ───────────────────────────────────────────────
 
 	private drawDisplayObject(
@@ -57,6 +68,36 @@ export class CanvasRenderer {
 		_isStage = false,
 	): number {
 		let drawCalls = 0;
+
+		// DisplayList cache (cacheAsBitmap)
+		const displayList = displayObject.displayList;
+		if (displayList && !_isStage) {
+			if (displayObject.cacheDirty || displayObject.renderDirty) {
+				if (displayList.updateSurfaceSize()) {
+					displayList.renderBuffer.clear();
+					this.drawDisplayObject(
+						displayObject,
+						displayList.renderBuffer.context,
+						displayList.offsetX,
+						displayList.offsetY,
+						true,
+					);
+					displayList.updateBitmapData();
+				}
+				displayObject.cacheDirty = false;
+				displayObject.renderDirty = false;
+			}
+			// Draw cached result and skip children
+			if (displayList.bitmapData?.source) {
+				ctx.drawImage(
+					displayList.bitmapData.source as CanvasImageSource,
+					offsetX - displayList.offsetX,
+					offsetY - displayList.offsetY,
+				);
+				drawCalls++;
+			}
+			return drawCalls;
+		}
 
 		// Draw self
 		drawCalls += this.renderSelf(displayObject, ctx, offsetX, offsetY);

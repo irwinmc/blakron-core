@@ -6,3 +6,4 @@ export { toColorString } from './toColorString.js';
 export { Logger, LogLevel } from './Logger.js';
 export { Timer } from './Timer.js';
 export { ByteArray, Endian } from './ByteArray.js';
+export { registerFontMapping, cacheFontResource } from './FontManager.js';

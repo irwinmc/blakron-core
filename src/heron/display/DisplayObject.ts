@@ -6,6 +6,7 @@ import { blendModeToNumber, numberToBlendMode } from './enums/index.js';
 import type { Filter } from '../filters/index.js';
 import type { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import type { Stage } from './Stage.js';
+import type { DisplayList } from '../player/DisplayList.js';
 
 function clampRotation(value: number): number {
 	value %= 360;
@@ -59,6 +60,7 @@ export class DisplayObject extends EventDispatcher {
 	/** @internal */ internalMaskRect: Rectangle | undefined = undefined;
 	/** @internal */ internalCacheAsBitmap = false;
 	/** @internal */ internalFilters: Filter[] = [];
+	/** @internal */ displayList: DisplayList | undefined = undefined;
 
 	private _name = '';
 	private _matrix: Matrix = new Matrix();
@@ -535,7 +537,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	setHasDisplayList(_value: boolean): void {
-		// Renderer integration point — implemented by renderer layer
+		// DisplayList creation/destruction is handled by the renderer on next frame.
+		// The renderer checks internalCacheAsBitmap and manages displayList accordingly.
+		this.markDirty();
 	}
 
 	cacheDirtyUp(): void {
