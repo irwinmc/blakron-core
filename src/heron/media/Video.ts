@@ -26,8 +26,6 @@ export class Video extends DisplayObject {
 		super();
 		this._video = document.createElement('video');
 		this._video.setAttribute('playsinline', '');
-		this._video.setAttribute('webkit-playsinline', '');
-		this._video.setAttribute('x5-video-player-type', 'h5-page');
 		this._video.controls = false;
 
 		this._video.addEventListener('canplaythrough', this.onVideoLoaded);

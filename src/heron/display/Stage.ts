@@ -2,6 +2,8 @@ import { Event } from '../events/Event.js';
 import { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import { OrientationMode } from './enums/OrientationMode.js';
 import { StageScaleMode } from './enums/StageScaleMode.js';
+import { ticker, setInvalidateRenderFlag } from '../player/SystemTicker.js';
+import type { ScreenAdapter } from '../player/ScreenAdapter.js';
 
 export class Stage extends DisplayObjectContainer {
 	// ── Instance fields ───────────────────────────────────────────────────────
@@ -12,10 +14,7 @@ export class Stage extends DisplayObjectContainer {
 	private _orientation: OrientationMode = OrientationMode.AUTO;
 	private _maxTouches = 99;
 	private _textureScaleFactor = 1;
-
-	// frameRate is managed by the player/ticker layer
-	// TODO: connect to ticker when player layer is implemented
-	private _frameRate = 30;
+	private _screenAdapter: ScreenAdapter | undefined = undefined;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
@@ -35,11 +34,10 @@ export class Stage extends DisplayObjectContainer {
 	}
 
 	public get frameRate(): number {
-		return this._frameRate;
+		return ticker.frameRate;
 	}
 	public set frameRate(value: number) {
-		// TODO: delegate to ticker when player layer is implemented
-		this._frameRate = value;
+		ticker.setFrameRate(value);
 	}
 
 	public get scaleMode(): StageScaleMode {
@@ -83,7 +81,7 @@ export class Stage extends DisplayObjectContainer {
 	 * Triggers Event.RENDER to be dispatched on the next frame.
 	 */
 	public invalidate(): void {
-		// TODO: set sys.$invalidateRenderFlag when player layer is implemented
+		setInvalidateRenderFlag(true);
 	}
 
 	/**
@@ -108,11 +106,16 @@ export class Stage extends DisplayObjectContainer {
 
 	// ── Protected hooks (override in platform adapters) ───────────────────────
 
+	/** @internal Called by ScreenAdapter to register itself. */
+	setScreenAdapter(adapter: ScreenAdapter): void {
+		this._screenAdapter = adapter;
+	}
+
 	protected onScreenSizeChanged(): void {
-		// TODO: notify screen adapter when player layer is implemented
+		this._screenAdapter?.updateScreenSize();
 	}
 
 	protected onMaxTouchesChanged(): void {
-		// TODO: notify input system when player layer is implemented
+		// Input system hook — handled at player level
 	}
 }

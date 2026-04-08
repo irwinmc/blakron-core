@@ -13,9 +13,7 @@ export class RenderTexture extends Texture {
 
 	/**
 	 * Renderer integration point.
-	 * The renderer layer should set this to a function that draws a DisplayObject
-	 * into an offscreen canvas and returns it.
-	 * TODO: replace with proper IRenderer interface when renderer layer is implemented.
+	 * Set by createPlayer() to wire up the CanvasRenderer.
 	 */
 	public static renderer:
 		| ((
@@ -61,7 +59,6 @@ export class RenderTexture extends Texture {
 		const offsetY = clipBounds ? -clipBounds.y : 0;
 
 		if (!RenderTexture.renderer) {
-			// TODO: implement when renderer layer is available
 			return false;
 		}
 

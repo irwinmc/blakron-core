@@ -1,8 +1,12 @@
 import { Stage, StageScaleMode, OrientationMode, DisplayObject } from '../display/index.js';
+import { RenderTexture } from '../display/texture/RenderTexture.js';
+import { Matrix } from '../geom/index.js';
 import { Player } from './Player.js';
 import { TouchHandler } from './TouchHandler.js';
 import { ScreenAdapter } from './ScreenAdapter.js';
 import { setupLifecycle } from './SystemTicker.js';
+import { CanvasRenderer } from './CanvasRenderer.js';
+import { RenderBuffer } from './RenderBuffer.js';
 import type { HeronOptions } from './HeronOptions.js';
 
 export interface HeronApp {
@@ -34,6 +38,17 @@ export interface HeronApp {
  * ```
  */
 export function createPlayer(options: HeronOptions): HeronApp {
+	// Wire up RenderTexture renderer once on first call
+	if (!RenderTexture.renderer) {
+		const _renderer = new CanvasRenderer();
+		RenderTexture.renderer = (displayObject, width, height, offsetX, offsetY) => {
+			const buffer = new RenderBuffer(width, height);
+			const m = new Matrix();
+			m.translate(offsetX, offsetY);
+			_renderer.render(displayObject, buffer, m);
+			return buffer.surface;
+		};
+	}
 	const {
 		canvas,
 		frameRate = 60,

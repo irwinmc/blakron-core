@@ -1,6 +1,7 @@
 import { Event } from './Event.js';
 import type { IEventDispatcher } from './IEventDispatcher.js';
 import type { Point } from '../geom/index.js';
+import { setRequestRenderingFlag } from '../player/SystemTicker.js';
 
 export class TouchEvent extends Event {
 	// ── Static constants ──────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ export class TouchEvent extends Event {
 	 * Full implementation requires the player/runtime layer.
 	 */
 	public updateAfterEvent(): void {
-		// TODO: set sys.$requestRenderingFlag when player layer is implemented
+		setRequestRenderingFlag(true);
 	}
 
 	// ── Internal methods ──────────────────────────────────────────────────────

@@ -41,6 +41,7 @@ export class ScreenAdapter {
 		this._contentHeight = contentHeight;
 
 		window.addEventListener('resize', this.onResize);
+		this._player.stage.setScreenAdapter(this);
 		this.updateScreenSize();
 	}
 

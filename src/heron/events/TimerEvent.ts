@@ -1,5 +1,6 @@
 import { Event } from './Event.js';
 import type { IEventDispatcher } from './IEventDispatcher.js';
+import { setRequestRenderingFlag } from '../player/SystemTicker.js';
 
 export class TimerEvent extends Event {
 	// ── Static constants ──────────────────────────────────────────────────────
@@ -34,6 +35,6 @@ export class TimerEvent extends Event {
 	 * Full implementation requires the player/runtime layer.
 	 */
 	public updateAfterEvent(): void {
-		// TODO: set sys.$requestRenderingFlag when player layer is implemented
+		setRequestRenderingFlag(true);
 	}
 }
