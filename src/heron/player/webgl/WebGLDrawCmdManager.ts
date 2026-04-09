@@ -127,6 +127,7 @@ export class WebGLDrawCmdManager {
 			last.multiCmd.textures.every((t, i) => t === multiCmd.textures[i])
 		) {
 			last.multiCmd.count += multiCmd.count;
+			last.count += multiCmd.count;
 			return;
 		}
 		const d = this._get();
