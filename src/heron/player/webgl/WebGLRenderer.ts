@@ -542,7 +542,6 @@ export class WebGLRenderer {
 				case 'filterPop': {
 					const pop = inst as FilterPopInstruction;
 					const offscreen = offscreenStack.pop() ?? null;
-					// Restore the parent buffer before compositing.
 					if (offscreen)
 						activeBuffer =
 							offscreenStack.length > 0 ? (offscreenStack[offscreenStack.length - 1] ?? buffer) : buffer;
@@ -598,20 +597,27 @@ export class WebGLRenderer {
 		m.b = t.b;
 		m.c = t.c;
 		m.d = t.d;
-		m.tx = t.tx - buffer.offscreenOriginX;
-		m.ty = t.ty - buffer.offscreenOriginY;
+		m.tx = t.tx + t.offsetX - buffer.offscreenOriginX;
+		m.ty = t.ty + t.offsetY - buffer.offscreenOriginY;
 		buffer.globalAlpha = t.alpha;
 		buffer.globalTintColor = t.tint;
 	}
 
 	/**
-	 * Compute the world-space position of the bounds origin and store it
-	 * on the offscreen buffer so that _applyTransform subtracts it,
-	 * effectively making the bounds origin map to (0,0) in the buffer.
+	 * Compute the world-space position that should map to (padX, padY) in the
+	 * offscreen buffer.  Because the buffer includes filter padding, the
+	 * content's bounds origin must land at (padX, padY) rather than (0,0).
 	 */
 	private _setOffscreenOrigin(buf: WebGLRenderBuffer, bounds: Rectangle, t: TransformState): void {
-		buf.offscreenOriginX = t.a * bounds.x + t.c * bounds.y + t.tx;
-		buf.offscreenOriginY = t.b * bounds.x + t.d * bounds.y + t.ty;
+		const padX = buf.filterPadX;
+		const padY = buf.filterPadY;
+		// World position of bounds origin:
+		const worldBX = t.a * bounds.x + t.c * bounds.y + t.tx + t.offsetX;
+		const worldBY = t.b * bounds.x + t.d * bounds.y + t.ty + t.offsetY;
+		// We want: _applyTransform gives globalMatrix.tx = worldBX - originX = padX
+		// So: originX = worldBX - padX
+		buf.offscreenOriginX = worldBX - padX;
+		buf.offscreenOriginY = worldBY - padY;
 	}
 
 	/** Execute a cacheAsBitmap DisplayList instruction. */
@@ -646,11 +652,14 @@ export class WebGLRenderer {
 		const bd = displayList.bitmapData;
 		const w = displayList.renderBuffer.width;
 		const h = displayList.renderBuffer.height;
-		buffer.offsetX = offsetX;
-		buffer.offsetY = offsetY;
+		// offsetX/Y already in globalMatrix via _applyTransform.
+		if (offsetX !== 0 || offsetY !== 0) {
+			buffer.globalMatrix.append(1, 0, 0, 1, offsetX, offsetY);
+		}
 		buffer.context.drawImage(bd, 0, 0, w, h, -displayList.offsetX, -displayList.offsetY, w, h, w, h, false);
-		buffer.offsetX = 0;
-		buffer.offsetY = 0;
+		if (offsetX !== 0 || offsetY !== 0) {
+			buffer.globalMatrix.append(1, 0, 0, 1, -offsetX, -offsetY);
+		}
 	}
 
 	// ── Public accessor for MaskPipe (needs to call _drawDisplayObject) ───────
@@ -669,18 +678,21 @@ export class WebGLRenderer {
 	private _directDraw(obj: DisplayObject, buffer: WebGLRenderBuffer, offsetX: number, offsetY: number): number {
 		let drawCalls = 0;
 
-		buffer.offsetX = offsetX;
-		buffer.offsetY = offsetY;
+		// Bake offset into globalMatrix instead of buffer.offsetX
+		// so that GraphicsPipe / BitmapPipe / MeshPipe see it in the matrix.
+		if (offsetX !== 0 || offsetY !== 0) {
+			buffer.globalMatrix.append(1, 0, 0, 1, offsetX, offsetY);
+		}
 
 		switch (obj.renderObjectType) {
 			case RenderObjectType.MESH: {
-				const inst: MeshInstruction = { renderPipeId: 'mesh', renderable: obj as Mesh, offsetX, offsetY };
+				const inst: MeshInstruction = { renderPipeId: 'mesh', renderable: obj as Mesh, offsetX: 0, offsetY: 0 };
 				this._meshPipe.execute(inst, buffer);
 				drawCalls++;
 				break;
 			}
 			case RenderObjectType.BITMAP: {
-				const inst: BitmapInstruction = { renderPipeId: 'bitmap', renderable: obj as Bitmap, offsetX, offsetY };
+				const inst: BitmapInstruction = { renderPipeId: 'bitmap', renderable: obj as Bitmap, offsetX: 0, offsetY: 0 };
 				this._bitmapPipe.execute(inst, buffer);
 				drawCalls++;
 				break;
@@ -690,8 +702,8 @@ export class WebGLRenderer {
 					renderPipeId: 'graphics',
 					renderable: obj,
 					graphics: (obj as Shape).graphics,
-					offsetX,
-					offsetY,
+					offsetX: 0,
+					offsetY: 0,
 				};
 				this._graphicsPipe.execute(inst, buffer);
 				drawCalls++;
@@ -704,8 +716,8 @@ export class WebGLRenderer {
 						renderPipeId: 'graphics',
 						renderable: obj,
 						graphics: sprite.graphics,
-						offsetX,
-						offsetY,
+						offsetX: 0,
+						offsetY: 0,
 					};
 					this._graphicsPipe.execute(inst, buffer);
 					drawCalls++;
@@ -714,8 +726,9 @@ export class WebGLRenderer {
 			}
 		}
 
-		buffer.offsetX = 0;
-		buffer.offsetY = 0;
+		if (offsetX !== 0 || offsetY !== 0) {
+			buffer.globalMatrix.append(1, 0, 0, 1, -offsetX, -offsetY);
+		}
 
 		const children = obj.children;
 		if (!children) return drawCalls;

@@ -63,8 +63,9 @@ export class MeshPipe implements RenderPipe<Mesh> {
 		const destW = !isNaN(mesh.width) ? mesh.width : mesh.textureWidth;
 		const destH = !isNaN(mesh.height) ? mesh.height : mesh.textureHeight;
 
-		buffer.offsetX = inst.offsetX;
-		buffer.offsetY = inst.offsetY;
+		// offsetX/Y are already baked into globalMatrix via _applyTransform.
+		buffer.offsetX = 0;
+		buffer.offsetY = 0;
 
 		buffer.context.drawMesh(
 			bd,

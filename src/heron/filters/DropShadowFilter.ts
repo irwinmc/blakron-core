@@ -70,12 +70,14 @@ export class DropShadowFilter extends GlowFilter {
 		this.paddingLeft = this.paddingRight = this.blurX;
 		this.paddingTop = this.paddingBottom = this.blurY;
 		if (this._distance !== 0) {
-			const dx = this._distance * NumberUtils.cos(this._angle);
-			const dy = this._distance * NumberUtils.sin(this._angle);
-			this.paddingLeft += dx > 0 ? Math.ceil(dx) : Math.floor(dx);
-			this.paddingRight += dx > 0 ? Math.ceil(dx) : Math.floor(dx);
-			this.paddingTop += dy > 0 ? Math.ceil(dy) : Math.floor(dy);
-			this.paddingBottom += dy > 0 ? Math.ceil(dy) : Math.floor(dy);
+			let dx = this._distance * NumberUtils.cos(this._angle);
+			dx = dx > 0 ? Math.ceil(dx) : Math.floor(dx);
+			let dy = this._distance * NumberUtils.sin(this._angle);
+			dy = dy > 0 ? Math.ceil(dy) : Math.floor(dy);
+			this.paddingLeft += dx;
+			this.paddingRight += dx;
+			this.paddingTop += dy;
+			this.paddingBottom += dy;
 		}
 	}
 

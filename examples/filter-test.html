@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Filter Debug Test</title>
+		<style>
+			body {
+				margin: 0;
+				background: #1a1a2e;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				font-family: monospace;
+				color: #eee;
+			}
+			canvas {
+				border: 1px solid #444;
+				margin: 10px;
+			}
+			#controls {
+				display: flex;
+				gap: 10px;
+				margin: 10px;
+			}
+			button {
+				padding: 8px 16px;
+				cursor: pointer;
+			}
+			button.active {
+				background: #4CAF50;
+				color: white;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>Filter Debug — 按钮切换滤镜</h2>
+		<div id="controls">
+			<button id="btn-none">No Filter</button>
+			<button id="btn-blur">BlurFilter</button>
+			<button id="btn-glow">GlowFilter</button>
+			<button id="btn-shadow">DropShadow</button>
+			<button id="btn-color">ColorMatrix</button>
+		</div>
+		<canvas id="gameCanvas" width="640" height="480"></canvas>
+
+		<script type="module">
+			import {
+				createPlayer,
+				Sprite,
+				Shape,
+				BlurFilter,
+				GlowFilter,
+				DropShadowFilter,
+				ColorMatrixFilter,
+				DebugLog,
+			} from '../src/index.js';
+
+			const canvas = document.getElementById('gameCanvas');
+			const app = createPlayer({
+				canvas,
+				contentWidth: 640,
+				contentHeight: 480,
+				scaleMode: 'showAll',
+				frameRate: 60,
+			});
+
+			console.log(`Player created, WebGL: ${app.player.isWebGL}`);
+
+			const root = new Sprite();
+			app.start(root);
+
+			// Reference: no filter
+			const ref = new Shape();
+			ref.graphics.beginFill(0xff0000, 1);
+			ref.graphics.drawRect(0, 0, 60, 60);
+			ref.graphics.endFill();
+			ref.x = 20;
+			ref.y = 200;
+			root.addChild(ref);
+
+			// Test shape — smaller than expected bounds so blur has room
+			const testShape = new Shape();
+			testShape.graphics.beginFill(0x00ff00, 1);
+			testShape.graphics.drawRect(0, 0, 40, 40);
+			testShape.graphics.endFill();
+			testShape.x = 200;
+			testShape.y = 200;
+			root.addChild(testShape);
+
+			let currentFilter = null;
+
+			function setFilter(type) {
+				testShape.filters = [];
+				document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+				document.getElementById(`btn-${type}`)?.classList.add('active');
+				DebugLog.enable();
+				console.log(`\n========== Switching to: ${type} ==========`);
+
+				switch (type) {
+					case 'none':
+						testShape.filters = [];
+						break;
+					case 'blur':
+						testShape.filters = [new BlurFilter(10, 10)];
+						break;
+					case 'glow':
+						testShape.filters = [new GlowFilter(0x00ff00, 1, 8, 8, 2)];
+						break;
+					case 'shadow':
+						testShape.filters = [new DropShadowFilter(4, 45, 0x000000, 0.8, 4, 4)];
+						break;
+					case 'color': {
+						const grayMatrix = [0.3,0.6,0.1,0,0, 0.3,0.6,0.1,0,0, 0.3,0.6,0.1,0,0, 0,0,0,1,0];
+						testShape.filters = [new ColorMatrixFilter(grayMatrix)];
+						break;
+					}
+				}
+				currentFilter = type;
+			}
+
+			document.getElementById('btn-none').onclick = () => setFilter('none');
+			document.getElementById('btn-blur').onclick = () => setFilter('blur');
+			document.getElementById('btn-glow').onclick = () => setFilter('glow');
+			document.getElementById('btn-shadow').onclick = () => setFilter('shadow');
+			document.getElementById('btn-color').onclick = () => setFilter('color');
+
+			setFilter('glow');
+		</script>
+	</body>
+</html>

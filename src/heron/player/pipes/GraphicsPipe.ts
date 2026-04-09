@@ -159,9 +159,11 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 		if (!cache.texture) return;
 
 		// ── Draw cached texture ───────────────────────────────────────────────
+		// ox/oy are already baked into globalMatrix via _applyTransform.
+		// Only add bounds origin (content may start at non-zero local coords).
 		buffer.saveTransform();
-		if (cache.boundsX !== 0 || cache.boundsY !== 0 || ox !== 0 || oy !== 0) {
-			buffer.globalMatrix.append(1, 0, 0, 1, ox + cache.boundsX, oy + cache.boundsY);
+		if (cache.boundsX !== 0 || cache.boundsY !== 0) {
+			buffer.globalMatrix.append(1, 0, 0, 1, cache.boundsX, cache.boundsY);
 		}
 
 		buffer.context.drawTexture(cache.texture, 0, 0, w, h, 0, 0, w, h, w, h);

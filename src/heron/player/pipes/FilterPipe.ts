@@ -107,7 +107,22 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		}
 
 		// Offscreen path: redirect all subsequent draw calls into this buffer.
-		const offscreen = WGLBuf.create(buffer.context, bounds.width, bounds.height);
+		// Expand the buffer by the union of all filters' padding so blur/glow
+		// has room to bleed outside the content bounds.
+		let padL = 0, padR = 0, padT = 0, padB = 0;
+		for (const f of filters) {
+			const p = f.getPadding();
+			if (p.left > padL) padL = p.left;
+			if (p.right > padR) padR = p.right;
+			if (p.top > padT) padT = p.top;
+			if (p.bottom > padB) padB = p.bottom;
+		}
+		const offW = Math.ceil(bounds.width + padL + padR);
+		const offH = Math.ceil(bounds.height + padT + padB);
+		const offscreen = WGLBuf.create(buffer.context, offW, offH);
+		// Store padding offsets so the renderer can adjust the offscreen origin.
+		offscreen.filterPadX = padL;
+		offscreen.filterPadY = padT;
 		// pushBuffer activates the offscreen FBO so WebGL draws land there.
 		offscreen.context.pushBuffer(offscreen);
 		return offscreen;
@@ -143,8 +158,13 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 
 		if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
 
-		buffer.offsetX = push.offsetX + bx;
-		buffer.offsetY = push.offsetY + by;
+		// Position the offscreen result.
+		// The offscreen texture's top-left is (padL, padT) above/left of
+		// the content bounds origin, so we offset by (bx - padL, by - padT).
+		const padX = offscreen.filterPadX;
+		const padY = offscreen.filterPadY;
+		buffer.offsetX = bx - padX;
+		buffer.offsetY = by - padY;
 		buffer.saveTransform();
 		buffer.useOffset();
 		buffer.context.compositeFilterResult(filters, offscreen);

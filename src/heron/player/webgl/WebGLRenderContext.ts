@@ -456,9 +456,6 @@ export class WebGLRenderContext {
 		}
 
 		// Step 3 — ensure the parent buffer's FBO is the active GL framebuffer.
-		// popBuffer() only *queued* an ACT_BUFFER command; the actual GL bind
-		// may not have happened yet (the queue was flushed in step 1, but
-		// _drawBlurPingPong manipulates FBOs directly).  Activate explicitly.
 		if (this._currentBuffer) {
 			this._currentBuffer.rootRenderTarget.activate();
 			this.onResize(this._currentBuffer.width, this._currentBuffer.height);
@@ -471,8 +468,7 @@ export class WebGLRenderContext {
 		this.drawTexture(target.texture, 0, 0, w, h, 0, 0, w, h, w, h);
 		this.activeFilter = undefined;
 
-		// Step 5 — flush immediately.  The parent FBO is already active (step 3)
-		// and the offscreen texture is NOT attached to it, so no feedback loop.
+		// Step 5 — flush immediately.
 		this.flush();
 	}
 
@@ -675,6 +671,7 @@ export class WebGLRenderContext {
 		}
 
 		let indexOffset = 0;
+		let gpuDrawCalls = 0;
 
 		for (let i = 0; i < cmds.drawDataLen; i++) {
 			const cmd = cmds.drawData[i];
@@ -726,16 +723,19 @@ export class WebGLRenderContext {
 						cmd.textureHeight,
 					);
 					indexOffset += cmd.count;
+					gpuDrawCalls++;
 					break;
 				case DrawCmdType.MULTI_TEXTURE:
 					if (cmd.multiCmd) {
 						this._drawMultiTextureBatch(cmd.multiCmd, indexOffset, cmd.count);
 						indexOffset += cmd.count;
+						gpuDrawCalls++;
 					}
 					break;
 				case DrawCmdType.RECT:
 					this._drawRectBatch(indexOffset, cmd.count);
 					indexOffset += cmd.count;
+					gpuDrawCalls++;
 					break;
 			}
 		}
@@ -744,6 +744,10 @@ export class WebGLRenderContext {
 		cmds.clear();
 		this._batcher.reset();
 		this._bindIndices = false;
+
+		if (gpuDrawCalls > 0 && this._currentBuffer) {
+			this._currentBuffer.drawCalls += gpuDrawCalls;
+		}
 	}
 
 	// ── Private — blend & program ─────────────────────────────────────────────
@@ -883,15 +887,9 @@ export class WebGLRenderContext {
 		if (filter instanceof ColorMatrixFilter) {
 			const uMatrix = prog.uniforms['matrix'];
 			const uAdd = prog.uniforms['colorAdd'];
-			if (uMatrix) gl.uniformMatrix4fv(uMatrix, false, new Float32Array(filter.matrix.slice(0, 16)));
-			if (uAdd)
-				gl.uniform4f(
-					uAdd,
-					filter.matrix[4] / 255,
-					filter.matrix[9] / 255,
-					filter.matrix[14] / 255,
-					filter.matrix[19] / 255,
-				);
+			const fu = filter.uniforms as { matrix: number[]; colorAdd: { x: number; y: number; z: number; w: number } };
+			if (uMatrix) gl.uniformMatrix4fv(uMatrix, false, new Float32Array(fu.matrix));
+			if (uAdd) gl.uniform4f(uAdd, fu.colorAdd.x, fu.colorAdd.y, fu.colorAdd.z, fu.colorAdd.w);
 		} else if (filter instanceof BlurFilter) {
 			const uBlur = prog.uniforms['blur'];
 			const uSize = prog.uniforms['uTextureSize'];
@@ -915,7 +913,7 @@ export class WebGLRenderContext {
 				const uDist = prog.uniforms['dist'];
 				if (uDist) gl.uniform1f(uDist, filter.distance);
 				const uAngle = prog.uniforms['angle'];
-				if (uAngle) gl.uniform1f(uAngle, (filter.angle / 180) * Math.PI);
+				if (uAngle) gl.uniform1f(uAngle, -(filter.angle / 180) * Math.PI);
 				const uHide = prog.uniforms['hideObject'];
 				if (uHide) gl.uniform1f(uHide, filter.hideObject ? 1 : 0);
 			} else {

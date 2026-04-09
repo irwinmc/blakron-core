@@ -81,8 +81,9 @@ export class BitmapPipe implements RenderPipe<Bitmap> {
 		const destH = !isNaN(bitmap.height) ? bitmap.height : bitmap.textureHeight;
 		if (destW <= 0 || destH <= 0) return;
 
-		buffer.offsetX = inst.offsetX;
-		buffer.offsetY = inst.offsetY;
+		// offsetX/Y are already baked into globalMatrix via _applyTransform.
+		buffer.offsetX = 0;
+		buffer.offsetY = 0;
 
 		buffer.context.drawImage(
 			bd,

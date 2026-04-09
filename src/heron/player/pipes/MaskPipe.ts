@@ -224,7 +224,8 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 
 		const savedMatrix = Matrix.create();
 		savedMatrix.copyFrom(buffer.globalMatrix);
-		buffer.globalMatrix.append(1, 0, 0, -1, offsetX + bx, offsetY + by + displayBuffer.height);
+		// offsetX/Y already in globalMatrix via _applyTransform; only add bounds flip.
+		buffer.globalMatrix.append(1, 0, 0, -1, bx, by + displayBuffer.height);
 
 		const dw = displayBuffer.rootRenderTarget.width;
 		const dh = displayBuffer.rootRenderTarget.height;

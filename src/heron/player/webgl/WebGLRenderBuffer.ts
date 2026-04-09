@@ -23,12 +23,16 @@ export class WebGLRenderBuffer {
 			buf.offsetY = 0;
 			buf.offscreenOriginX = 0;
 			buf.offscreenOriginY = 0;
+			buf.filterPadX = 0;
+			buf.filterPadY = 0;
 			return buf;
 		}
 		return new WebGLRenderBuffer(context, width, height, false);
 	}
 
 	public static release(buf: WebGLRenderBuffer): void {
+		buf.filterPadX = 0;
+		buf.filterPadY = 0;
 		if (_pool.length < 6) _pool.push(buf);
 		else buf.rootRenderTarget.resize(0, 0);
 	}
@@ -59,6 +63,10 @@ export class WebGLRenderBuffer {
 	 */
 	public offscreenOriginX = 0;
 	public offscreenOriginY = 0;
+	/** Horizontal padding from filter, used by the renderer to offset content within the expanded buffer. */
+	public filterPadX = 0;
+	/** Vertical padding from filter. */
+	public filterPadY = 0;
 
 	// Stencil
 	public stencilList: { x: number; y: number; width: number; height: number }[] = [];

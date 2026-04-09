@@ -113,13 +113,58 @@ export class Player implements Renderable {
 	// Reuse a single identity matrix across frames to avoid per-frame GC pressure.
 	private static readonly _IDENTITY = new Matrix();
 
+	// ── Performance metrics ──────────────────────────────────────────────────
+
+	public readonly perf = {
+		frameCount: 0,
+		lastFrameTime: 0,
+		fps: 0,
+		avgFps: 0,
+		minFps: 0 as number,
+		maxFps: 0 as number,
+		drawCalls: 0,
+		avgDrawCalls: 0,
+		renderTimeMs: 0,
+		avgRenderTimeMs: 0,
+		maxRenderTimeMs: 0,
+		totalRenderTimeMs: 0,
+	};
+
+	private _fpsFrames = 0;
+	private _fpsLastTime = performance.now();
+
 	render(_triggerByFrame: boolean, _costTicker: number): void {
+		const t0 = performance.now();
+
 		if (this._webglBuffer && this._webglRenderer) {
 			this._webglBuffer.clear();
-			this._webglRenderer.render(this.stage, this._webglBuffer, Player._IDENTITY);
+			this.perf.drawCalls = this._webglRenderer.render(this.stage, this._webglBuffer, Player._IDENTITY);
 		} else if (this._canvas2dBuffer && this._canvas2dRenderer) {
 			this._canvas2dBuffer.clear();
-			this._canvas2dRenderer.render(this.stage, this._canvas2dBuffer);
+			this.perf.drawCalls = this._canvas2dRenderer.render(this.stage, this._canvas2dBuffer);
 		}
+
+		const renderTime = performance.now() - t0;
+		this.perf.renderTimeMs = renderTime;
+		this.perf.totalRenderTimeMs += renderTime;
+		if (renderTime > this.perf.maxRenderTimeMs) this.perf.maxRenderTimeMs = renderTime;
+
+		this.perf.frameCount++;
+		this._fpsFrames++;
+
+		const now = performance.now();
+		const elapsed = now - this._fpsLastTime;
+		if (elapsed >= 1000) {
+			const fps = (this._fpsFrames / elapsed) * 1000;
+			this.perf.fps = fps;
+			if (fps < this.perf.minFps) this.perf.minFps = fps;
+			if (fps > this.perf.maxFps) this.perf.maxFps = fps;
+			this.perf.avgFps = this.perf.frameCount / (this.perf.totalRenderTimeMs / 1000 + (now - this._fpsLastTime + elapsed) / 1000) || fps;
+			this._fpsFrames = 0;
+			this._fpsLastTime = now;
+		}
+
+		this.perf.avgDrawCalls = this.perf.drawCalls;
+		this.perf.avgRenderTimeMs = this.perf.totalRenderTimeMs / this.perf.frameCount;
 	}
 }

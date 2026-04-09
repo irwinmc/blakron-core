@@ -29,6 +29,10 @@ export class Filter extends HashObject {
 
 	protected updatePadding(): void {}
 
+	public getPadding(): { left: number; right: number; top: number; bottom: number } {
+		return { left: this.paddingLeft, right: this.paddingRight, top: this.paddingTop, bottom: this.paddingBottom };
+	}
+
 	toJson(): string {
 		return '';
 	}
