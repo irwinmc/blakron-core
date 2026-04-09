@@ -1,4 +1,5 @@
 import { Stage, DisplayObject } from '../display/index.js';
+import { DisplayObjectContainer } from '../display/DisplayObjectContainer.js';
 import { Matrix } from '../geom/index.js';
 import { RenderBuffer } from './RenderBuffer.js';
 import { CanvasRenderer } from './CanvasRenderer.js';
@@ -25,6 +26,9 @@ export class Player implements Renderable {
 	private _webglRenderer: WebGLRenderer | undefined;
 	private _webglContext: WebGLRenderContext | undefined;
 
+	// Cleanup callbacks — called when the player is destroyed.
+	private _unregisterCallbacks: Array<() => void> = [];
+
 	public constructor(canvas: HTMLCanvasElement, stage?: Stage) {
 		this.stage = stage ?? new Stage();
 
@@ -38,6 +42,16 @@ export class Player implements Renderable {
 					true,
 				);
 				this._webglRenderer = new WebGLRenderer();
+
+				// Wire up notifications using the registration API so multiple
+				// Player instances on the same page don't clobber each other.
+				const renderer = this._webglRenderer;
+				this._unregisterCallbacks.push(
+					DisplayObject.addStructureChangeListener(() => renderer.markStructureDirty()),
+					DisplayObjectContainer.addStructureChangeListener(() => renderer.markStructureDirty()),
+					DisplayObject.addRenderableDirtyListener(obj => renderer.markRenderableDirty(obj)),
+				);
+
 				return;
 			} catch {
 				// WebGL init failed, fall through to Canvas 2D
@@ -78,6 +92,13 @@ export class Player implements Renderable {
 		ticker.removePlayer(this);
 	}
 
+	/** Destroy the player and release all resources. */
+	public destroy(): void {
+		this.pause();
+		for (const fn of this._unregisterCallbacks) fn();
+		this._unregisterCallbacks = [];
+	}
+
 	public updateStageSize(width: number, height: number): void {
 		this.stage.resize(width, height);
 		if (this._webglBuffer) {
@@ -87,11 +108,13 @@ export class Player implements Renderable {
 		}
 	}
 
+	// Reuse a single identity matrix across frames to avoid per-frame GC pressure.
+	private static readonly _IDENTITY = new Matrix();
+
 	render(_triggerByFrame: boolean, _costTicker: number): void {
 		if (this._webglBuffer && this._webglRenderer) {
 			this._webglBuffer.clear();
-			const m = new Matrix();
-			this._webglRenderer.render(this.stage, this._webglBuffer, m);
+			this._webglRenderer.render(this.stage, this._webglBuffer, Player._IDENTITY);
 		} else if (this._canvas2dBuffer && this._canvas2dRenderer) {
 			this._canvas2dBuffer.clear();
 			this._canvas2dRenderer.render(this.stage, this._canvas2dBuffer);

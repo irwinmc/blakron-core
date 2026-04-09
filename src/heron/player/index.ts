@@ -9,3 +9,5 @@ export { TouchHandler } from './TouchHandler.js';
 export { ScreenAdapter, type StageDisplaySize } from './ScreenAdapter.js';
 export type { HeronOptions } from './HeronOptions.js';
 export { createPlayer, type HeronApp } from './createPlayer.js';
+export { InstructionSet, type Instruction } from './InstructionSet.js';
+export type { RenderPipe } from './RenderPipe.js';

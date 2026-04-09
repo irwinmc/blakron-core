@@ -125,6 +125,8 @@ export class DisplayObjectContainer extends DisplayObject {
 		}
 		if (sortRequired && children.length > 1) {
 			children.sort(this.sortChildrenFunc);
+			// Child order changed — instruction set must be rebuilt.
+			DisplayObjectContainer._onStructureChange?.();
 		}
 	}
 
@@ -300,6 +302,34 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	private markDirtyInternal(): void {
 		this.markDirty();
+		// Notify the renderer that the scene structure changed — triggers a full
+		// InstructionSet rebuild on the next frame.
+		DisplayObjectContainer._onStructureChange?.();
+	}
+
+	/**
+	 * @internal
+	 * Injected by Player at startup. Called whenever a child is added, removed,
+	 * or reordered so the WebGLRenderer can mark its InstructionSet as dirty.
+	 */
+	static _onStructureChange: (() => void) | undefined = undefined;
+
+	/** @internal Register a structure-change listener. Returns an unregister function. */
+	static addStructureChangeListener(fn: () => void): () => void {
+		const prev = DisplayObjectContainer._onStructureChange;
+		if (!prev) {
+			DisplayObjectContainer._onStructureChange = fn;
+		} else {
+			DisplayObjectContainer._onStructureChange = () => {
+				prev();
+				fn();
+			};
+		}
+		return () => {
+			if (DisplayObjectContainer._onStructureChange === fn) {
+				DisplayObjectContainer._onStructureChange = undefined;
+			}
+		};
 	}
 
 	private sortChildrenFunc(a: DisplayObject, b: DisplayObject): number {

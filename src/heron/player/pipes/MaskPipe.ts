@@ -1,0 +1,237 @@
+import type { DisplayObject } from '../../display/DisplayObject.js';
+import type { WebGLRenderBuffer } from '../webgl/WebGLRenderBuffer.js';
+import type { Instruction } from '../InstructionSet.js';
+import type { InstructionSet } from '../InstructionSet.js';
+import type { RenderPipe } from '../RenderPipe.js';
+import { Matrix } from '../../geom/index.js';
+import { WebGLRenderBuffer as WGLBuf } from '../webgl/WebGLRenderBuffer.js';
+
+// ── Instructions ──────────────────────────────────────────────────────────────
+
+export interface MaskPushInstruction extends Instruction {
+	readonly renderPipeId: 'maskPush';
+	renderable: DisplayObject;
+	offsetX: number;
+	offsetY: number;
+}
+
+export interface MaskPopInstruction extends Instruction {
+	readonly renderPipeId: 'maskPop';
+	renderable: DisplayObject;
+	push: MaskPushInstruction;
+}
+
+// ── Pipe ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Handles mask / clip / scrollRect rendering for WebGL.
+ *
+ * Mirrors the old WebGLRenderer._drawWithClip() and _drawWithScrollRect()
+ * logic as a push/pop instruction pair.
+ */
+export class MaskPipe implements RenderPipe<DisplayObject> {
+	public static readonly PUSH_ID = 'maskPush';
+	public static readonly POP_ID = 'maskPop';
+
+	public addToInstructionSet(_renderable: DisplayObject, _set: InstructionSet): void {
+		// Added by the renderer traversal, not here.
+	}
+
+	public updateRenderable(_renderable: DisplayObject): void {}
+
+	// ── Factory helpers ───────────────────────────────────────────────────────
+
+	public static makePush(renderable: DisplayObject, offsetX: number, offsetY: number): MaskPushInstruction {
+		return { renderPipeId: 'maskPush', renderable, offsetX, offsetY };
+	}
+
+	public static makePop(renderable: DisplayObject, push: MaskPushInstruction): MaskPopInstruction {
+		return { renderPipeId: 'maskPop', renderable, push };
+	}
+
+	// ── Execute ───────────────────────────────────────────────────────────────
+
+	/**
+	 * Handles scrollRect / maskRect via scissor or stencil.
+	 * Returns true if a scissor was used (caller must call executePopScissor).
+	 */
+	public executeScrollRectPush(inst: MaskPushInstruction, buffer: WebGLRenderBuffer): boolean {
+		const { renderable, offsetX, offsetY } = inst;
+		const rect = renderable.internalScrollRect ?? renderable.internalMaskRect;
+		if (!rect || rect.isEmpty()) return false;
+
+		const m = buffer.globalMatrix;
+		if (buffer.hasScissor || m.b !== 0 || m.c !== 0) {
+			buffer.context.pushMask(rect.x + offsetX, rect.y + offsetY, rect.width, rect.height);
+			return false; // stencil path
+		}
+
+		const a = m.a,
+			d = m.d,
+			tx = m.tx,
+			ty = m.ty;
+		const x = rect.x + offsetX,
+			y = rect.y + offsetY;
+		const xMax = x + rect.width,
+			yMax = y + rect.height;
+		const minX = Math.min(a * x + tx, a * xMax + tx);
+		const maxX = Math.max(a * x + tx, a * xMax + tx);
+		const minY = Math.min(d * y + ty, d * yMax + ty);
+		const maxY = Math.max(d * y + ty, d * yMax + ty);
+		buffer.context.enableScissor(minX, -maxY + buffer.height, maxX - minX, maxY - minY);
+		return true; // scissor path
+	}
+
+	public executeScrollRectPop(buffer: WebGLRenderBuffer, usedScissor: boolean): void {
+		if (usedScissor) buffer.context.disableScissor();
+		else buffer.context.popMask();
+	}
+
+	/**
+	 * Handles DisplayObject mask (stencil-based compositing).
+	 *
+	 * Allocates an offscreen buffer and activates it via pushBuffer so that
+	 * all subsequent leaf instructions (the masked subtree) draw into it.
+	 * The mask object itself is rendered separately in executeClipPop because
+	 * it is not part of the main InstructionSet.
+	 *
+	 * Returns the offscreen buffer, or null if the object has zero bounds.
+	 */
+	public executeClipPush(
+		inst: MaskPushInstruction,
+		buffer: WebGLRenderBuffer,
+		renderer: { _drawDisplayObject(obj: DisplayObject, buf: WebGLRenderBuffer, ox: number, oy: number): number },
+	): WebGLRenderBuffer | null {
+		const { renderable } = inst;
+		const scrollRect = renderable.internalScrollRect ?? renderable.internalMaskRect;
+
+		// Simple case: no mask object, no children — stencil/scissor only.
+		if (!renderable.internalMask && (!renderable.children || renderable.children.length === 0)) {
+			if (scrollRect) {
+				buffer.context.pushMask(
+					scrollRect.x + inst.offsetX,
+					scrollRect.y + inst.offsetY,
+					scrollRect.width,
+					scrollRect.height,
+				);
+			}
+			return null;
+		}
+
+		const bounds = renderable.getOriginalBounds();
+		if (bounds.width <= 0 || bounds.height <= 0) return null;
+
+		const bw = bounds.width;
+		const bh = bounds.height;
+
+		// Allocate and activate the offscreen buffer.
+		// All subsequent draw calls (the masked subtree instructions) will land here.
+		const displayBuffer = WGLBuf.create(buffer.context, bw, bh);
+		displayBuffer.context.pushBuffer(displayBuffer);
+		return displayBuffer;
+	}
+
+	public executeClipPop(
+		inst: MaskPopInstruction,
+		buffer: WebGLRenderBuffer,
+		displayBuffer: WebGLRenderBuffer | null,
+		renderer: { _drawDisplayObject(obj: DisplayObject, buf: WebGLRenderBuffer, ox: number, oy: number): number },
+	): void {
+		const { renderable, push } = inst;
+		const { offsetX, offsetY } = push;
+		const scrollRect = renderable.internalScrollRect ?? renderable.internalMaskRect;
+		const hasBlend = renderable.internalBlendMode !== 0;
+		const blendOp = hasBlend
+			? ({ 0: 'source-over', 1: 'lighter', 2: 'destination-out' }[renderable.internalBlendMode] ?? 'source-over')
+			: 'source-over';
+
+		if (!displayBuffer) {
+			// Simple stencil path — just pop the mask.
+			if (scrollRect) buffer.context.popMask();
+			return;
+		}
+
+		const bounds = renderable.getOriginalBounds();
+		const bx = bounds.x;
+		const by = bounds.y;
+		const bw = bounds.width;
+		const bh = bounds.height;
+
+		// Apply the mask object (if any) to the displayBuffer via destination-in.
+		const mask = renderable.internalMask;
+		if (mask) {
+			const maskBuffer = WGLBuf.create(buffer.context, bw, bh);
+			maskBuffer.context.pushBuffer(maskBuffer);
+			const maskMatrix = Matrix.create();
+			maskMatrix.copyFrom(mask.getConcatenatedMatrix());
+			mask.getConcatenatedMatrixAt(renderable, maskMatrix);
+			maskMatrix.translate(-bx, -by);
+			maskBuffer.setTransform(
+				maskMatrix.a,
+				maskMatrix.b,
+				maskMatrix.c,
+				maskMatrix.d,
+				maskMatrix.tx,
+				maskMatrix.ty,
+			);
+			Matrix.release(maskMatrix);
+			// Render the mask shape directly — it is not in the InstructionSet.
+			renderer._drawDisplayObject(mask, maskBuffer, 0, 0);
+			maskBuffer.context.popBuffer();
+
+			displayBuffer.context.setGlobalCompositeOperation('destination-in');
+			const mw = maskBuffer.rootRenderTarget.width;
+			const mh = maskBuffer.rootRenderTarget.height;
+			if (maskBuffer.rootRenderTarget.texture) {
+				displayBuffer.setTransform(1, 0, 0, -1, 0, maskBuffer.height);
+				displayBuffer.context.drawTexture(
+					maskBuffer.rootRenderTarget.texture,
+					0,
+					0,
+					mw,
+					mh,
+					0,
+					0,
+					mw,
+					mh,
+					mw,
+					mh,
+				);
+				displayBuffer.setTransform(1, 0, 0, 1, 0, 0);
+			}
+			displayBuffer.context.setGlobalCompositeOperation('source-over');
+			WGLBuf.release(maskBuffer);
+		}
+
+		// Deactivate the offscreen buffer, restoring the main buffer as active.
+		displayBuffer.context.popBuffer();
+
+		if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
+		if (scrollRect) {
+			buffer.context.pushMask(
+				scrollRect.x + offsetX,
+				scrollRect.y + offsetY,
+				scrollRect.width,
+				scrollRect.height,
+			);
+		}
+
+		const savedMatrix = Matrix.create();
+		savedMatrix.copyFrom(buffer.globalMatrix);
+		buffer.globalMatrix.append(1, 0, 0, -1, offsetX + bx, offsetY + by + displayBuffer.height);
+
+		const dw = displayBuffer.rootRenderTarget.width;
+		const dh = displayBuffer.rootRenderTarget.height;
+		if (displayBuffer.rootRenderTarget.texture) {
+			buffer.context.drawTexture(displayBuffer.rootRenderTarget.texture, 0, 0, dw, dh, 0, 0, dw, dh, dw, dh);
+		}
+
+		buffer.globalMatrix.copyFrom(savedMatrix);
+		Matrix.release(savedMatrix);
+
+		if (scrollRect) buffer.context.popMask();
+		if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
+
+		WGLBuf.release(displayBuffer);
+	}
+}

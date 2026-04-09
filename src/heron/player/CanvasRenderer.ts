@@ -11,7 +11,7 @@ import {
 	setGraphicsHitTest,
 	setBitmapPixelHitTest,
 } from '../display/index.js';
-import { Matrix } from '../geom/index.js';
+import { Matrix, Rectangle } from '../geom/index.js';
 import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 import { BlurFilter, ColorMatrixFilter, GlowFilter, DropShadowFilter } from '../filters/index.js';
 
@@ -66,8 +66,9 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 		forHitTest = false,
+		skipCache = false,
 	): void {
-		this.renderGraphics(graphics, ctx, offsetX, offsetY, forHitTest);
+		this.renderGraphics(graphics, ctx, offsetX, offsetY, forHitTest, skipCache);
 	}
 
 	/** @internal Used by Bitmap pixel hit test. */
@@ -358,16 +359,59 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 		forHitTest = false,
+		skipCache = false,
 	): number {
 		if (graphics.commands.length === 0) return 0;
 
+		// ── Offscreen cache (skip for hit-test or when caller manages its own cache) ──
+		if (!forHitTest && !skipCache) {
+			if (graphics.canvasCacheDirty || !graphics._offscreenCanvas) {
+				// Measure bounds to size the offscreen canvas
+				const bounds = new Rectangle();
+				graphics.measureContentBounds(bounds);
+				const cw = Math.ceil(bounds.width) || 1;
+				const ch = Math.ceil(bounds.height) || 1;
+
+				// Create or resize offscreen canvas
+				if (!graphics._offscreenCanvas) {
+					graphics._offscreenCanvas = document.createElement('canvas');
+					graphics._offscreenCtx = graphics._offscreenCanvas.getContext('2d')!;
+				}
+				const oc = graphics._offscreenCanvas;
+				if (oc.width !== cw || oc.height !== ch) {
+					oc.width = cw;
+					oc.height = ch;
+				} else {
+					graphics._offscreenCtx!.clearRect(0, 0, cw, ch);
+				}
+				const oc2d = graphics._offscreenCtx!;
+				oc2d.save();
+				oc2d.translate(-bounds.x, -bounds.y);
+				for (const cmd of graphics.commands) {
+					this.executeGraphicsCommand(cmd, oc2d, false);
+				}
+				oc2d.restore();
+
+				graphics._offscreenBoundsX = bounds.x;
+				graphics._offscreenBoundsY = bounds.y;
+				graphics.canvasCacheDirty = false;
+			}
+
+			// Draw cached offscreen canvas
+			ctx.drawImage(
+				graphics._offscreenCanvas!,
+				offsetX + graphics._offscreenBoundsX!,
+				offsetY + graphics._offscreenBoundsY!,
+			);
+			return 1;
+		}
+
+		// ── Hit-test path: direct execution, no cache ─────────────────────────
 		ctx.save();
 		ctx.translate(offsetX, offsetY);
-
 		for (const cmd of graphics.commands) {
 			this.executeGraphicsCommand(cmd, ctx, forHitTest);
 		}
-
 		ctx.restore();
 		return 1;
 	}

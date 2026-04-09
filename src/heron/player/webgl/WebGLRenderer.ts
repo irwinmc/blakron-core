@@ -1,28 +1,96 @@
-import { DisplayObject, RenderMode, Bitmap, Shape, Sprite, Mesh, Graphics } from '../../display/index.js';
-import { Matrix, Rectangle } from '../../geom/index.js';
-import { ColorMatrixFilter } from '../../filters/index.js';
+import { DisplayObject, RenderMode, Bitmap, Shape, Sprite, Mesh } from '../../display/index.js';
+import { Matrix } from '../../geom/index.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { CanvasRenderer } from '../CanvasRenderer.js';
-import { RenderBuffer } from '../RenderBuffer.js';
+import { InstructionSet } from '../InstructionSet.js';
+import { BitmapPipe, type BitmapInstruction } from '../pipes/BitmapPipe.js';
+import { GraphicsPipe, type GraphicsInstruction } from '../pipes/GraphicsPipe.js';
+import { MeshPipe, type MeshInstruction } from '../pipes/MeshPipe.js';
+import { FilterPipe, type FilterPushInstruction, type FilterPopInstruction } from '../pipes/FilterPipe.js';
+import { MaskPipe, type MaskPushInstruction, type MaskPopInstruction } from '../pipes/MaskPipe.js';
 
-const BLEND_MODES: Record<number, string> = {
-	0: 'source-over',
-	1: 'lighter',
-	2: 'destination-out',
-};
+// ── Transform context ─────────────────────────────────────────────────────────
 
-interface GraphicsCache {
-	renderBuffer: RenderBuffer;
-	texture: WebGLTexture | undefined;
-	textureWidth: number;
-	textureHeight: number;
-	dirty: boolean;
+/**
+ * Snapshot of the buffer transform state at the point an instruction was built.
+ * Stored on each leaf instruction so execute() can restore the correct transform.
+ */
+interface TransformState {
+	a: number;
+	b: number;
+	c: number;
+	d: number;
+	tx: number;
+	ty: number;
+	offsetX: number;
+	offsetY: number;
+	alpha: number;
+	tint: number;
 }
 
+// ── Augmented instruction types ───────────────────────────────────────────────
+
+type LeafInstruction = (BitmapInstruction | GraphicsInstruction | MeshInstruction) & {
+	transform: TransformState;
+};
+
+type EffectPushInstruction = (FilterPushInstruction | MaskPushInstruction) & {
+	transform: TransformState;
+};
+
+interface DisplayListCacheInstruction {
+	renderPipeId: 'displayListCache';
+	renderable: DisplayObject;
+	offsetX: number;
+	offsetY: number;
+	transform: TransformState;
+}
+
+type AnyInstruction =
+	| LeafInstruction
+	| EffectPushInstruction
+	| FilterPopInstruction
+	| MaskPopInstruction
+	| DisplayListCacheInstruction;
+
+// ── WebGLRenderer ─────────────────────────────────────────────────────────────
+
+/**
+ * Two-phase WebGL renderer inspired by Pixi.js 8's RenderPipe / InstructionSet pattern.
+ *
+ * Phase A — Build (only when structureDirty):
+ *   Traverse the DisplayObject tree and produce a flat InstructionSet.
+ *   Each instruction captures the object reference + transform snapshot.
+ *
+ * Phase B — Execute (every frame):
+ *   Walk the InstructionSet and dispatch each instruction to its pipe.
+ *   No scene-graph traversal happens here.
+ *
+ * When only data changes (renderDirty but not structureDirty):
+ *   Call pipe.updateRenderable() for each dirty object, then execute.
+ */
 export class WebGLRenderer {
+	// ── Pipes ─────────────────────────────────────────────────────────────────
+	private readonly _canvasRenderer = new CanvasRenderer();
+	private readonly _bitmapPipe: BitmapPipe;
+	private readonly _graphicsPipe: GraphicsPipe;
+	private readonly _meshPipe: MeshPipe;
+	private readonly _filterPipe = new FilterPipe();
+	private readonly _maskPipe = new MaskPipe();
+
+	// ── Instruction set ───────────────────────────────────────────────────────
+	private readonly _instructionSet = new InstructionSet();
+
+	// ── Nesting (for recursive offscreen renders, e.g. cacheAsBitmap) ────────
 	private _nestLevel = 0;
-	private _canvasRenderer = new CanvasRenderer();
-	private _graphicsCache = new WeakMap<Graphics, GraphicsCache>();
+
+	public constructor() {
+		this._bitmapPipe = new BitmapPipe();
+		this._graphicsPipe = new GraphicsPipe(this._canvasRenderer);
+		this._meshPipe = new MeshPipe();
+	}
+
+	// ── Public entry point ────────────────────────────────────────────────────
 
 	public render(displayObject: DisplayObject, buffer: WebGLRenderBuffer, matrix: Matrix): number {
 		this._nestLevel++;
@@ -30,18 +98,36 @@ export class WebGLRenderer {
 		ctx.pushBuffer(buffer);
 
 		buffer.transform(matrix.a, matrix.b, matrix.c, matrix.d, 0, 0);
-		this._drawDisplayObject(displayObject, buffer, matrix.tx, matrix.ty, true);
+
+		const set = this._instructionSet;
+
+		// ── Phase A: build instructions if scene structure changed ────────────
+		if (set.structureDirty) {
+			set.reset();
+			this._buildInstructions(displayObject, set, buffer, matrix.tx, matrix.ty, true);
+			set.structureDirty = false;
+		} else {
+			// ── Partial update: patch GPU data for dirty renderables ──────────
+			this._updateDirtyRenderables(set);
+		}
+
+		// ── Phase B: execute ──────────────────────────────────────────────────
+		this._executeInstructions(set, buffer);
+
 		ctx.$drawWebGL();
 		const drawCalls = buffer.drawCalls;
 		buffer.onRenderFinish();
 
 		ctx.popBuffer();
 
-		// Invert the matrix transform
+		// Restore identity transform
 		const inv = Matrix.create();
 		matrix.invertInto(inv);
 		buffer.transform(inv.a, inv.b, inv.c, inv.d, 0, 0);
 		Matrix.release(inv);
+
+		// Root renderDirty is consumed after a full render pass.
+		displayObject.renderDirty = false;
 
 		this._nestLevel--;
 		if (this._nestLevel === 0) {
@@ -50,62 +136,535 @@ export class WebGLRenderer {
 		return drawCalls;
 	}
 
-	// ── Tree traversal ────────────────────────────────────────────────────────
+	// ── Phase A: build ────────────────────────────────────────────────────────
 
-	private _drawDisplayObject(
+	/**
+	 * Recursively traverse the DisplayObject tree and append instructions to `set`.
+	 * Captures the current transform/alpha/tint state into each instruction.
+	 */
+	private _buildInstructions(
 		displayObject: DisplayObject,
+		set: InstructionSet,
 		buffer: WebGLRenderBuffer,
 		offsetX: number,
 		offsetY: number,
 		isStage = false,
-	): number {
-		let drawCalls = 0;
-
-		// DisplayList cache (cacheAsBitmap) — re-render to offscreen WebGL buffer if dirty
+	): void {
+		// cacheAsBitmap — treat as a single opaque leaf; render offscreen lazily.
 		const displayList = displayObject.displayList;
 		if (displayList && !isStage) {
-			if (displayObject.cacheDirty || displayObject.renderDirty) {
-				if (displayList.updateSurfaceSize()) {
-					displayList.renderBuffer.clear();
-					this._canvasRenderer.renderToContext(
-						displayObject,
-						displayList.renderBuffer.context,
-						displayList.offsetX,
-						displayList.offsetY,
-					);
-					displayList.updateBitmapData();
-				}
-				displayObject.cacheDirty = false;
-				displayObject.renderDirty = false;
+			// Emit a synthetic BitmapInstruction backed by the DisplayList cache.
+			// The execute phase will refresh the cache if dirty.
+			const inst = this._makeCacheInstruction(displayObject, offsetX, offsetY, buffer);
+			if (inst) set.add(inst);
+			return;
+		}
+
+		// Emit self instruction (Bitmap / Shape / Sprite / Mesh).
+		this._buildLeaf(displayObject, set, buffer, offsetX, offsetY);
+
+		const children = displayObject.children;
+		if (!children || children.length === 0) return;
+
+		for (const child of children) {
+			if (child.renderMode === RenderMode.NONE) continue;
+
+			// Compute child transform.
+			let ox: number, oy: number;
+			let savedMatrix: Matrix | undefined;
+
+			if (child.useTranslate) {
+				const m = child.getMatrix();
+				ox = offsetX + child.internalX;
+				oy = offsetY + child.internalY;
+				savedMatrix = Matrix.create();
+				savedMatrix.copyFrom(buffer.globalMatrix);
+				buffer.transform(m.a, m.b, m.c, m.d, ox, oy);
+				ox = -child.internalAnchorOffsetX;
+				oy = -child.internalAnchorOffsetY;
+			} else {
+				ox = offsetX + child.internalX - child.internalAnchorOffsetX;
+				oy = offsetY + child.internalY - child.internalAnchorOffsetY;
 			}
-			// Draw cached texture and skip children
-			if (displayList.bitmapData?.source) {
-				const bd = displayList.bitmapData;
-				const w = displayList.renderBuffer.width;
-				const h = displayList.renderBuffer.height;
-				buffer.context.drawImage(
+
+			const prevAlpha = buffer.globalAlpha;
+			if (child.internalAlpha !== 1) buffer.globalAlpha *= child.internalAlpha;
+
+			const prevTint = buffer.globalTintColor;
+			if (child.tintRGB !== 0xffffff) buffer.globalTintColor = child.tintRGB;
+
+			// Emit effect wrappers then recurse.
+			switch (child.renderMode) {
+				case RenderMode.FILTER:
+					this._buildFilter(child, set, buffer, ox, oy);
+					break;
+				case RenderMode.CLIP:
+					this._buildClip(child, set, buffer, ox, oy);
+					break;
+				case RenderMode.SCROLLRECT:
+					this._buildScrollRect(child, set, buffer, ox, oy);
+					break;
+				default:
+					this._buildInstructions(child, set, buffer, ox, oy);
+			}
+
+			buffer.globalAlpha = prevAlpha;
+			buffer.globalTintColor = prevTint;
+
+			if (savedMatrix) {
+				buffer.globalMatrix.copyFrom(savedMatrix);
+				Matrix.release(savedMatrix);
+			}
+		}
+	}
+
+	/** Emit a leaf instruction for a single DisplayObject (no children). */
+	private _buildLeaf(
+		obj: DisplayObject,
+		set: InstructionSet,
+		buffer: WebGLRenderBuffer,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
+
+		if (obj instanceof Bitmap && !(obj instanceof Mesh)) {
+			set.addLeaf({
+				renderPipeId: 'bitmap',
+				renderable: obj,
+				offsetX,
+				offsetY,
+				transform,
+			} as LeafInstruction);
+		} else if (obj instanceof Mesh) {
+			set.addLeaf({
+				renderPipeId: 'mesh',
+				renderable: obj,
+				offsetX,
+				offsetY,
+				transform,
+			} as LeafInstruction);
+		} else if (obj instanceof Shape) {
+			set.addLeaf({
+				renderPipeId: 'graphics',
+				renderable: obj,
+				graphics: obj.graphics,
+				offsetX,
+				offsetY,
+				transform,
+			} as LeafInstruction);
+		} else if (obj instanceof Sprite) {
+			if (obj.graphics.commands.length > 0) {
+				set.addLeaf({
+					renderPipeId: 'graphics',
+					renderable: obj,
+					graphics: obj.graphics,
+					offsetX,
+					offsetY,
+					transform,
+				} as LeafInstruction);
+			}
+		}
+	}
+
+	private _buildFilter(
+		obj: DisplayObject,
+		set: InstructionSet,
+		buffer: WebGLRenderBuffer,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		const filters = obj.internalFilters;
+		if (!filters.length) {
+			this._buildInstructions(obj, set, buffer, offsetX, offsetY);
+			return;
+		}
+		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
+		const push = Object.assign(FilterPipe.makePush(obj, filters, offsetX, offsetY), {
+			transform,
+		}) as EffectPushInstruction;
+		set.add(push);
+		this._buildInstructions(obj, set, buffer, offsetX, offsetY);
+		set.add(FilterPipe.makePop(obj, push as FilterPushInstruction));
+	}
+
+	private _buildClip(
+		obj: DisplayObject,
+		set: InstructionSet,
+		buffer: WebGLRenderBuffer,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
+		const push = Object.assign(MaskPipe.makePush(obj, offsetX, offsetY), { transform }) as EffectPushInstruction;
+		set.add(push);
+		this._buildInstructions(obj, set, buffer, offsetX, offsetY);
+		set.add(MaskPipe.makePop(obj, push as MaskPushInstruction));
+	}
+
+	private _buildScrollRect(
+		obj: DisplayObject,
+		set: InstructionSet,
+		buffer: WebGLRenderBuffer,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		const rect = obj.internalScrollRect ?? obj.internalMaskRect;
+		if (!rect || rect.isEmpty()) return;
+
+		let ox = offsetX,
+			oy = offsetY;
+		if (obj.internalScrollRect) {
+			ox -= rect.x;
+			oy -= rect.y;
+		}
+
+		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
+		const push = Object.assign(MaskPipe.makePush(obj, offsetX, offsetY), { transform }) as EffectPushInstruction;
+		// Tag as scrollRect so execute knows which path to take.
+		(push as unknown as MaskPushInstruction & { isScrollRect: boolean }).isScrollRect = true;
+		set.add(push);
+		this._buildInstructions(obj, set, buffer, ox, oy);
+		set.add(MaskPipe.makePop(obj, push as MaskPushInstruction));
+	}
+
+	/** Build a synthetic instruction for a cacheAsBitmap object. */
+	private _makeCacheInstruction(
+		obj: DisplayObject,
+		offsetX: number,
+		offsetY: number,
+		buffer: WebGLRenderBuffer,
+	): DisplayListCacheInstruction | null {
+		const displayList = obj.displayList;
+		if (!displayList) return null;
+		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
+		return {
+			renderPipeId: 'displayListCache',
+			renderable: obj,
+			offsetX,
+			offsetY,
+			transform,
+		};
+	}
+
+	// ── Phase A helpers ───────────────────────────────────────────────────────
+
+	private _snapshotTransform(buffer: WebGLRenderBuffer, offsetX: number, offsetY: number): TransformState {
+		const m = buffer.globalMatrix;
+		return {
+			a: m.a,
+			b: m.b,
+			c: m.c,
+			d: m.d,
+			tx: m.tx,
+			ty: m.ty,
+			offsetX,
+			offsetY,
+			alpha: buffer.globalAlpha,
+			tint: buffer.globalTintColor,
+		};
+	}
+
+	// ── Partial update ────────────────────────────────────────────────────────
+
+	private _updateDirtyRenderables(set: InstructionSet): void {
+		for (let i = 0; i < set.dirtyRenderableCount; i++) {
+			const obj = set.dirtyRenderables[i];
+			// Look up the instruction index for this object.
+			const idx = set.renderableIndex.get(obj);
+			if (idx === undefined) continue;
+			const inst = set.instructions[idx] as LeafInstruction;
+			if (!inst) continue;
+			// Recompute the transform snapshot from the object's current world state.
+			// We can't use buffer.globalMatrix here (it's the main buffer's current
+			// state, not the object's world transform), so we rebuild from scratch.
+			this._refreshLeafTransform(obj, inst);
+		}
+		set.dirtyRenderableCount = 0;
+	}
+
+	/**
+	 * Recompute the transform snapshot for a leaf instruction from the object's
+	 * current concatenated matrix and parent alpha/tint chain.
+	 */
+	private _refreshLeafTransform(obj: DisplayObject, inst: LeafInstruction): void {
+		const cm = obj.getConcatenatedMatrix();
+		const t = inst.transform;
+		t.a = cm.a;
+		t.b = cm.b;
+		t.c = cm.c;
+		t.d = cm.d;
+		t.tx = cm.tx;
+		t.ty = cm.ty;
+		t.offsetX = 0;
+		t.offsetY = 0;
+
+		// Walk up the parent chain to accumulate alpha and tint.
+		let alpha = obj.internalAlpha;
+		let tint = obj.tintRGB;
+		let p = obj.internalParent;
+		while (p) {
+			alpha *= p.internalAlpha;
+			if (p.tintRGB !== 0xffffff) tint = p.tintRGB;
+			p = p.internalParent;
+		}
+		t.alpha = alpha;
+		t.tint = tint;
+	}
+
+	// ── Phase B: execute ──────────────────────────────────────────────────────
+
+	private _executeInstructions(set: InstructionSet, buffer: WebGLRenderBuffer): void {
+		// Stack for offscreen buffers opened by filter/mask push instructions.
+		const offscreenStack: (WebGLRenderBuffer | null)[] = [];
+		const scissorStack: boolean[] = [];
+		// Track the currently active buffer — leaf instructions draw into this.
+		let activeBuffer = buffer;
+
+		for (let i = 0; i < set.instructionSize; i++) {
+			const inst = set.instructions[i] as AnyInstruction;
+
+			switch (inst.renderPipeId) {
+				// ── Leaf nodes ────────────────────────────────────────────────
+				case 'bitmap': {
+					const leaf = inst as LeafInstruction & BitmapInstruction;
+					this._applyTransform(activeBuffer, leaf.transform);
+					this._bitmapPipe.execute(leaf, activeBuffer);
+					break;
+				}
+				case 'mesh': {
+					const leaf = inst as LeafInstruction & MeshInstruction;
+					this._applyTransform(activeBuffer, leaf.transform);
+					this._meshPipe.execute(leaf, activeBuffer);
+					break;
+				}
+				case 'graphics': {
+					const leaf = inst as LeafInstruction & GraphicsInstruction;
+					this._applyTransform(activeBuffer, leaf.transform);
+					this._graphicsPipe.execute(leaf, activeBuffer);
+					break;
+				}
+
+				// ── DisplayList cache ─────────────────────────────────────────
+				case 'displayListCache': {
+					const cacheInst = inst as DisplayListCacheInstruction;
+					this._applyTransform(activeBuffer, cacheInst.transform);
+					this._executeDisplayListCache(
+						cacheInst.renderable,
+						activeBuffer,
+						cacheInst.offsetX,
+						cacheInst.offsetY,
+					);
+					break;
+				}
+
+				// ── Filter push/pop ───────────────────────────────────────────
+				case 'filterPush': {
+					const push = inst as FilterPushInstruction;
+					this._applyTransform(activeBuffer, (push as EffectPushInstruction).transform);
+					const offscreen = this._filterPipe.executePush(push, activeBuffer);
+					offscreenStack.push(offscreen);
+					// If an offscreen buffer was allocated, redirect subsequent draws into it.
+					if (offscreen) activeBuffer = offscreen;
+					break;
+				}
+				case 'filterPop': {
+					const pop = inst as FilterPopInstruction;
+					const offscreen = offscreenStack.pop() ?? null;
+					// Restore the parent buffer before compositing.
+					if (offscreen)
+						activeBuffer =
+							offscreenStack.length > 0 ? (offscreenStack[offscreenStack.length - 1] ?? buffer) : buffer;
+					this._filterPipe.executePop(pop, activeBuffer, offscreen);
+					break;
+				}
+
+				// ── Mask / clip push/pop ──────────────────────────────────────
+				case 'maskPush': {
+					const push = inst as MaskPushInstruction & { isScrollRect?: boolean };
+					this._applyTransform(activeBuffer, (push as EffectPushInstruction).transform);
+					if (push.isScrollRect) {
+						const usedScissor = this._maskPipe.executeScrollRectPush(push, activeBuffer);
+						scissorStack.push(usedScissor);
+						offscreenStack.push(null);
+					} else {
+						const displayBuffer = this._maskPipe.executeClipPush(push, activeBuffer, this);
+						offscreenStack.push(displayBuffer);
+						// Redirect subsequent draws into the offscreen buffer.
+						if (displayBuffer) activeBuffer = displayBuffer;
+					}
+					break;
+				}
+				case 'maskPop': {
+					const pop = inst as MaskPopInstruction & { push: MaskPushInstruction & { isScrollRect?: boolean } };
+					if (pop.push.isScrollRect) {
+						const usedScissor = scissorStack.pop() ?? false;
+						offscreenStack.pop();
+						this._maskPipe.executeScrollRectPop(activeBuffer, usedScissor);
+					} else {
+						const displayBuffer = offscreenStack.pop() ?? null;
+						// Restore the parent buffer before compositing.
+						if (displayBuffer)
+							activeBuffer =
+								offscreenStack.length > 0
+									? (offscreenStack[offscreenStack.length - 1] ?? buffer)
+									: buffer;
+						this._maskPipe.executeClipPop(pop, activeBuffer, displayBuffer, this);
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	/** Restore the buffer's global matrix / alpha / tint from a snapshot. */
+	private _applyTransform(buffer: WebGLRenderBuffer, t: TransformState): void {
+		const m = buffer.globalMatrix;
+		m.a = t.a;
+		m.b = t.b;
+		m.c = t.c;
+		m.d = t.d;
+		m.tx = t.tx;
+		m.ty = t.ty;
+		buffer.globalAlpha = t.alpha;
+		buffer.globalTintColor = t.tint;
+	}
+
+	/** Execute a cacheAsBitmap DisplayList instruction. */
+	private _executeDisplayListCache(
+		obj: DisplayObject,
+		buffer: WebGLRenderBuffer,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		const displayList = obj.displayList;
+		if (!displayList) return;
+
+		if (obj.cacheDirty || obj.renderDirty) {
+			if (displayList.updateSurfaceSize()) {
+				displayList.renderBuffer.clear();
+				this._canvasRenderer.renderToContext(
+					obj,
+					displayList.renderBuffer.context,
+					displayList.offsetX,
+					displayList.offsetY,
+				);
+				displayList.updateBitmapData();
+			}
+			obj.cacheDirty = false;
+			obj.renderDirty = false;
+			// Structure may have changed inside the cached subtree — mark dirty
+			// so next frame rebuilds if the cache is invalidated.
+		}
+
+		if (!displayList.bitmapData?.source) return;
+
+		const bd = displayList.bitmapData;
+		const w = displayList.renderBuffer.width;
+		const h = displayList.renderBuffer.height;
+		buffer.offsetX = offsetX;
+		buffer.offsetY = offsetY;
+		buffer.context.drawImage(bd, 0, 0, w, h, -displayList.offsetX, -displayList.offsetY, w, h, w, h, false);
+		buffer.offsetX = 0;
+		buffer.offsetY = 0;
+	}
+
+	// ── Public accessor for MaskPipe (needs to call _drawDisplayObject) ───────
+
+	/**
+	 * @internal Used by MaskPipe.executeClipPush() to render mask objects
+	 * into offscreen buffers during the execute phase.
+	 */
+	public _drawDisplayObject(obj: DisplayObject, buffer: WebGLRenderBuffer, offsetX: number, offsetY: number): number {
+		// For mask rendering we do a direct (non-instruction-set) traversal
+		// into the offscreen buffer — this is the same as the old approach.
+		return this._directDraw(obj, buffer, offsetX, offsetY);
+	}
+
+	/** Direct draw (used for offscreen mask/filter buffers). */
+	private _directDraw(obj: DisplayObject, buffer: WebGLRenderBuffer, offsetX: number, offsetY: number): number {
+		let drawCalls = 0;
+
+		// Leaf
+		buffer.offsetX = offsetX;
+		buffer.offsetY = offsetY;
+
+		if (obj instanceof Bitmap && !(obj instanceof Mesh)) {
+			const bd = obj.bitmapData;
+			if (bd?.source) {
+				const destW = !isNaN(obj.width) ? obj.width : obj.textureWidth;
+				const destH = !isNaN(obj.height) ? obj.height : obj.textureHeight;
+				if (destW > 0 && destH > 0) {
+					buffer.context.drawImage(
+						bd,
+						obj.bitmapX,
+						obj.bitmapY,
+						obj.bitmapWidth,
+						obj.bitmapHeight,
+						obj.bitmapOffsetX,
+						obj.bitmapOffsetY,
+						destW,
+						destH,
+						obj.sourceWidth,
+						obj.sourceHeight,
+						obj.texture?.rotated ?? false,
+						obj.smoothing,
+					);
+					drawCalls++;
+				}
+			}
+		} else if (obj instanceof Mesh) {
+			const bd = obj.bitmapData;
+			if (bd?.source && obj.vertices.length > 0 && obj.indices.length > 0) {
+				const destW = !isNaN(obj.width) ? obj.width : obj.textureWidth;
+				const destH = !isNaN(obj.height) ? obj.height : obj.textureHeight;
+				buffer.context.drawMesh(
 					bd,
-					0,
-					0,
-					w,
-					h,
-					offsetX - displayList.offsetX,
-					offsetY - displayList.offsetY,
-					w,
-					h,
-					w,
-					h,
-					false,
+					obj.bitmapX,
+					obj.bitmapY,
+					obj.bitmapWidth,
+					obj.bitmapHeight,
+					obj.bitmapOffsetX,
+					obj.bitmapOffsetY,
+					destW,
+					destH,
+					obj.sourceWidth,
+					obj.sourceHeight,
+					obj.uvs,
+					obj.vertices,
+					obj.indices,
+					obj.texture?.rotated ?? false,
+					obj.smoothing,
 				);
 				drawCalls++;
 			}
-			return drawCalls;
+		} else if (obj instanceof Shape) {
+			const inst: GraphicsInstruction = {
+				renderPipeId: 'graphics',
+				renderable: obj,
+				graphics: obj.graphics,
+				offsetX,
+				offsetY,
+			};
+			this._graphicsPipe.execute(inst, buffer);
+			drawCalls++;
+		} else if (obj instanceof Sprite && obj.graphics.commands.length > 0) {
+			const inst: GraphicsInstruction = {
+				renderPipeId: 'graphics',
+				renderable: obj,
+				graphics: obj.graphics,
+				offsetX,
+				offsetY,
+			};
+			this._graphicsPipe.execute(inst, buffer);
+			drawCalls++;
 		}
 
-		// Render self
-		drawCalls += this._renderNode(displayObject, buffer, offsetX, offsetY);
+		buffer.offsetX = 0;
+		buffer.offsetY = 0;
 
-		const children = displayObject.children;
+		// Children
+		const children = obj.children;
 		if (!children) return drawCalls;
 
 		for (const child of children) {
@@ -128,34 +687,15 @@ export class WebGLRenderer {
 				oy = offsetY + child.internalY - child.internalAnchorOffsetY;
 			}
 
-			let prevAlpha: number | undefined;
-			if (child.internalAlpha !== 1) {
-				prevAlpha = buffer.globalAlpha;
-				buffer.globalAlpha *= child.internalAlpha;
-			}
+			const prevAlpha = buffer.globalAlpha;
+			if (child.internalAlpha !== 1) buffer.globalAlpha *= child.internalAlpha;
+			const prevTint = buffer.globalTintColor;
+			if (child.tintRGB !== 0xffffff) buffer.globalTintColor = child.tintRGB;
 
-			let prevTint: number | undefined;
-			if (child.tintRGB !== 0xffffff) {
-				prevTint = buffer.globalTintColor;
-				buffer.globalTintColor = child.tintRGB;
-			}
+			drawCalls += this._directDraw(child, buffer, ox, oy);
 
-			switch (child.renderMode) {
-				case RenderMode.FILTER:
-					drawCalls += this._drawWithFilter(child, buffer, ox, oy);
-					break;
-				case RenderMode.CLIP:
-					drawCalls += this._drawWithClip(child, buffer, ox, oy);
-					break;
-				case RenderMode.SCROLLRECT:
-					drawCalls += this._drawWithScrollRect(child, buffer, ox, oy);
-					break;
-				default:
-					drawCalls += this._drawDisplayObject(child, buffer, ox, oy);
-			}
-
-			if (prevAlpha !== undefined) buffer.globalAlpha = prevAlpha;
-			if (prevTint !== undefined) buffer.globalTintColor = prevTint;
+			buffer.globalAlpha = prevAlpha;
+			buffer.globalTintColor = prevTint;
 
 			if (savedMatrix) {
 				buffer.globalMatrix.copyFrom(savedMatrix);
@@ -166,360 +706,24 @@ export class WebGLRenderer {
 		return drawCalls;
 	}
 
-	private _drawWithFilter(
-		displayObject: DisplayObject,
-		buffer: WebGLRenderBuffer,
-		offsetX: number,
-		offsetY: number,
-	): number {
-		const filters = displayObject.internalFilters;
-		if (!filters.length) return this._drawDisplayObject(displayObject, buffer, offsetX, offsetY);
+	// ── Structure dirty notification ──────────────────────────────────────────
 
-		const bounds = displayObject.getOriginalBounds();
-		if (bounds.width <= 0 || bounds.height <= 0) return 0;
-
-		const bx = bounds.x,
-			by = bounds.y,
-			bw = bounds.width,
-			bh = bounds.height;
-		const hasBlend = displayObject.internalBlendMode !== 0;
-		const blendOp = BLEND_MODES[displayObject.internalBlendMode] ?? 'source-over';
-
-		// Optimise: single colorMatrix with no children → apply inline
-		if (!displayObject.internalMask && filters.length === 1 && filters[0] instanceof ColorMatrixFilter) {
-			if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
-			buffer.context.$filter = filters[0];
-			let dc = 0;
-			if (displayObject.internalScrollRect || displayObject.internalMaskRect) {
-				dc = this._drawWithScrollRect(displayObject, buffer, offsetX, offsetY);
-			} else {
-				dc = this._drawDisplayObject(displayObject, buffer, offsetX, offsetY);
-			}
-			buffer.context.$filter = undefined;
-			if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
-			return dc;
-		}
-
-		// Render to offscreen buffer
-		const offscreen = WebGLRenderBuffer.create(buffer.context, bw, bh);
-		offscreen.context.pushBuffer(offscreen);
-		let drawCalls = this._drawDisplayObject(displayObject, offscreen, -bx, -by);
-		offscreen.context.popBuffer();
-
-		if (drawCalls > 0) {
-			if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
-			drawCalls++;
-			buffer.offsetX = offsetX + bx;
-			buffer.offsetY = offsetY + by;
-			buffer.saveTransform();
-			buffer.useOffset();
-			buffer.context.drawTargetWidthFilters(filters, offscreen);
-			buffer.restoreTransform();
-			if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
-		}
-
-		WebGLRenderBuffer.release(offscreen);
-		return drawCalls;
+	/**
+	 * Call this when the scene graph structure changes (child added/removed,
+	 * visibility toggled, filter added, etc.) to trigger a full rebuild next frame.
+	 */
+	public markStructureDirty(): void {
+		this._instructionSet.structureDirty = true;
 	}
 
-	private _drawWithClip(
-		displayObject: DisplayObject,
-		buffer: WebGLRenderBuffer,
-		offsetX: number,
-		offsetY: number,
-	): number {
-		const scrollRect = displayObject.internalScrollRect ?? displayObject.internalMaskRect;
-		const mask = displayObject.internalMask;
-		const hasBlend = displayObject.internalBlendMode !== 0;
-		const blendOp = BLEND_MODES[displayObject.internalBlendMode] ?? 'source-over';
-
-		// Simple case: no mask, no children
-		if (!mask && (!displayObject.children || displayObject.children.length === 0)) {
-			if (scrollRect)
-				buffer.context.pushMask(
-					scrollRect.x + offsetX,
-					scrollRect.y + offsetY,
-					scrollRect.width,
-					scrollRect.height,
-				);
-			if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
-			const dc = this._drawDisplayObject(displayObject, buffer, offsetX, offsetY);
-			if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
-			if (scrollRect) buffer.context.popMask();
-			return dc;
-		}
-
-		const bounds = displayObject.getOriginalBounds();
-		if (bounds.width <= 0 || bounds.height <= 0) return 0;
-		const bx = bounds.x,
-			by = bounds.y,
-			bw = bounds.width,
-			bh = bounds.height;
-
-		const displayBuffer = WebGLRenderBuffer.create(buffer.context, bw, bh);
-		displayBuffer.context.pushBuffer(displayBuffer);
-		let drawCalls = this._drawDisplayObject(displayObject, displayBuffer, -bx, -by);
-
-		if (mask) {
-			const maskBuffer = WebGLRenderBuffer.create(buffer.context, bw, bh);
-			maskBuffer.context.pushBuffer(maskBuffer);
-			const maskMatrix = Matrix.create();
-			maskMatrix.copyFrom(mask.getConcatenatedMatrix());
-			mask.getConcatenatedMatrixAt(displayObject, maskMatrix);
-			maskMatrix.translate(-bx, -by);
-			maskBuffer.setTransform(
-				maskMatrix.a,
-				maskMatrix.b,
-				maskMatrix.c,
-				maskMatrix.d,
-				maskMatrix.tx,
-				maskMatrix.ty,
-			);
-			Matrix.release(maskMatrix);
-			this._drawDisplayObject(mask, maskBuffer, 0, 0);
-			maskBuffer.context.popBuffer();
-
-			displayBuffer.context.setGlobalCompositeOperation('destination-in');
-			const mw = maskBuffer.rootRenderTarget.width;
-			const mh = maskBuffer.rootRenderTarget.height;
-			if (maskBuffer.rootRenderTarget.texture) {
-				// Y-flip for WebGL coordinate system, matching old Egret behaviour
-				displayBuffer.setTransform(1, 0, 0, -1, 0, maskBuffer.height);
-				displayBuffer.context.drawTexture(
-					maskBuffer.rootRenderTarget.texture,
-					0,
-					0,
-					mw,
-					mh,
-					0,
-					0,
-					mw,
-					mh,
-					mw,
-					mh,
-				);
-				displayBuffer.setTransform(1, 0, 0, 1, 0, 0);
-			}
-			displayBuffer.context.setGlobalCompositeOperation('source-over');
-			WebGLRenderBuffer.release(maskBuffer);
-		}
-
-		displayBuffer.context.popBuffer();
-
-		if (drawCalls > 0) {
-			drawCalls++;
-			if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
-			if (scrollRect)
-				buffer.context.pushMask(
-					scrollRect.x + offsetX,
-					scrollRect.y + offsetY,
-					scrollRect.width,
-					scrollRect.height,
-				);
-			const savedMatrix = Matrix.create();
-			savedMatrix.copyFrom(buffer.globalMatrix);
-			buffer.globalMatrix.append(1, 0, 0, -1, offsetX + bx, offsetY + by + displayBuffer.height);
-			const dw = displayBuffer.rootRenderTarget.width;
-			const dh = displayBuffer.rootRenderTarget.height;
-			if (displayBuffer.rootRenderTarget.texture) {
-				buffer.context.drawTexture(displayBuffer.rootRenderTarget.texture, 0, 0, dw, dh, 0, 0, dw, dh, dw, dh);
-			}
-			buffer.globalMatrix.copyFrom(savedMatrix);
-			Matrix.release(savedMatrix);
-			if (scrollRect) buffer.context.popMask();
-			if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
-		}
-
-		WebGLRenderBuffer.release(displayBuffer);
-		return drawCalls;
-	}
-
-	private _drawWithScrollRect(
-		displayObject: DisplayObject,
-		buffer: WebGLRenderBuffer,
-		offsetX: number,
-		offsetY: number,
-	): number {
-		const rect = displayObject.internalScrollRect ?? displayObject.internalMaskRect;
-		if (!rect || rect.isEmpty()) return 0;
-
-		let ox = offsetX,
-			oy = offsetY;
-		if (displayObject.internalScrollRect) {
-			ox -= rect.x;
-			oy -= rect.y;
-		}
-
-		const m = buffer.globalMatrix;
-		let scissor = false;
-
-		if (buffer.hasScissor || m.b !== 0 || m.c !== 0) {
-			buffer.context.pushMask(rect.x + offsetX, rect.y + offsetY, rect.width, rect.height);
-		} else {
-			const a = m.a,
-				d = m.d,
-				tx = m.tx,
-				ty = m.ty;
-			const x = rect.x + offsetX,
-				y = rect.y + offsetY;
-			const xMax = x + rect.width,
-				yMax = y + rect.height;
-			const minX = Math.min(a * x + tx, a * xMax + tx);
-			const maxX = Math.max(a * x + tx, a * xMax + tx);
-			const minY = Math.min(d * y + ty, d * yMax + ty);
-			const maxY = Math.max(d * y + ty, d * yMax + ty);
-			buffer.context.enableScissor(minX, -maxY + buffer.height, maxX - minX, maxY - minY);
-			scissor = true;
-		}
-
-		const drawCalls = this._drawDisplayObject(displayObject, buffer, ox, oy);
-
-		if (scissor) buffer.context.disableScissor();
-		else buffer.context.popMask();
-
-		return drawCalls;
-	}
-
-	// ── Render individual node types ──────────────────────────────────────────
-
-	private _renderNode(
-		displayObject: DisplayObject,
-		buffer: WebGLRenderBuffer,
-		offsetX: number,
-		offsetY: number,
-	): number {
-		buffer.offsetX = offsetX;
-		buffer.offsetY = offsetY;
-
-		if (displayObject instanceof Bitmap) return this._renderBitmap(displayObject, buffer);
-		if (displayObject instanceof Mesh) return this._renderMesh(displayObject, buffer);
-		if (displayObject instanceof Shape) return this._renderGraphics(displayObject.graphics, buffer);
-		if (displayObject instanceof Sprite) return this._renderGraphics(displayObject.graphics, buffer);
-
-		buffer.offsetX = 0;
-		buffer.offsetY = 0;
-		return 0;
-	}
-
-	private _renderBitmap(bitmap: Bitmap, buffer: WebGLRenderBuffer): number {
-		const bd = bitmap.bitmapData;
-		if (!bd?.source) return 0;
-		const destW = !isNaN(bitmap.width) ? bitmap.width : bitmap.textureWidth;
-		const destH = !isNaN(bitmap.height) ? bitmap.height : bitmap.textureHeight;
-		if (destW <= 0 || destH <= 0) return 0;
-
-		buffer.context.drawImage(
-			bd,
-			bitmap.bitmapX,
-			bitmap.bitmapY,
-			bitmap.bitmapWidth,
-			bitmap.bitmapHeight,
-			bitmap.bitmapOffsetX,
-			bitmap.bitmapOffsetY,
-			destW,
-			destH,
-			bitmap.sourceWidth,
-			bitmap.sourceHeight,
-			bitmap.texture?.rotated ?? false,
-			bitmap.smoothing,
-		);
-		buffer.offsetX = 0;
-		buffer.offsetY = 0;
-		return 1;
-	}
-
-	private _renderMesh(mesh: Mesh, buffer: WebGLRenderBuffer): number {
-		const bd = mesh.bitmapData;
-		if (!bd?.source || mesh.vertices.length === 0 || mesh.indices.length === 0) return 0;
-		const destW = !isNaN(mesh.width) ? mesh.width : mesh.textureWidth;
-		const destH = !isNaN(mesh.height) ? mesh.height : mesh.textureHeight;
-
-		buffer.context.drawMesh(
-			bd,
-			mesh.bitmapX,
-			mesh.bitmapY,
-			mesh.bitmapWidth,
-			mesh.bitmapHeight,
-			mesh.bitmapOffsetX,
-			mesh.bitmapOffsetY,
-			destW,
-			destH,
-			mesh.sourceWidth,
-			mesh.sourceHeight,
-			mesh.uvs,
-			mesh.vertices,
-			mesh.indices,
-			mesh.texture?.rotated ?? false,
-			mesh.smoothing,
-		);
-		buffer.offsetX = 0;
-		buffer.offsetY = 0;
-		return 1;
-	}
-
-	private _renderGraphics(graphics: Graphics, buffer: WebGLRenderBuffer): number {
-		if (graphics.commands.length === 0) return 0;
-
-		const bounds = new Rectangle();
-		graphics.measureContentBounds(bounds);
-		const w = Math.ceil(bounds.width);
-		const h = Math.ceil(bounds.height);
-		if (w <= 0 || h <= 0) return 0;
-
-		const ox = buffer.offsetX;
-		const oy = buffer.offsetY;
-		buffer.offsetX = 0;
-		buffer.offsetY = 0;
-
-		let cache = this._graphicsCache.get(graphics);
-		if (!cache) {
-			cache = {
-				renderBuffer: new RenderBuffer(w, h),
-				texture: undefined,
-				textureWidth: 0,
-				textureHeight: 0,
-				dirty: true,
-			};
-			this._graphicsCache.set(graphics, cache);
-		}
-
-		const dirty =
-			cache.dirty ||
-			cache.textureWidth !== w ||
-			cache.textureHeight !== h ||
-			(graphics.targetDisplay?.renderDirty ?? false);
-
-		if (dirty) {
-			if (cache.renderBuffer.width !== w || cache.renderBuffer.height !== h) {
-				cache.renderBuffer.resize(w, h);
-			}
-			cache.renderBuffer.clear();
-
-			this._canvasRenderer.renderGraphicsToContext(graphics, cache.renderBuffer.context, -bounds.x, -bounds.y);
-
-			const surface = cache.renderBuffer.surface;
-			if (!cache.texture) {
-				cache.texture = buffer.context.createTexture(surface);
-			} else {
-				buffer.context.updateTexture(cache.texture, surface);
-			}
-			cache.textureWidth = w;
-			cache.textureHeight = h;
-			cache.dirty = false;
-		}
-
-		if (!cache.texture) return 0;
-
-		if (bounds.x !== 0 || bounds.y !== 0) {
-			buffer.transform(1, 0, 0, 1, ox + bounds.x, oy + bounds.y);
-		}
-
-		buffer.context.drawTexture(cache.texture, 0, 0, w, h, 0, 0, w, h, w, h);
-
-		if (bounds.x !== 0 || bounds.y !== 0) {
-			buffer.transform(1, 0, 0, 1, -(ox + bounds.x), -(oy + bounds.y));
-		}
-
-		return 1;
+	/**
+	 * @internal Called by Player when a DisplayObject's data changes but the
+	 * scene structure is stable. Queues the object for a transform-snapshot
+	 * update instead of a full rebuild.
+	 */
+	public markRenderableDirty(obj: DisplayObject): void {
+		// If a full rebuild is already pending, no need to track individually.
+		if (this._instructionSet.structureDirty) return;
+		this._instructionSet.markRenderableDirty(obj);
 	}
 }

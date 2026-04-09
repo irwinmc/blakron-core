@@ -51,6 +51,23 @@ export class Graphics extends HashObject {
 	/** @internal Ordered list of drawing commands — consumed by the renderer. */
 	readonly commands: GraphicsCommand[] = [];
 
+	/**
+	 * @internal
+	 * Set to true whenever commands change. CanvasRenderer uses this to decide
+	 * whether to re-execute commands or reuse the cached offscreen canvas.
+	 * Reset to false after the renderer consumes it.
+	 */
+	canvasCacheDirty = true;
+
+	/** @internal Offscreen canvas used by CanvasRenderer to cache rasterized output. */
+	_offscreenCanvas: HTMLCanvasElement | undefined = undefined;
+	/** @internal 2D context for the offscreen canvas. */
+	_offscreenCtx: CanvasRenderingContext2D | undefined = undefined;
+	/** @internal X origin of the offscreen canvas in local space. */
+	_offscreenBoundsX = 0;
+	/** @internal Y origin of the offscreen canvas in local space. */
+	_offscreenBoundsY = 0;
+
 	private _lastX = 0;
 	private _lastY = 0;
 	private _minX = Infinity;
@@ -264,6 +281,12 @@ export class Graphics extends HashObject {
 		this._minY = Infinity;
 		this._maxX = -Infinity;
 		this._maxY = -Infinity;
+		// Invalidate offscreen canvas cache
+		if (this._offscreenCanvas) {
+			this._offscreenCanvas.width = 0;
+			this._offscreenCanvas.height = 0;
+		}
+		this.canvasCacheDirty = true;
 		this.dirty();
 	}
 
@@ -304,6 +327,7 @@ export class Graphics extends HashObject {
 	}
 
 	private dirty(): void {
+		this.canvasCacheDirty = true;
 		if (!this.targetDisplay) return;
 		this.targetDisplay.cacheDirty = true;
 		this.targetDisplay.renderDirty = true;

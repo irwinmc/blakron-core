@@ -30,6 +30,66 @@ export class DisplayObject extends EventDispatcher {
 	static enterFrameCallBackList: DisplayObject[] = [];
 	static renderCallBackList: DisplayObject[] = [];
 
+	/**
+	 * @internal
+	 * Injected by Player at startup. Called when renderMode changes (visible,
+	 * filters, mask, blendMode) so the WebGLRenderer can mark its InstructionSet dirty.
+	 */
+	static _onStructureChange: (() => void) | undefined = undefined;
+
+	/**
+	 * @internal
+	 * Injected by Player at startup. Called when a DisplayObject's visual data
+	 * changes (position, texture, alpha, tint) but the scene structure is unchanged.
+	 * The renderer uses this to update the transform snapshot in the InstructionSet
+	 * without doing a full rebuild.
+	 */
+	static _onRenderableDirty: ((obj: DisplayObject) => void) | undefined = undefined;
+
+	/**
+	 * @internal Register a structure-change listener. Returns an unregister function.
+	 * Using a registration pattern instead of a single static field supports
+	 * multiple Player instances on the same page.
+	 */
+	static addStructureChangeListener(fn: () => void): () => void {
+		const prev = DisplayObject._onStructureChange;
+		if (!prev) {
+			DisplayObject._onStructureChange = fn;
+		} else {
+			DisplayObject._onStructureChange = () => {
+				prev();
+				fn();
+			};
+		}
+		return () => {
+			// Simple removal: if only one listener, clear; otherwise rebuild chain.
+			// For the common single-player case this is zero overhead.
+			if (DisplayObject._onStructureChange === fn) {
+				DisplayObject._onStructureChange = undefined;
+			}
+		};
+	}
+
+	/**
+	 * @internal Register a renderable-dirty listener. Returns an unregister function.
+	 */
+	static addRenderableDirtyListener(fn: (obj: DisplayObject) => void): () => void {
+		const prev = DisplayObject._onRenderableDirty;
+		if (!prev) {
+			DisplayObject._onRenderableDirty = fn;
+		} else {
+			DisplayObject._onRenderableDirty = obj => {
+				prev(obj);
+				fn(obj);
+			};
+		}
+		return () => {
+			if (DisplayObject._onRenderableDirty === fn) {
+				DisplayObject._onRenderableDirty = undefined;
+			}
+		};
+	}
+
 	// ── Instance fields ───────────────────────────────────────────────────────
 
 	/** @internal */ hasAddToStage = false;
@@ -548,6 +608,10 @@ export class DisplayObject extends EventDispatcher {
 				this.displayList = undefined;
 			}
 		}
+		// cacheAsBitmap toggle changes the instruction set structure:
+		// the subtree either collapses to a single displayListCache instruction
+		// or expands back to individual leaf instructions.
+		DisplayObject._onStructureChange?.();
 		this.markDirty();
 	}
 
@@ -556,6 +620,14 @@ export class DisplayObject extends EventDispatcher {
 		if (p && !p.cacheDirty) {
 			p.cacheDirty = true;
 			p.cacheDirtyUp();
+		}
+	}
+
+	renderDirtyUp(): void {
+		const p = this.internalParent;
+		if (p && !p.renderDirty) {
+			p.renderDirty = true;
+			p.renderDirtyUp();
 		}
 	}
 
@@ -575,6 +647,8 @@ export class DisplayObject extends EventDispatcher {
 		} else {
 			this.renderMode = undefined;
 		}
+		// RenderMode change means the instruction set structure is stale.
+		DisplayObject._onStructureChange?.();
 	}
 
 	getOriginalBounds(): Rectangle {
@@ -701,10 +775,20 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	markDirty(): void {
+		this.renderDirty = true;
+		// Notify the renderer that this object's data changed.
+		// If structureDirty is already true the renderer will do a full rebuild
+		// anyway, so the per-object notification is only useful when structure
+		// is stable. The renderer decides which path to take.
+		DisplayObject._onRenderableDirty?.(this);
 		const p = this.internalParent;
 		if (p && !p.cacheDirty) {
 			p.cacheDirty = true;
 			p.cacheDirtyUp();
+		}
+		if (p && !p.renderDirty) {
+			p.renderDirty = true;
+			p.renderDirtyUp();
 		}
 		const masked = this.maskedObject;
 		if (masked && !masked.cacheDirty) {
