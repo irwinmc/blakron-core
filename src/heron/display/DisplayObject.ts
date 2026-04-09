@@ -24,6 +24,15 @@ export const enum RenderMode {
 	SCROLLRECT = 4,
 }
 
+/** @internal Identifies the concrete renderable type, replacing instanceof checks in hot paths. */
+export const enum RenderObjectType {
+	NONE = 0,
+	BITMAP = 1,
+	MESH = 2,
+	SHAPE = 3,
+	SPRITE = 4,
+}
+
 export class DisplayObject extends EventDispatcher {
 	// ── Static fields ─────────────────────────────────────────────────────────
 
@@ -122,6 +131,19 @@ export class DisplayObject extends EventDispatcher {
 	/** @internal */ internalCacheAsBitmap = false;
 	/** @internal */ internalFilters: Filter[] = [];
 	/** @internal */ displayList: DisplayList | undefined = undefined;
+	/**
+	 * @internal Cached world (concatenated) alpha — product of this object's
+	 * alpha and all ancestor alphas. Updated by markDirty() so that
+	 * _refreshLeafTransform can read it in O(1) instead of walking the parent chain.
+	 */
+	/** @internal */ worldAlpha = 1;
+	/**
+	 * @internal Cached world tint — the nearest ancestor tint that overrides
+	 * the default 0xffffff. Updated by markDirty().
+	 */
+	/** @internal */ worldTint = 0xffffff;
+	/** @internal Concrete renderable type — set by subclasses to avoid instanceof in hot paths. */
+	/** @internal */ renderObjectType: RenderObjectType = RenderObjectType.NONE;
 
 	private _name = '';
 	private _matrix: Matrix = new Matrix();
@@ -787,19 +809,30 @@ export class DisplayObject extends EventDispatcher {
 
 	markDirty(): void {
 		this.renderDirty = true;
-		// Notify the renderer that this object's data changed.
-		// If structureDirty is already true the renderer will do a full rebuild
-		// anyway, so the per-object notification is only useful when structure
-		// is stable. The renderer decides which path to take.
-		DisplayObject._onRenderableDirty?.(this);
-		const p = this.internalParent;
-		if (p && !p.cacheDirty) {
-			p.cacheDirty = true;
-			p.cacheDirtyUp();
+
+		// Update cached world alpha and tint so _refreshLeafTransform can read
+		// them in O(1) without walking the parent chain.
+		let alpha = this.internalAlpha;
+		let tint = this.tintRGB;
+		let p = this.internalParent;
+		while (p) {
+			alpha *= p.internalAlpha;
+			if (p.tintRGB !== 0xffffff) tint = p.tintRGB;
+			p = p.internalParent;
 		}
-		if (p && !p.renderDirty) {
-			p.renderDirty = true;
-			p.renderDirtyUp();
+		this.worldAlpha = alpha;
+		this.worldTint = tint;
+
+		// Notify the renderer that this object's data changed.
+		DisplayObject._onRenderableDirty?.(this);
+		const parent = this.internalParent;
+		if (parent && !parent.cacheDirty) {
+			parent.cacheDirty = true;
+			parent.cacheDirtyUp();
+		}
+		if (parent && !parent.renderDirty) {
+			parent.renderDirty = true;
+			parent.renderDirtyUp();
 		}
 		const masked = this.maskedObject;
 		if (masked && !masked.cacheDirty) {

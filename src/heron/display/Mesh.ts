@@ -1,5 +1,6 @@
 import { Rectangle } from '../geom/index.js';
 import { Bitmap } from './Bitmap.js';
+import { RenderObjectType } from './DisplayObject.js';
 import type { Texture } from './texture/Texture.js';
 
 export class Mesh extends Bitmap {
@@ -21,6 +22,7 @@ export class Mesh extends Bitmap {
 
 	public constructor(value?: Texture) {
 		super(value);
+		this.renderObjectType = RenderObjectType.MESH;
 	}
 
 	// ── Public methods ────────────────────────────────────────────────────────

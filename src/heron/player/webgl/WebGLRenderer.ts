@@ -1,4 +1,6 @@
 import { DisplayObject, RenderMode, Bitmap, Shape, Sprite, Mesh } from '../../display/index.js';
+import { RenderObjectType } from '../../display/DisplayObject.js';
+import { DisplayObjectContainer } from '../../display/DisplayObjectContainer.js';
 import { Matrix } from '../../geom/index.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { CanvasRenderer } from '../CanvasRenderer.js';
@@ -46,12 +48,24 @@ interface DisplayListCacheInstruction {
 	transform: TransformState;
 }
 
+/** Emitted when a RenderGroup container is encountered during build. */
+interface RenderGroupInstruction {
+	renderPipeId: 'renderGroup';
+	renderable: DisplayObject;
+	/** The independent InstructionSet owned by this RenderGroup. */
+	set: InstructionSet;
+	offsetX: number;
+	offsetY: number;
+	transform: TransformState;
+}
+
 type AnyInstruction =
 	| LeafInstruction
 	| EffectPushInstruction
 	| FilterPopInstruction
 	| MaskPopInstruction
-	| DisplayListCacheInstruction;
+	| DisplayListCacheInstruction
+	| RenderGroupInstruction;
 
 // ── WebGLRenderer ─────────────────────────────────────────────────────────────
 
@@ -80,6 +94,13 @@ export class WebGLRenderer {
 
 	// ── Instruction set ───────────────────────────────────────────────────────
 	private readonly _instructionSet = new InstructionSet();
+
+	/**
+	 * Cache of InstructionSets owned by RenderGroup containers.
+	 * Key: the DisplayObjectContainer with isRenderGroup=true.
+	 * Entries are created on first encounter and reused across frames.
+	 */
+	private readonly _renderGroupSets = new WeakMap<DisplayObjectContainer, InstructionSet>();
 
 	// ── Nesting (for recursive offscreen renders, e.g. cacheAsBitmap) ────────
 	private _nestLevel = 0;
@@ -194,20 +215,25 @@ export class WebGLRenderer {
 			if (child.tintRGB !== 0xffffff) buffer.globalTintColor = child.tintRGB;
 
 			// Emit effect wrappers then recurse.
-			switch (child.renderMode) {
-				case RenderMode.FILTER:
-					this._buildFilter(child, set, buffer, ox, oy);
-					break;
-				case RenderMode.CLIP:
-					this._buildClip(child, set, buffer, ox, oy);
-					break;
-				case RenderMode.SCROLLRECT:
-					this._buildScrollRect(child, set, buffer, ox, oy);
-					break;
-				default:
-					this._buildInstructions(child, set, buffer, ox, oy);
+			// RenderGroup: build the subtree into its own InstructionSet and
+			// emit a single renderGroup instruction into the parent set.
+			if (child instanceof DisplayObjectContainer && child.isRenderGroup) {
+				this._buildRenderGroup(child, set, buffer, ox, oy);
+			} else {
+				switch (child.renderMode) {
+					case RenderMode.FILTER:
+						this._buildFilter(child, set, buffer, ox, oy);
+						break;
+					case RenderMode.CLIP:
+						this._buildClip(child, set, buffer, ox, oy);
+						break;
+					case RenderMode.SCROLLRECT:
+						this._buildScrollRect(child, set, buffer, ox, oy);
+						break;
+					default:
+						this._buildInstructions(child, set, buffer, ox, oy);
+				}
 			}
-
 			buffer.globalAlpha = prevAlpha;
 			buffer.globalTintColor = prevTint;
 
@@ -228,41 +254,48 @@ export class WebGLRenderer {
 	): void {
 		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
 
-		if (obj instanceof Bitmap && !(obj instanceof Mesh)) {
-			set.addLeaf({
-				renderPipeId: 'bitmap',
-				renderable: obj,
-				offsetX,
-				offsetY,
-				transform,
-			} as LeafInstruction);
-		} else if (obj instanceof Mesh) {
-			set.addLeaf({
-				renderPipeId: 'mesh',
-				renderable: obj,
-				offsetX,
-				offsetY,
-				transform,
-			} as LeafInstruction);
-		} else if (obj instanceof Shape) {
-			set.addLeaf({
-				renderPipeId: 'graphics',
-				renderable: obj,
-				graphics: obj.graphics,
-				offsetX,
-				offsetY,
-				transform,
-			} as LeafInstruction);
-		} else if (obj instanceof Sprite) {
-			if (obj.graphics.commands.length > 0) {
+		switch (obj.renderObjectType) {
+			case RenderObjectType.MESH:
 				set.addLeaf({
-					renderPipeId: 'graphics',
-					renderable: obj,
-					graphics: obj.graphics,
+					renderPipeId: 'mesh',
+					renderable: obj as Mesh,
 					offsetX,
 					offsetY,
 					transform,
 				} as LeafInstruction);
+				break;
+			case RenderObjectType.BITMAP:
+				set.addLeaf({
+					renderPipeId: 'bitmap',
+					renderable: obj as Bitmap,
+					offsetX,
+					offsetY,
+					transform,
+				} as LeafInstruction);
+				break;
+			case RenderObjectType.SHAPE:
+				set.addLeaf({
+					renderPipeId: 'graphics',
+					renderable: obj,
+					graphics: (obj as Shape).graphics,
+					offsetX,
+					offsetY,
+					transform,
+				} as LeafInstruction);
+				break;
+			case RenderObjectType.SPRITE: {
+				const sprite = obj as Sprite;
+				if (sprite.graphics.commands.length > 0) {
+					set.addLeaf({
+						renderPipeId: 'graphics',
+						renderable: obj,
+						graphics: sprite.graphics,
+						offsetX,
+						offsetY,
+						transform,
+					} as LeafInstruction);
+				}
+				break;
 			}
 		}
 	}
@@ -328,6 +361,45 @@ export class WebGLRenderer {
 		set.add(MaskPipe.makePop(obj, push as MaskPushInstruction));
 	}
 
+	/**
+	 * Build a RenderGroup subtree into its own InstructionSet and emit a
+	 * single `renderGroup` instruction into the parent set.
+	 *
+	 * The child set is rebuilt only when its own `structureDirty` flag is set,
+	 * so changes inside the group never force a rebuild of the parent set.
+	 */
+	private _buildRenderGroup(
+		obj: DisplayObjectContainer,
+		parentSet: InstructionSet,
+		buffer: WebGLRenderBuffer,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		let groupSet = this._renderGroupSets.get(obj);
+		if (!groupSet) {
+			groupSet = new InstructionSet();
+			this._renderGroupSets.set(obj, groupSet);
+		}
+
+		if (groupSet.structureDirty) {
+			groupSet.reset();
+			this._buildInstructions(obj, groupSet, buffer, offsetX, offsetY);
+			groupSet.structureDirty = false;
+		} else {
+			this._updateDirtyRenderables(groupSet);
+		}
+
+		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
+		parentSet.add({
+			renderPipeId: 'renderGroup',
+			renderable: obj,
+			set: groupSet,
+			offsetX,
+			offsetY,
+			transform,
+		} as RenderGroupInstruction);
+	}
+
 	/** Build a synthetic instruction for a cacheAsBitmap object. */
 	private _makeCacheInstruction(
 		obj: DisplayObject,
@@ -385,7 +457,7 @@ export class WebGLRenderer {
 
 	/**
 	 * Recompute the transform snapshot for a leaf instruction from the object's
-	 * current concatenated matrix and parent alpha/tint chain.
+	 * current concatenated matrix and cached world alpha/tint.
 	 */
 	private _refreshLeafTransform(obj: DisplayObject, inst: LeafInstruction): void {
 		const cm = obj.getConcatenatedMatrix();
@@ -398,18 +470,8 @@ export class WebGLRenderer {
 		t.ty = cm.ty;
 		t.offsetX = 0;
 		t.offsetY = 0;
-
-		// Walk up the parent chain to accumulate alpha and tint.
-		let alpha = obj.internalAlpha;
-		let tint = obj.tintRGB;
-		let p = obj.internalParent;
-		while (p) {
-			alpha *= p.internalAlpha;
-			if (p.tintRGB !== 0xffffff) tint = p.tintRGB;
-			p = p.internalParent;
-		}
-		t.alpha = alpha;
-		t.tint = tint;
+		t.alpha = obj.worldAlpha;
+		t.tint = obj.worldTint;
 	}
 
 	// ── Phase B: execute ──────────────────────────────────────────────────────
@@ -455,6 +517,14 @@ export class WebGLRenderer {
 						cacheInst.offsetX,
 						cacheInst.offsetY,
 					);
+					break;
+				}
+
+				// ── RenderGroup ───────────────────────────────────────────────
+				case 'renderGroup': {
+					const rgInst = inst as RenderGroupInstruction;
+					this._applyTransform(activeBuffer, rgInst.transform);
+					this._executeInstructions(rgInst.set, activeBuffer);
 					break;
 				}
 
@@ -585,85 +655,54 @@ export class WebGLRenderer {
 	private _directDraw(obj: DisplayObject, buffer: WebGLRenderBuffer, offsetX: number, offsetY: number): number {
 		let drawCalls = 0;
 
-		// Leaf
 		buffer.offsetX = offsetX;
 		buffer.offsetY = offsetY;
 
-		if (obj instanceof Bitmap && !(obj instanceof Mesh)) {
-			const bd = obj.bitmapData;
-			if (bd?.source) {
-				const destW = !isNaN(obj.width) ? obj.width : obj.textureWidth;
-				const destH = !isNaN(obj.height) ? obj.height : obj.textureHeight;
-				if (destW > 0 && destH > 0) {
-					buffer.context.drawImage(
-						bd,
-						obj.bitmapX,
-						obj.bitmapY,
-						obj.bitmapWidth,
-						obj.bitmapHeight,
-						obj.bitmapOffsetX,
-						obj.bitmapOffsetY,
-						destW,
-						destH,
-						obj.sourceWidth,
-						obj.sourceHeight,
-						obj.texture?.rotated ?? false,
-						obj.smoothing,
-					);
+		switch (obj.renderObjectType) {
+			case RenderObjectType.MESH: {
+				const inst: MeshInstruction = { renderPipeId: 'mesh', renderable: obj as Mesh, offsetX, offsetY };
+				this._meshPipe.execute(inst, buffer);
+				drawCalls++;
+				break;
+			}
+			case RenderObjectType.BITMAP: {
+				const inst: BitmapInstruction = { renderPipeId: 'bitmap', renderable: obj as Bitmap, offsetX, offsetY };
+				this._bitmapPipe.execute(inst, buffer);
+				drawCalls++;
+				break;
+			}
+			case RenderObjectType.SHAPE: {
+				const inst: GraphicsInstruction = {
+					renderPipeId: 'graphics',
+					renderable: obj,
+					graphics: (obj as Shape).graphics,
+					offsetX,
+					offsetY,
+				};
+				this._graphicsPipe.execute(inst, buffer);
+				drawCalls++;
+				break;
+			}
+			case RenderObjectType.SPRITE: {
+				const sprite = obj as Sprite;
+				if (sprite.graphics && sprite.graphics.commands.length > 0) {
+					const inst: GraphicsInstruction = {
+						renderPipeId: 'graphics',
+						renderable: obj,
+						graphics: sprite.graphics,
+						offsetX,
+						offsetY,
+					};
+					this._graphicsPipe.execute(inst, buffer);
 					drawCalls++;
 				}
+				break;
 			}
-		} else if (obj instanceof Mesh) {
-			const bd = obj.bitmapData;
-			if (bd?.source && obj.vertices.length > 0 && obj.indices.length > 0) {
-				const destW = !isNaN(obj.width) ? obj.width : obj.textureWidth;
-				const destH = !isNaN(obj.height) ? obj.height : obj.textureHeight;
-				buffer.context.drawMesh(
-					bd,
-					obj.bitmapX,
-					obj.bitmapY,
-					obj.bitmapWidth,
-					obj.bitmapHeight,
-					obj.bitmapOffsetX,
-					obj.bitmapOffsetY,
-					destW,
-					destH,
-					obj.sourceWidth,
-					obj.sourceHeight,
-					obj.uvs,
-					obj.vertices,
-					obj.indices,
-					obj.texture?.rotated ?? false,
-					obj.smoothing,
-				);
-				drawCalls++;
-			}
-		} else if (obj instanceof Shape) {
-			const inst: GraphicsInstruction = {
-				renderPipeId: 'graphics',
-				renderable: obj,
-				graphics: obj.graphics,
-				offsetX,
-				offsetY,
-			};
-			this._graphicsPipe.execute(inst, buffer);
-			drawCalls++;
-		} else if (obj instanceof Sprite && obj.graphics.commands.length > 0) {
-			const inst: GraphicsInstruction = {
-				renderPipeId: 'graphics',
-				renderable: obj,
-				graphics: obj.graphics,
-				offsetX,
-				offsetY,
-			};
-			this._graphicsPipe.execute(inst, buffer);
-			drawCalls++;
 		}
 
 		buffer.offsetX = 0;
 		buffer.offsetY = 0;
 
-		// Children
 		const children = obj.children;
 		if (!children) return drawCalls;
 
@@ -711,8 +750,18 @@ export class WebGLRenderer {
 	/**
 	 * Call this when the scene graph structure changes (child added/removed,
 	 * visibility toggled, filter added, etc.) to trigger a full rebuild next frame.
+	 *
+	 * If `owner` is provided and is a RenderGroup, only that group's set is
+	 * marked dirty — the parent set is left untouched.
 	 */
-	public markStructureDirty(): void {
+	public markStructureDirty(owner?: DisplayObjectContainer): void {
+		if (owner?.isRenderGroup) {
+			const groupSet = this._renderGroupSets.get(owner);
+			if (groupSet) {
+				groupSet.structureDirty = true;
+				return;
+			}
+		}
 		this._instructionSet.structureDirty = true;
 	}
 
@@ -720,10 +769,23 @@ export class WebGLRenderer {
 	 * @internal Called by Player when a DisplayObject's data changes but the
 	 * scene structure is stable. Queues the object for a transform-snapshot
 	 * update instead of a full rebuild.
+	 *
+	 * Routes to the RenderGroup's set if the object lives inside one.
 	 */
 	public markRenderableDirty(obj: DisplayObject): void {
-		// If a full rebuild is already pending, no need to track individually.
-		if (this._instructionSet.structureDirty) return;
-		this._instructionSet.markRenderableDirty(obj);
+		// Walk up to find the nearest RenderGroup ancestor (if any).
+		let p = obj.internalParent;
+		while (p) {
+			if (p instanceof DisplayObjectContainer && p.isRenderGroup) {
+				const groupSet = this._renderGroupSets.get(p);
+				if (groupSet) {
+					if (!groupSet.structureDirty) groupSet.markRenderableDirty(obj);
+					return;
+				}
+			}
+			p = p.internalParent;
+		}
+		// No RenderGroup ancestor — route to the root set.
+		if (!this._instructionSet.structureDirty) this._instructionSet.markRenderableDirty(obj);
 	}
 }

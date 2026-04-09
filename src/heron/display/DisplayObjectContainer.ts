@@ -13,6 +13,15 @@ export class DisplayObjectContainer extends DisplayObject {
 	// ── Instance fields ───────────────────────────────────────────────────────
 
 	private _touchChildren = true;
+	/**
+	 * When true this container owns an independent InstructionSet.
+	 * The renderer will build and execute its subtree separately, so changes
+	 * inside this container never trigger a rebuild of the parent set.
+	 *
+	 * Typical use: mark a static background layer or a rarely-changing UI panel
+	 * as a RenderGroup so the parent scene graph traversal skips it entirely.
+	 */
+	public isRenderGroup = false;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
@@ -126,7 +135,7 @@ export class DisplayObjectContainer extends DisplayObject {
 		if (sortRequired && children.length > 1) {
 			children.sort(this.sortChildrenFunc);
 			// Child order changed — instruction set must be rebuilt.
-			DisplayObjectContainer._onStructureChange?.();
+			DisplayObjectContainer._onContainerStructureChange?.(this);
 		}
 	}
 
@@ -302,32 +311,35 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	private markDirtyInternal(): void {
 		this.markDirty();
-		// Notify the renderer that the scene structure changed — triggers a full
-		// InstructionSet rebuild on the next frame.
-		DisplayObjectContainer._onStructureChange?.();
+		// Notify the renderer that the scene structure changed.
+		// Pass `this` as the owner so the renderer can route the dirty signal
+		// to the correct InstructionSet (RenderGroup or root).
+		DisplayObjectContainer._onContainerStructureChange?.(this);
 	}
 
 	/**
 	 * @internal
 	 * Injected by Player at startup. Called whenever a child is added, removed,
 	 * or reordered so the WebGLRenderer can mark its InstructionSet as dirty.
+	 * The `owner` argument is the container that changed — used to route the
+	 * dirty signal to a RenderGroup's set when applicable.
 	 */
-	static _onStructureChange: (() => void) | undefined = undefined;
+	static _onContainerStructureChange: ((owner: DisplayObjectContainer) => void) | undefined = undefined;
 
 	/** @internal Register a structure-change listener. Returns an unregister function. */
-	static addStructureChangeListener(fn: () => void): () => void {
-		const prev = DisplayObjectContainer._onStructureChange;
+	static addContainerStructureChangeListener(fn: (owner: DisplayObjectContainer) => void): () => void {
+		const prev = DisplayObjectContainer._onContainerStructureChange;
 		if (!prev) {
-			DisplayObjectContainer._onStructureChange = fn;
+			DisplayObjectContainer._onContainerStructureChange = fn;
 		} else {
-			DisplayObjectContainer._onStructureChange = () => {
-				prev();
-				fn();
+			DisplayObjectContainer._onContainerStructureChange = owner => {
+				prev(owner);
+				fn(owner);
 			};
 		}
 		return () => {
-			if (DisplayObjectContainer._onStructureChange === fn) {
-				DisplayObjectContainer._onStructureChange = undefined;
+			if (DisplayObjectContainer._onContainerStructureChange === fn) {
+				DisplayObjectContainer._onContainerStructureChange = undefined;
 			}
 		};
 	}

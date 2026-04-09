@@ -80,11 +80,13 @@ export class WebGLRenderContext {
 
 		this.setGlobalCompositeOperation('source-over');
 
-		canvas.addEventListener('webglcontextlost', () => {
+		canvas.addEventListener('webglcontextlost', e => {
+			e.preventDefault();
 			this.contextLost = true;
 		});
 		canvas.addEventListener('webglcontextrestored', () => {
 			this.contextLost = false;
+			this._onContextRestored();
 		});
 	}
 
@@ -439,6 +441,33 @@ export class WebGLRenderContext {
 	}
 
 	// ── Private — flush & dispatch ────────────────────────────────────────────
+
+	private _onContextRestored(): void {
+		const gl = this.gl;
+
+		// Re-apply baseline GL state.
+		gl.disable(gl.DEPTH_TEST);
+		gl.disable(gl.CULL_FACE);
+		gl.enable(gl.BLEND);
+		gl.colorMask(true, true, true, true);
+		gl.activeTexture(gl.TEXTURE0);
+
+		// Re-bind the vertex and index buffers (they are lost on context loss).
+		gl.bindBuffer(gl.ARRAY_BUFFER, this._vertexBuffer);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this._indexBuffer);
+
+		// Clear the shader program cache — all programs are invalid after context loss.
+		WebGLProgram.clearCache();
+
+		// Reset internal state.
+		this._bindIndices = false;
+		this._batcher.reset();
+		this.drawCmdManager.clear();
+		this._vao.clear();
+
+		// Restore projection.
+		this.onResize();
+	}
 
 	private _flush(): void {
 		const gl = this.gl;

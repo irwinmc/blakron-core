@@ -1,5 +1,5 @@
 import { Rectangle } from '../geom/Rectangle.js';
-import { DisplayObject } from './DisplayObject.js';
+import { DisplayObject, RenderObjectType } from './DisplayObject.js';
 import { BitmapData } from './texture/BitmapData.js';
 import { Texture } from './texture/Texture.js';
 import { BitmapFillMode } from './enums/BitmapFillMode.js';
@@ -44,6 +44,7 @@ export class Bitmap extends DisplayObject {
 
 	public constructor(value?: Texture) {
 		super();
+		this.renderObjectType = RenderObjectType.BITMAP;
 		if (value) this.setTexture(value);
 	}
 

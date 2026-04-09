@@ -48,7 +48,9 @@ export class Player implements Renderable {
 				const renderer = this._webglRenderer;
 				this._unregisterCallbacks.push(
 					DisplayObject.addStructureChangeListener(() => renderer.markStructureDirty()),
-					DisplayObjectContainer.addStructureChangeListener(() => renderer.markStructureDirty()),
+					DisplayObjectContainer.addContainerStructureChangeListener(owner =>
+						renderer.markStructureDirty(owner),
+					),
 					DisplayObject.addRenderableDirtyListener(obj => renderer.markRenderableDirty(obj)),
 				);
 

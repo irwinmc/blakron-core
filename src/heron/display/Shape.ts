@@ -1,5 +1,5 @@
 import { Rectangle } from '../geom/Rectangle.js';
-import { DisplayObject } from './DisplayObject.js';
+import { DisplayObject, RenderObjectType } from './DisplayObject.js';
 import { Graphics } from './Graphics.js';
 
 export class Shape extends DisplayObject {
@@ -11,6 +11,7 @@ export class Shape extends DisplayObject {
 
 	public constructor() {
 		super();
+		this.renderObjectType = RenderObjectType.SHAPE;
 		this._graphics = new Graphics();
 		this._graphics.targetDisplay = this;
 	}

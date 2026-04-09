@@ -1,6 +1,6 @@
 import { Rectangle } from '../geom/Rectangle.js';
 import { DisplayObjectContainer } from './DisplayObjectContainer.js';
-import { DisplayObject } from './DisplayObject.js';
+import { DisplayObject, RenderObjectType } from './DisplayObject.js';
 import { Graphics } from './Graphics.js';
 
 export class Sprite extends DisplayObjectContainer {
@@ -12,6 +12,7 @@ export class Sprite extends DisplayObjectContainer {
 
 	public constructor() {
 		super();
+		this.renderObjectType = RenderObjectType.SPRITE;
 		this._graphics = new Graphics();
 		this._graphics.targetDisplay = this;
 	}

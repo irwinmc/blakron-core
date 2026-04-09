@@ -1,6 +1,7 @@
 import {
 	DisplayObject,
 	RenderMode,
+	RenderObjectType,
 	Bitmap,
 	Shape,
 	Sprite,
@@ -293,19 +294,18 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		if (displayObject instanceof Bitmap) {
-			return this.renderBitmap(displayObject, ctx, offsetX, offsetY);
+		switch (displayObject.renderObjectType) {
+			case RenderObjectType.MESH:
+				return this.renderMesh(displayObject as Mesh, ctx, offsetX, offsetY);
+			case RenderObjectType.BITMAP:
+				return this.renderBitmap(displayObject as Bitmap, ctx, offsetX, offsetY);
+			case RenderObjectType.SHAPE:
+				return this.renderGraphics((displayObject as Shape).graphics, ctx, offsetX, offsetY);
+			case RenderObjectType.SPRITE:
+				return this.renderGraphics((displayObject as Sprite).graphics, ctx, offsetX, offsetY);
+			default:
+				return 0;
 		}
-		if (displayObject instanceof Shape) {
-			return this.renderGraphics(displayObject.graphics, ctx, offsetX, offsetY);
-		}
-		if (displayObject instanceof Sprite) {
-			return this.renderGraphics(displayObject.graphics, ctx, offsetX, offsetY);
-		}
-		if (displayObject instanceof Mesh) {
-			return this.renderMesh(displayObject, ctx, offsetX, offsetY);
-		}
-		return 0;
 	}
 
 	private renderBitmap(bitmap: Bitmap, ctx: CanvasRenderingContext2D, offsetX: number, offsetY: number): number {
