@@ -78,5 +78,9 @@ export class RenderBuffer {
 	}
 }
 
-/** @internal Shared buffer for hit testing. */
-export const hitTestBuffer: RenderBuffer = new RenderBuffer(3, 3);
+/** @internal Shared buffer for hit testing — lazily created on first use. */
+let _hitTestBuffer: RenderBuffer | undefined;
+export function hitTestBuffer(): RenderBuffer {
+	if (!_hitTestBuffer) _hitTestBuffer = new RenderBuffer(3, 3);
+	return _hitTestBuffer;
+}

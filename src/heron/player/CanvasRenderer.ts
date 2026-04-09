@@ -608,7 +608,7 @@ function applyColorMatrix(data: Uint8ClampedArray, matrix: number[]): void {
 const _hitRenderer = new CanvasRenderer();
 
 setGraphicsHitTest((graphics: Graphics, localX: number, localY: number): boolean => {
-	const buf = hitTestBuffer;
+	const buf = hitTestBuffer();
 	buf.clear();
 	const ctx = buf.context;
 	// Translate so localX/Y maps to pixel (1,1) in the 3×3 buffer
@@ -626,7 +626,7 @@ setGraphicsHitTest((graphics: Graphics, localX: number, localY: number): boolean
 // Renders the Bitmap into the shared 3×3 buffer at the test point and reads alpha.
 
 setBitmapPixelHitTest((bitmap: Bitmap, localX: number, localY: number): boolean => {
-	const buf = hitTestBuffer;
+	const buf = hitTestBuffer();
 	buf.clear();
 	const ctx = buf.context;
 	ctx.setTransform(1, 0, 0, 1, 1 - localX, 1 - localY);
