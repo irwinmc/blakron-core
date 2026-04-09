@@ -322,7 +322,7 @@ export class WebGLRenderer {
 		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
 		const push = Object.assign(MaskPipe.makePush(obj, offsetX, offsetY), { transform }) as EffectPushInstruction;
 		// Tag as scrollRect so execute knows which path to take.
-		(push as unknown as MaskPushInstruction & { isScrollRect: boolean }).isScrollRect = true;
+		(push as MaskPushInstruction).isScrollRect = true;
 		set.add(push);
 		this._buildInstructions(obj, set, buffer, ox, oy);
 		set.add(MaskPipe.makePop(obj, push as MaskPushInstruction));
@@ -481,7 +481,7 @@ export class WebGLRenderer {
 
 				// ── Mask / clip push/pop ──────────────────────────────────────
 				case 'maskPush': {
-					const push = inst as MaskPushInstruction & { isScrollRect?: boolean };
+					const push = inst as MaskPushInstruction;
 					this._applyTransform(activeBuffer, (push as EffectPushInstruction).transform);
 					if (push.isScrollRect) {
 						const usedScissor = this._maskPipe.executeScrollRectPush(push, activeBuffer);
@@ -496,7 +496,7 @@ export class WebGLRenderer {
 					break;
 				}
 				case 'maskPop': {
-					const pop = inst as MaskPopInstruction & { push: MaskPushInstruction & { isScrollRect?: boolean } };
+					const pop = inst as MaskPopInstruction;
 					if (pop.push.isScrollRect) {
 						const usedScissor = scissorStack.pop() ?? false;
 						offscreenStack.pop();

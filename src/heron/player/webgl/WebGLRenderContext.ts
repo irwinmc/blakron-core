@@ -528,8 +528,7 @@ export class WebGLRenderContext {
 	): void {
 		const gl = this.gl;
 		const prog = this._getTextureProgram(filter);
-		const glProg = prog.id as unknown as globalThis.WebGLProgram;
-		gl.useProgram(glProg);
+		gl.useProgram(prog.id);
 
 		// Vertex attributes: x,y (2f), uv (2f), color (4ub)
 		const stride = 5 * 4;
@@ -609,8 +608,7 @@ export class WebGLRenderContext {
 	private _drawRectBatch(indexOffset: number, count: number): void {
 		const gl = this.gl;
 		const prog = WebGLProgram.get(this.gl, ShaderLib.default_vert, ShaderLib.primitive_frag, 'primitive');
-		const glProg = prog.id as unknown as globalThis.WebGLProgram;
-		gl.useProgram(glProg);
+		gl.useProgram(prog.id);
 
 		const stride = 5 * 4;
 		const aPos = prog.attributes['aVertexPosition'];

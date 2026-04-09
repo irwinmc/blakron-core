@@ -75,7 +75,7 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 	// ── RenderPipe impl ───────────────────────────────────────────────────────
 
 	public addToInstructionSet(renderable: DisplayObject, set: InstructionSet): void {
-		const graphics = (renderable as unknown as { graphics: Graphics }).graphics;
+		const graphics = renderable.graphics;
 		if (!graphics || graphics.commands.length === 0) return;
 		set.add(GraphicsPipe._alloc(renderable, graphics, 0, 0));
 	}
@@ -86,7 +86,7 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 	}
 
 	public destroyRenderable(renderable: DisplayObject): void {
-		const graphics = (renderable as unknown as { graphics: Graphics }).graphics;
+		const graphics = renderable.graphics;
 		if (graphics) this._cache.delete(graphics);
 	}
 

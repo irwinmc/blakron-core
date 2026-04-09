@@ -3,6 +3,10 @@ import { createProgram } from './WebGLUtils.js';
 export type UniformMap = Record<string, WebGLUniformLocation | null>;
 export type AttributeMap = Record<string, number>;
 
+// Alias to avoid name collision with the class itself.
+// Must be declared before the class so it's in scope inside the constructor.
+type NativeWebGLProgram = NonNullable<ReturnType<WebGLRenderingContext['createProgram']>>;
+
 export class WebGLProgram {
 	private static _cache: Map<string, WebGLProgram> = new Map();
 
@@ -17,14 +21,14 @@ export class WebGLProgram {
 		this._cache.clear();
 	}
 
-	public readonly id: WebGLProgram_Native;
+	public readonly id: NativeWebGLProgram;
 	public readonly uniforms: UniformMap = {};
 	public readonly attributes: AttributeMap = {};
 
 	private constructor(gl: WebGLRenderingContext, vertSrc: string, fragSrc: string) {
-		this.id = createProgram(gl, vertSrc, fragSrc) as unknown as WebGLProgram_Native;
+		const prog = createProgram(gl, vertSrc, fragSrc)!;
+		this.id = prog;
 
-		const prog = this.id as unknown as WebGLProgram;
 		const totalUniforms = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS) as number;
 		for (let i = 0; i < totalUniforms; i++) {
 			const info = gl.getActiveUniform(prog, i)!;
@@ -38,6 +42,3 @@ export class WebGLProgram {
 		}
 	}
 }
-
-// Alias to avoid name collision with the class itself
-type WebGLProgram_Native = ReturnType<WebGLRenderingContext['createProgram']>;

@@ -6,6 +6,7 @@ import { blendModeToNumber, numberToBlendMode } from './enums/index.js';
 import type { Filter } from '../filters/index.js';
 import type { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import type { Stage } from './Stage.js';
+import type { Graphics } from './Graphics.js';
 import { DisplayList } from '../player/DisplayList.js';
 
 function clampRotation(value: number): number {
@@ -138,6 +139,12 @@ export class DisplayObject extends EventDispatcher {
 	private _zIndex = 0;
 	private _sortableChildren = false;
 
+	/**
+	 * The Graphics object attached to this display object, if any.
+	 * Assigned by Shape and Sprite; undefined on all other types.
+	 */
+	protected _graphics: Graphics | undefined = undefined;
+
 	// ── Constructor ───────────────────────────────────────────────────────────
 
 	public constructor() {
@@ -146,6 +153,10 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	// ── Getters / Setters ─────────────────────────────────────────────────────
+
+	public get graphics(): Graphics | undefined {
+		return this._graphics;
+	}
 
 	public get name(): string {
 		return this._name;

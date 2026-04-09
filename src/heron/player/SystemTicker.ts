@@ -193,14 +193,14 @@ export class SystemTicker {
 	private broadcastEnterFrame(): void {
 		const list = [...DisplayObject.enterFrameCallBackList];
 		for (const obj of list) {
-			(obj as unknown as { dispatchEventWith(type: string): void }).dispatchEventWith(Event.ENTER_FRAME);
+			obj.dispatchEventWith(Event.ENTER_FRAME);
 		}
 	}
 
 	private broadcastRender(): void {
 		const list = [...DisplayObject.renderCallBackList];
 		for (const obj of list) {
-			(obj as unknown as { dispatchEventWith(type: string): void }).dispatchEventWith(Event.RENDER);
+			obj.dispatchEventWith(Event.RENDER);
 		}
 	}
 

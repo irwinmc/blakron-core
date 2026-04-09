@@ -13,6 +13,12 @@ export interface MaskPushInstruction extends Instruction {
 	renderable: DisplayObject;
 	offsetX: number;
 	offsetY: number;
+	/**
+	 * When true this instruction represents a scrollRect/maskRect clip,
+	 * handled via scissor or stencil. When false (default) it represents
+	 * a DisplayObject mask, handled via offscreen compositing.
+	 */
+	isScrollRect?: boolean;
 }
 
 export interface MaskPopInstruction extends Instruction {
