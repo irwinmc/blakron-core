@@ -422,28 +422,69 @@ export class WebGLRenderContext {
 		);
 	}
 
+	/**
+	 * Composite the offscreen filter result back onto the current (parent) buffer.
+	 *
+	 * Strategy (following Egret's WebGLRenderer._drawWithFilter pattern):
+	 *
+	 * 1. Flush all pending batched commands so the offscreen FBO content is
+	 *    fully rasterised and the GL state is clean.
+	 * 2. Apply multi-pass effects (blur ping-pong) directly on the offscreen
+	 *    texture via temporary FBOs.
+	 * 3. Activate the parent buffer's FBO.
+	 * 4. Draw the offscreen texture onto the parent buffer using the batched
+	 *    drawTexture() path so that the parent buffer's globalMatrix is
+	 *    correctly applied to position the result.
+	 * 5. Flush immediately so the draw executes while the GL FBO state is
+	 *    known-good, preventing feedback loops.
+	 */
 	public compositeFilterResult(filters: Filter[], offscreen: WebGLRenderBuffer): void {
 		const target = offscreen.rootRenderTarget;
 		if (!target?.texture) return;
 		const w = target.width;
 		const h = target.height;
 
+		// Step 1 — flush pending commands (leaf draws into the offscreen FBO).
+		this.flush();
+
+		// Step 2 — multi-pass blur (operates entirely via direct GL calls on
+		// temporary FBOs; does NOT touch the batched command queue).
 		for (const filter of filters) {
 			if (filter instanceof BlurFilter && (filter.blurX > 0 || filter.blurY > 0)) {
 				this._drawBlurPingPong(target.texture, w, h, filter, offscreen);
 			}
 		}
 
+		// Step 3 — ensure the parent buffer's FBO is the active GL framebuffer.
+		// popBuffer() only *queued* an ACT_BUFFER command; the actual GL bind
+		// may not have happened yet (the queue was flushed in step 1, but
+		// _drawBlurPingPong manipulates FBOs directly).  Activate explicitly.
+		if (this._currentBuffer) {
+			this._currentBuffer.rootRenderTarget.activate();
+			this.onResize(this._currentBuffer.width, this._currentBuffer.height);
+		}
+
+		// Step 4 — queue a batched drawTexture so the parent buffer's
+		// globalMatrix positions the quad correctly.
 		const nonBlurFilter = filters.find(f => !(f instanceof BlurFilter)) ?? undefined;
 		this.activeFilter = nonBlurFilter;
 		this.drawTexture(target.texture, 0, 0, w, h, 0, 0, w, h, w, h);
 		this.activeFilter = undefined;
+
+		// Step 5 — flush immediately.  The parent FBO is already active (step 3)
+		// and the offscreen texture is NOT attached to it, so no feedback loop.
+		this.flush();
 	}
 
 	/**
 	 * Two-pass separable Gaussian blur.
-	 * Horizontal pass renders into a temporary buffer; vertical pass composites
-	 * the result back into the active draw context.
+	 * Horizontal pass renders into a temporary FBO; vertical pass writes the
+	 * blurred result back into the offscreen buffer's FBO so that the caller
+	 * (compositeFilterResult) can composite it onto the parent buffer.
+	 *
+	 * NOTE: This method does NOT restore the parent buffer's FBO — the caller
+	 * is responsible for activating the correct destination FBO before the
+	 * final composite draw.
 	 */
 	private _drawBlurPingPong(
 		texture: WebGLTexture,
@@ -452,9 +493,6 @@ export class WebGLRenderContext {
 		filter: BlurFilter,
 		buffer: WebGLRenderBuffer,
 	): void {
-		// Flush any pending draw calls before we start manipulating FBOs.
-		this.flush();
-
 		const gl = this.gl;
 
 		// ── Create a temporary FBO for the horizontal pass output ─────────────
@@ -482,7 +520,7 @@ export class WebGLRenderContext {
 			if (uSize) gl.uniform2f(uSize, w, h);
 		});
 
-		// ── Pass 2: vertical blur → restore original FBO ─────────────────────
+		// ── Pass 2: vertical blur → offscreen FBO ────────────────────────────
 		buffer.rootRenderTarget.activate();
 		this.onResize(w, h);
 
@@ -497,14 +535,6 @@ export class WebGLRenderContext {
 		// ── Cleanup ───────────────────────────────────────────────────────────
 		gl.deleteFramebuffer(tmpFbo);
 		gl.deleteTexture(tmpTex);
-
-		// Restore the current buffer's FBO + projection so that subsequent
-		// drawTexture calls (e.g. the final composite in compositeFilterResult)
-		// land in the correct render target, not the offscreen we just wrote to.
-		if (this._currentBuffer) {
-			this._currentBuffer.rootRenderTarget.activate();
-			this.onResize(this._currentBuffer.width, this._currentBuffer.height);
-		}
 	}
 
 	/**
@@ -888,6 +918,15 @@ export class WebGLRenderContext {
 				if (uAngle) gl.uniform1f(uAngle, (filter.angle / 180) * Math.PI);
 				const uHide = prog.uniforms['hideObject'];
 				if (uHide) gl.uniform1f(uHide, filter.hideObject ? 1 : 0);
+			} else {
+				// GlowFilter: zero out DropShadow-specific uniforms so stale
+				// values from a previous DropShadowFilter draw don't leak in.
+				const uDist = prog.uniforms['dist'];
+				if (uDist) gl.uniform1f(uDist, 0);
+				const uAngle = prog.uniforms['angle'];
+				if (uAngle) gl.uniform1f(uAngle, 0);
+				const uHide = prog.uniforms['hideObject'];
+				if (uHide) gl.uniform1f(uHide, 0);
 			}
 			const uInner = prog.uniforms['inner'];
 			if (uInner) gl.uniform1f(uInner, filter instanceof GlowFilter && filter.inner ? 1 : 0);
