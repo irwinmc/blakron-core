@@ -159,14 +159,13 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 		if (!cache.texture) return;
 
 		// ── Draw cached texture ───────────────────────────────────────────────
-		if (cache.boundsX !== 0 || cache.boundsY !== 0) {
-			buffer.transform(1, 0, 0, 1, ox + cache.boundsX, oy + cache.boundsY);
+		buffer.saveTransform();
+		if (cache.boundsX !== 0 || cache.boundsY !== 0 || ox !== 0 || oy !== 0) {
+			buffer.globalMatrix.append(1, 0, 0, 1, ox + cache.boundsX, oy + cache.boundsY);
 		}
 
 		buffer.context.drawTexture(cache.texture, 0, 0, w, h, 0, 0, w, h, w, h);
 
-		if (cache.boundsX !== 0 || cache.boundsY !== 0) {
-			buffer.transform(1, 0, 0, 1, -(ox + cache.boundsX), -(oy + cache.boundsY));
-		}
+		buffer.restoreTransform();
 	}
 }

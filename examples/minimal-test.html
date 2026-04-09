@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Heron Minimal Test</title>
+<style>body { margin: 20px; background: #111; }</style>
+</head>
+<body>
+<canvas id="c" width="400" height="300" style="border:1px solid #444"></canvas>
+<div id="log" style="color:#0f0;font:12px monospace;padding:8px;white-space:pre"></div>
+<script type="module">
+import { Player, Stage, Shape, Sprite } from '../src/index.js';
+
+const log = document.getElementById('log');
+const L = (m) => { log.innerHTML += m + '\n'; console.log(m); };
+
+const canvas = document.getElementById('c');
+const player = new Player(canvas);
+L('WebGL: ' + player.isWebGL);
+
+const root = new Sprite();
+player.updateStageSize(400, 300);
+player.start(root);
+
+// Single test: red rect at (20, 20), size 80x60
+const a = new Shape();
+a.graphics.beginFill(0xff0000, 1);
+a.graphics.drawRect(0, 0, 80, 60);
+a.graphics.endFill();
+a.x = 20;
+a.y = 20;
+root.addChild(a);
+
+L('Shape added. Check WebGL vertex data in console.');
+L('Expected: rectangle at (20,20) size 80x60');
+L('');
+
+// After one frame, read back pixels to verify
+setTimeout(() => {
+  // Sample some pixels
+  const gl = canvas.getContext('webgl');
+  if (!gl) { L('No WebGL context'); return; }
+
+  const w = canvas.width, h = canvas.height;
+  const pixels = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+  // Check specific positions (WebGL y is flipped)
+  function px(x, y) {
+    const fy = h - 1 - y; // flip y
+    const i = (fy * w + x) * 4;
+    return `(${pixels[i]},${pixels[i+1]},${pixels[i+2]},${pixels[i+3]})`;
+  }
+
+  L('Pixel samples:');
+  L(`  (0,0)     = ${px(0,0)}     — should be black (0,0,0,0)`);
+  L(`  (20,20)   = ${px(20,20)}   — should be red (255,0,0,255)`);
+  L(`  (60,50)   = ${px(60,50)}   — should be red (inside rect)`);
+  L(`  (99,79)   = ${px(99,79)}   — should be red (bottom-right of rect)`);
+  L(`  (100,80)  = ${px(100,80)}  — should be red (just inside)`);
+  L(`  (101,81)  = ${px(101,81)}  — should be black (just outside)`);
+  L(`  (200,150) = ${px(200,150)} — should be black (center of canvas)`);
+}, 200);
+</script>
+</body>
+</html>

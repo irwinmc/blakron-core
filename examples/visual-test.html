@@ -1,0 +1,321 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Heron Visual Test</title>
+		<style>
+			body {
+				margin: 0;
+				background: #1a1a2e;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				font-family: monospace;
+				color: #eee;
+			}
+			canvas {
+				border: 1px solid #444;
+				margin: 10px;
+			}
+			h3 {
+				margin: 5px 0;
+				font-size: 13px;
+				color: #aaa;
+			}
+			#log {
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				background: #000a;
+				color: #0f0;
+				padding: 8px;
+				font-size: 12px;
+				max-height: 120px;
+				overflow-y: auto;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>Heron V2 渲染验证</h2>
+		<canvas id="gameCanvas" width="640" height="480"></canvas>
+		<div id="log"></div>
+
+		<script type="module">
+			// 直接从源码导入（需要用 dev server 如 vite 跑）
+			import {
+				createPlayer,
+				Sprite,
+				Shape,
+				Bitmap,
+				DisplayObjectContainer,
+				Texture,
+				BitmapData,
+				Stage,
+				BlurFilter,
+				GlowFilter,
+				DropShadowFilter,
+				ColorMatrixFilter,
+				Mesh,
+				Rectangle,
+			} from '../src/index.js';
+
+			const log = document.getElementById('log');
+			function info(msg) {
+				const line = document.createElement('div');
+				line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+				log.appendChild(line);
+				log.scrollTop = log.scrollHeight;
+				console.log(msg);
+			}
+
+			const canvas = document.getElementById('gameCanvas');
+			const app = createPlayer({
+				canvas,
+				contentWidth: 640,
+				contentHeight: 480,
+				scaleMode: 'showAll',
+				frameRate: 60,
+			});
+
+			info(`Player created, WebGL: ${app.player.isWebGL}`);
+
+			const root = new Sprite();
+			app.start(root);
+			info('Player started');
+
+			// ── Test 1: Shape (Graphics) ──────────────────────────────────────────────
+			const shape = new Shape();
+			shape.graphics.beginFill(0xff0000, 1);
+			shape.graphics.drawRect(0, 0, 80, 80);
+			shape.graphics.endFill();
+			shape.x = 20;
+			shape.y = 20;
+			root.addChild(shape);
+			info('Test 1: Red rectangle (Shape + Graphics.drawRect)');
+
+			// ── Test 2: Shape circle ──────────────────────────────────────────────────
+			const circle = new Shape();
+			circle.graphics.beginFill(0x00ff00, 1);
+			circle.graphics.drawCircle(50, 50, 40);
+			circle.graphics.endFill();
+			circle.x = 120;
+			circle.y = 20;
+			root.addChild(circle);
+			info('Test 2: Green circle (Graphics.drawCircle)');
+
+			// ── Test 3: Sprite with children ──────────────────────────────────────────
+			const container = new Sprite();
+			container.x = 260;
+			container.y = 20;
+			for (let i = 0; i < 5; i++) {
+				const s = new Shape();
+				s.graphics.beginFill(0x3366ff + i * 0x111100, 0.8);
+				s.graphics.drawRect(0, 0, 30, 30);
+				s.graphics.endFill();
+				s.x = i * 20;
+				s.y = i * 15;
+				container.addChild(s);
+			}
+			root.addChild(container);
+			info('Test 3: Sprite container with 5 overlapping children');
+
+			// ── Test 4: Alpha + Rotation ──────────────────────────────────────────────
+			const rotated = new Shape();
+			rotated.graphics.beginFill(0xff00ff, 1);
+			rotated.graphics.drawRect(0, 0, 60, 60);
+			rotated.graphics.endFill();
+			rotated.x = 450;
+			rotated.y = 50;
+			rotated.rotation = 30;
+			rotated.alpha = 0.6;
+			rotated.anchorOffsetX = 30;
+			rotated.anchorOffsetY = 30;
+			root.addChild(rotated);
+			info('Test 4: Rotated 30° + alpha 0.6 (magenta square)');
+
+			// ── Test 5: Nested containers + scale ─────────────────────────────────────
+			const outer = new Sprite();
+			outer.x = 540;
+			outer.y = 20;
+			outer.scaleX = 1.5;
+			outer.scaleY = 1.5;
+			const inner = new Shape();
+			inner.graphics.beginFill(0xffff00, 1);
+			inner.graphics.drawRoundRect(0, 0, 40, 40, 10);
+			inner.graphics.endFill();
+			outer.addChild(inner);
+			root.addChild(outer);
+			info('Test 5: Nested container, scale 1.5x (yellow rounded rect)');
+
+			// ── Test 6: Line drawing ──────────────────────────────────────────────────
+			const lines = new Shape();
+			lines.graphics.lineStyle(3, 0xffffff, 1);
+			lines.graphics.moveTo(0, 0);
+			lines.graphics.lineTo(100, 0);
+			lines.graphics.lineTo(100, 50);
+			lines.graphics.lineTo(0, 50);
+			lines.graphics.lineTo(0, 0);
+			lines.x = 20;
+			lines.y = 140;
+			root.addChild(lines);
+			info('Test 6: White line rectangle (lineStyle + moveTo/lineTo)');
+
+			// ── Test 7: Gradient fill ─────────────────────────────────────────────────
+			const gradient = new Shape();
+			const gm = new (await import('../src/heron/geom/Matrix.js')).Matrix();
+			gm.createGradientBox(100, 60, 0, 0, 0);
+			gradient.graphics.beginGradientFill('linear', [0xff0000, 0x0000ff], [1, 1], [0, 255], gm);
+			gradient.graphics.drawRect(0, 0, 100, 60);
+			gradient.graphics.endFill();
+			gradient.x = 140;
+			gradient.y = 140;
+			root.addChild(gradient);
+			info('Test 7: Linear gradient fill (red → blue)');
+
+			// ── Test 8: Ellipse ───────────────────────────────────────────────────────
+			const ellipse = new Shape();
+			ellipse.graphics.beginFill(0x00ffff, 1);
+			ellipse.graphics.drawEllipse(0, 0, 80, 40);
+			ellipse.graphics.endFill();
+			ellipse.x = 260;
+			ellipse.y = 150;
+			root.addChild(ellipse);
+			info('Test 8: Cyan ellipse');
+
+			// ── Test 9: scrollRect clipping ───────────────────────────────────────────
+			const clipped = new Sprite();
+			clipped.x = 370;
+			clipped.y = 140;
+			clipped.scrollRect = new Rectangle(0, 0, 60, 60);
+			const bigShape = new Shape();
+			bigShape.graphics.beginFill(0xff8800, 1);
+			bigShape.graphics.drawRect(0, 0, 120, 120);
+			bigShape.graphics.endFill();
+			clipped.addChild(bigShape);
+			root.addChild(clipped);
+			info('Test 9: scrollRect clipping (orange 120x120 clipped to 60x60)');
+
+			// ── Test 10: BlurFilter ───────────────────────────────────────────────────
+			const blurred = new Shape();
+			blurred.graphics.beginFill(0xffffff, 1);
+			blurred.graphics.drawRect(0, 0, 60, 60);
+			blurred.graphics.endFill();
+			blurred.x = 20;
+			blurred.y = 250;
+			blurred.filters = [new BlurFilter(4, 4)];
+			root.addChild(blurred);
+			info('Test 10: White square with BlurFilter(4,4)');
+
+			// ── Test 11: GlowFilter ──────────────────────────────────────────────────
+			const glowed = new Shape();
+			glowed.graphics.beginFill(0x00ff00, 1);
+			glowed.graphics.drawCircle(30, 30, 25);
+			glowed.graphics.endFill();
+			glowed.x = 110;
+			glowed.y = 255;
+			glowed.filters = [new GlowFilter(0x00ff00, 1, 8, 8, 2)];
+			root.addChild(glowed);
+			info('Test 11: Green circle with GlowFilter');
+
+			// ── Test 12: DropShadowFilter ─────────────────────────────────────────────
+			const shadowed = new Shape();
+			shadowed.graphics.beginFill(0x6666ff, 1);
+			shadowed.graphics.drawRect(0, 0, 60, 40);
+			shadowed.graphics.endFill();
+			shadowed.x = 200;
+			shadowed.y = 260;
+			shadowed.filters = [new DropShadowFilter(4, 45, 0x000000, 0.8, 4, 4)];
+			root.addChild(shadowed);
+			info('Test 12: Blue rect with DropShadowFilter');
+
+			// ── Test 13: ColorMatrixFilter (grayscale) ────────────────────────────────
+			const grayscale = new Shape();
+			grayscale.graphics.beginFill(0xff0000, 1);
+			grayscale.graphics.drawRect(0, 0, 60, 40);
+			grayscale.graphics.endFill();
+			grayscale.x = 300;
+			grayscale.y = 260;
+			const grayMatrix = [0.3, 0.6, 0.1, 0, 0, 0.3, 0.6, 0.1, 0, 0, 0.3, 0.6, 0.1, 0, 0, 0, 0, 0, 1, 0];
+			grayscale.filters = [new ColorMatrixFilter(grayMatrix)];
+			root.addChild(grayscale);
+			info('Test 13: Red rect with grayscale ColorMatrixFilter');
+
+			// ── Test 14: Mask (DisplayObject) ─────────────────────────────────────────
+			const masked = new Sprite();
+			masked.x = 400;
+			masked.y = 250;
+			const maskedContent = new Shape();
+			maskedContent.graphics.beginFill(0xff00ff, 1);
+			maskedContent.graphics.drawRect(0, 0, 80, 80);
+			maskedContent.graphics.endFill();
+			masked.addChild(maskedContent);
+			const maskShape = new Shape();
+			maskShape.graphics.beginFill(0xffffff, 1);
+			maskShape.graphics.drawCircle(40, 40, 30);
+			maskShape.graphics.endFill();
+			masked.addChild(maskShape);
+			masked.mask = maskShape;
+			root.addChild(masked);
+			info('Test 14: Magenta rect masked by circle');
+
+			// ── Test 15: Tint ─────────────────────────────────────────────────────────
+			const tinted = new Shape();
+			tinted.graphics.beginFill(0xffffff, 1);
+			tinted.graphics.drawRect(0, 0, 50, 50);
+			tinted.graphics.endFill();
+			tinted.x = 510;
+			tinted.y = 260;
+			tinted.tint = 0xff8800;
+			root.addChild(tinted);
+			info('Test 15: White rect with orange tint');
+
+			// ── Test 16: Animation (ENTER_FRAME) ─────────────────────────────────────
+			let frame = 0;
+			const animated = new Shape();
+			animated.graphics.beginFill(0x00ffff, 1);
+			animated.graphics.drawCircle(15, 15, 15);
+			animated.graphics.endFill();
+			animated.x = 20;
+			animated.y = 380;
+			root.addChild(animated);
+
+			const { Event: HeronEvent } = await import('../src/heron/events/Event.js');
+			animated.addEventListener(HeronEvent.ENTER_FRAME, () => {
+				frame++;
+				animated.x = 20 + Math.sin(frame * 0.05) * 100;
+			});
+			info('Test 16: Animated cyan circle (ENTER_FRAME sin wave)');
+
+			// ── Test 17: RenderGroup ──────────────────────────────────────────────────
+			const renderGroup = new Sprite();
+			renderGroup.isRenderGroup = true;
+			renderGroup.x = 200;
+			renderGroup.y = 380;
+			for (let i = 0; i < 3; i++) {
+				const s = new Shape();
+				s.graphics.beginFill(0xaa00aa + i * 0x003300, 1);
+				s.graphics.drawRect(0, 0, 25, 25);
+				s.graphics.endFill();
+				s.x = i * 30;
+				renderGroup.addChild(s);
+			}
+			root.addChild(renderGroup);
+			info('Test 17: RenderGroup container (3 small squares)');
+
+			// ── Test 18: Bezier curve ─────────────────────────────────────────────────
+			const bezier = new Shape();
+			bezier.graphics.lineStyle(2, 0xffff00, 1);
+			bezier.graphics.moveTo(0, 40);
+			bezier.graphics.curveTo(40, -20, 80, 40);
+			bezier.x = 380;
+			bezier.y = 380;
+			root.addChild(bezier);
+			info('Test 18: Yellow quadratic bezier curve');
+
+			// ── Summary ───────────────────────────────────────────────────────────────
+			info(`--- All 18 visual tests rendered. Check canvas above. ---`);
+			info(`Renderer: ${app.player.isWebGL ? 'WebGL' : 'Canvas 2D'}`);
+		</script>
+	</body>
+</html>

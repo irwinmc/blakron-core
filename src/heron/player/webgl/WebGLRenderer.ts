@@ -118,7 +118,8 @@ export class WebGLRenderer {
 		const ctx = buffer.context;
 		ctx.pushBuffer(buffer);
 
-		buffer.transform(matrix.a, matrix.b, matrix.c, matrix.d, 0, 0);
+		// Set (not multiply) the root transform so it doesn't accumulate across frames.
+		buffer.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, 0, 0);
 
 		const set = this._instructionSet;
 
@@ -141,11 +142,8 @@ export class WebGLRenderer {
 
 		ctx.popBuffer();
 
-		// Restore identity transform
-		const inv = Matrix.create();
-		matrix.invertInto(inv);
-		buffer.transform(inv.a, inv.b, inv.c, inv.d, 0, 0);
-		Matrix.release(inv);
+		// Reset to identity — clean slate for next frame.
+		buffer.setTransform(1, 0, 0, 1, 0, 0);
 
 		// Root renderDirty is consumed after a full render pass.
 		displayObject.renderDirty = false;

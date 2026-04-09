@@ -1,5 +1,5 @@
 import { Event } from '../events/Event.js';
-import { DisplayObject } from '../display/index.js';
+import { DisplayObject } from '../display/DisplayObject.js';
 
 export const START_TIME: number = Date.now();
 

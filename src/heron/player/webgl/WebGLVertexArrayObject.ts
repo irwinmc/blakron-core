@@ -503,6 +503,34 @@ export class WebGLVertexArrayObject {
 		let sw: number, sh: number;
 		let idx = this._vertexIndex * MULTI_VERT_SIZE;
 
+		// @debug — remove after fixing
+		if ((globalThis as Record<string, unknown>).__HERON_DEBUG_VERTS) {
+			console.log('[VAO multi]', {
+				a,
+				b,
+				c,
+				d,
+				tx,
+				ty,
+				w,
+				h,
+				destX,
+				destY,
+				destWidth,
+				destHeight,
+				sourceWidth,
+				sourceHeight,
+				tw,
+				th,
+				tid,
+				idx: this._vertexIndex,
+			});
+			console.log('  v0:', tx, ty);
+			console.log('  v1:', a * w + tx, b * w + ty);
+			console.log('  v2:', a * w + c * h + tx, d * h + b * w + ty);
+			console.log('  v3:', c * h + tx, d * h + ty);
+		}
+
 		if (rotated) {
 			sw = sourceHeight / tw;
 			sh = sourceWidth / th;
