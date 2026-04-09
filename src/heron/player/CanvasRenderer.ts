@@ -313,6 +313,7 @@ export class CanvasRenderer {
 		offsetY: number,
 	): number {
 		const scrollRect = displayObject.internalScrollRect ?? displayObject.internalMaskRect;
+		const mask = displayObject.internalMask;
 		const hasBlendMode = displayObject.internalBlendMode !== 0;
 
 		if (hasBlendMode) {
@@ -324,6 +325,69 @@ export class CanvasRenderer {
 			ctx.beginPath();
 			ctx.rect(scrollRect.x + offsetX, scrollRect.y + offsetY, scrollRect.width, scrollRect.height);
 			ctx.clip();
+		}
+
+		// DisplayObject mask: render content and mask to offscreen buffers,
+		// composite with 'destination-in' to produce the masked result.
+		if (mask) {
+			const bounds = displayObject.getOriginalBounds();
+			if (bounds.width <= 0 || bounds.height <= 0) {
+				if (scrollRect) ctx.restore();
+				if (hasBlendMode) ctx.globalCompositeOperation = 'source-over';
+				return 0;
+			}
+			const bw = Math.ceil(bounds.width);
+			const bh = Math.ceil(bounds.height);
+			const bx = bounds.x;
+			const by = bounds.y;
+
+			// Render content to offscreen buffer
+			const contentBuffer = new RenderBuffer(bw, bh);
+			const contentCtx = contentBuffer.context;
+			const drawCalls = this.drawDisplayObject(displayObject, contentCtx, -bx, -by);
+
+			// Render mask shape to the same buffer using destination-in
+			contentCtx.globalCompositeOperation = 'destination-in';
+			const maskMatrix = mask.getConcatenatedMatrix();
+			const parentMatrix = displayObject.getConcatenatedMatrix();
+			// Transform mask relative to the content's local space
+			contentCtx.save();
+			const invA = parentMatrix.a,
+				invB = parentMatrix.b,
+				invC = parentMatrix.c,
+				invD = parentMatrix.d;
+			const invTx = parentMatrix.tx,
+				invTy = parentMatrix.ty;
+			const det = invA * invD - invB * invC;
+			if (Math.abs(det) > 1e-6) {
+				const ia = invD / det,
+					ib = -invB / det,
+					ic = -invC / det,
+					id = invA / det;
+				const itx = (invC * invTy - invD * invTx) / det;
+				const ity = (invB * invTx - invA * invTy) / det;
+				// Combine: inverse(parent) * mask
+				const ra = ia * maskMatrix.a + ic * maskMatrix.b;
+				const rb = ib * maskMatrix.a + id * maskMatrix.b;
+				const rc = ia * maskMatrix.c + ic * maskMatrix.d;
+				const rd = ib * maskMatrix.c + id * maskMatrix.d;
+				const rtx = ia * maskMatrix.tx + ic * maskMatrix.ty + itx - bx;
+				const rty = ib * maskMatrix.tx + id * maskMatrix.ty + ity - by;
+				contentCtx.setTransform(ra, rb, rc, rd, rtx, rty);
+			} else {
+				contentCtx.translate(-bx, -by);
+			}
+			this.drawDisplayObject(mask, contentCtx, 0, 0);
+			contentCtx.restore();
+			contentCtx.globalCompositeOperation = 'source-over';
+
+			// Draw the masked result onto the main context
+			ctx.drawImage(contentBuffer.surface, offsetX + bx, offsetY + by);
+			contentBuffer.destroy();
+
+			if (scrollRect) ctx.restore();
+			if (hasBlendMode) ctx.globalCompositeOperation = 'source-over';
+			return drawCalls + 1;
 		}
 
 		const drawCalls = this.drawDisplayObject(displayObject, ctx, offsetX, offsetY);
@@ -435,9 +499,13 @@ export class CanvasRenderer {
 				const oc2d = graphics._offscreenCtx!;
 				oc2d.save();
 				oc2d.translate(-bounds.x, -bounds.y);
+				this._hasFill = false;
+				this._hasStroke = false;
 				for (const cmd of graphics.commands) {
 					this.executeGraphicsCommand(cmd, oc2d, false);
 				}
+				// Flush any open path that wasn't closed by endFill
+				this.flushOpenPath(oc2d);
 				oc2d.restore();
 
 				graphics._offscreenBoundsX = bounds.x;
@@ -457,12 +525,29 @@ export class CanvasRenderer {
 		// ── Hit-test path: direct execution, no cache ─────────────────────────
 		ctx.save();
 		ctx.translate(offsetX, offsetY);
+		this._hasFill = false;
+		this._hasStroke = false;
 		for (const cmd of graphics.commands) {
 			this.executeGraphicsCommand(cmd, ctx, forHitTest);
 		}
+		// Flush any open path that wasn't closed by endFill
+		this.flushOpenPath(ctx);
 		ctx.restore();
 		return 1;
 	}
+
+	/** Flush any open path that wasn't closed by an explicit endFill command. */
+	private flushOpenPath(ctx: CanvasRenderingContext2D): void {
+		if (this._hasFill) ctx.fill();
+		if (this._hasStroke) ctx.stroke();
+		this._hasFill = false;
+		this._hasStroke = false;
+	}
+
+	/** Tracks whether a fill is active (beginFill/beginGradientFill was called). */
+	private _hasFill = false;
+	/** Tracks whether a stroke style has been set via lineStyle. */
+	private _hasStroke = false;
 
 	private executeGraphicsCommand(cmd: GraphicsCommand, ctx: CanvasRenderingContext2D, forHitTest = false): void {
 		switch (cmd.type) {
@@ -471,18 +556,42 @@ export class CanvasRenderer {
 					? '#000'
 					: `rgba(${(cmd.color >> 16) & 0xff},${(cmd.color >> 8) & 0xff},${cmd.color & 0xff},${cmd.alpha})`;
 				ctx.beginPath();
+				this._hasFill = true;
 				break;
 			case PathCommandType.BeginGradientFill: {
 				if (forHitTest) {
 					ctx.fillStyle = '#000';
 					ctx.beginPath();
+					this._hasFill = true;
 					break;
 				}
 				let gradient: CanvasGradient;
-				if (cmd.gradientType === 'radial') {
-					gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+				if (cmd.matrix) {
+					const m = cmd.matrix;
+					// The gradient is defined in a normalized [-1,1] space.
+					// The matrix maps from that space to local coordinates.
+					// We compute the gradient endpoints in local space.
+					if (cmd.gradientType === 'radial') {
+						// Radial: center at (0,0) radius 1 in gradient space
+						const cx = m.tx;
+						const cy = m.ty;
+						// Approximate radius from the matrix scale
+						const rx = Math.sqrt(m.a * m.a + m.b * m.b);
+						gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+					} else {
+						// Linear: from (-1,0) to (1,0) in gradient space
+						const x0 = m.a * -1 + m.tx;
+						const y0 = m.b * -1 + m.ty;
+						const x1 = m.a * 1 + m.tx;
+						const y1 = m.b * 1 + m.ty;
+						gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+					}
 				} else {
-					gradient = ctx.createLinearGradient(-1, 0, 1, 0);
+					if (cmd.gradientType === 'radial') {
+						gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+					} else {
+						gradient = ctx.createLinearGradient(-1, 0, 1, 0);
+					}
 				}
 				for (let i = 0; i < cmd.colors.length; i++) {
 					const c = cmd.colors[i];
@@ -490,18 +599,16 @@ export class CanvasRenderer {
 					const r = (cmd.ratios[i] ?? 0) / 255;
 					gradient.addColorStop(r, `rgba(${(c >> 16) & 0xff},${(c >> 8) & 0xff},${c & 0xff},${a})`);
 				}
-				if (cmd.matrix) {
-					const m = cmd.matrix;
-					ctx.save();
-					ctx.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
-				}
 				ctx.fillStyle = gradient;
 				ctx.beginPath();
+				this._hasFill = true;
 				break;
 			}
 			case PathCommandType.EndFill:
-				ctx.fill();
-				ctx.stroke();
+				if (this._hasFill) ctx.fill();
+				ctx.closePath();
+				if (this._hasStroke) ctx.stroke();
+				this._hasFill = false;
 				break;
 			case PathCommandType.LineStyle:
 				ctx.lineWidth = cmd.thickness;
@@ -512,6 +619,7 @@ export class CanvasRenderer {
 				ctx.lineJoin = (cmd.joints ?? 'round') as CanvasLineJoin;
 				ctx.miterLimit = cmd.miterLimit;
 				if (cmd.lineDash) ctx.setLineDash(cmd.lineDash);
+				this._hasStroke = true;
 				break;
 			case PathCommandType.MoveTo:
 				ctx.moveTo(cmd.x, cmd.y);
@@ -528,8 +636,8 @@ export class CanvasRenderer {
 			case PathCommandType.DrawRect:
 				ctx.beginPath();
 				ctx.rect(cmd.x, cmd.y, cmd.w, cmd.h);
-				ctx.fill();
-				ctx.stroke();
+				if (this._hasFill) ctx.fill();
+				if (this._hasStroke) ctx.stroke();
 				break;
 			case PathCommandType.DrawRoundRect: {
 				const { x, y, w, h, ew, eh } = cmd;
@@ -546,31 +654,33 @@ export class CanvasRenderer {
 				ctx.lineTo(x, y + ry);
 				ctx.ellipse(x + rx, y + ry, rx, ry, 0, Math.PI, Math.PI * 1.5);
 				ctx.closePath();
-				ctx.fill();
-				ctx.stroke();
+				if (this._hasFill) ctx.fill();
+				if (this._hasStroke) ctx.stroke();
 				break;
 			}
 			case PathCommandType.DrawCircle:
 				ctx.beginPath();
 				ctx.arc(cmd.x, cmd.y, cmd.r, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.stroke();
+				if (this._hasFill) ctx.fill();
+				if (this._hasStroke) ctx.stroke();
 				break;
 			case PathCommandType.DrawEllipse: {
 				const cx = cmd.x + cmd.w / 2;
 				const cy = cmd.y + cmd.h / 2;
 				ctx.beginPath();
 				ctx.ellipse(cx, cy, cmd.w / 2, cmd.h / 2, 0, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.stroke();
+				if (this._hasFill) ctx.fill();
+				if (this._hasStroke) ctx.stroke();
 				break;
 			}
 			case PathCommandType.DrawArc:
 				ctx.beginPath();
 				ctx.arc(cmd.x, cmd.y, cmd.r, cmd.start, cmd.end, cmd.ccw);
-				ctx.stroke();
+				if (this._hasStroke) ctx.stroke();
 				break;
 			case PathCommandType.Clear:
+				this._hasFill = false;
+				this._hasStroke = false;
 				break;
 		}
 	}

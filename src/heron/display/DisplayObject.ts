@@ -354,6 +354,7 @@ export class DisplayObject extends EventDispatcher {
 	public set tint(value: number) {
 		this._tint = typeof value === 'number' && value >= 0 && value <= 0xffffff ? value : 0xffffff;
 		this.tintRGB = (this._tint >> 16) + (this._tint & 0xff00) + ((this._tint & 0xff) << 16);
+		this.markDirty();
 	}
 
 	public get zIndex(): number {

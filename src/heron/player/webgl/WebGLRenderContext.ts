@@ -784,7 +784,7 @@ export class WebGLRenderContext {
 		// Restore active texture unit to 0 for subsequent single-texture draws.
 		gl.activeTexture(gl.TEXTURE0);
 
-		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 2);
+		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 6);
 	}
 
 	private _getTextureProgram(filter?: Filter): WebGLProgram {
@@ -881,7 +881,7 @@ export class WebGLRenderContext {
 			if (uKnockout) gl.uniform1f(uKnockout, filter instanceof GlowFilter && filter.knockout ? 1 : 0);
 		}
 
-		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 2);
+		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 6);
 	}
 
 	private _drawRectBatch(indexOffset: number, count: number): void {
@@ -904,7 +904,7 @@ export class WebGLRenderContext {
 		const uProj = prog.uniforms['projectionVector'];
 		if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
 
-		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 2);
+		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 6);
 	}
 
 	// ── Private — stencil mask ────────────────────────────────────────────────

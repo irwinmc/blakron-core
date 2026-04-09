@@ -47,16 +47,10 @@
 				createPlayer,
 				Sprite,
 				Shape,
-				Bitmap,
-				DisplayObjectContainer,
-				Texture,
-				BitmapData,
-				Stage,
 				BlurFilter,
 				GlowFilter,
 				DropShadowFilter,
 				ColorMatrixFilter,
-				Mesh,
 				Rectangle,
 			} from '../src/index.js';
 
@@ -156,6 +150,7 @@
 			lines.graphics.lineTo(100, 50);
 			lines.graphics.lineTo(0, 50);
 			lines.graphics.lineTo(0, 0);
+			lines.graphics.endFill();
 			lines.x = 20;
 			lines.y = 140;
 			root.addChild(lines);
@@ -308,6 +303,7 @@
 			bezier.graphics.lineStyle(2, 0xffff00, 1);
 			bezier.graphics.moveTo(0, 40);
 			bezier.graphics.curveTo(40, -20, 80, 40);
+			bezier.graphics.endFill();
 			bezier.x = 380;
 			bezier.y = 380;
 			root.addChild(bezier);

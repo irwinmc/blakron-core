@@ -118,13 +118,11 @@ export class WebGLVertexArrayObject {
 		rotated?: boolean,
 		textureId = 0,
 	): void {
-		let alpha = Math.min(buffer.globalAlpha, 1.0);
+		const alpha = Math.min(buffer.globalAlpha, 1.0);
 		const tint = buffer.globalTintColor;
-		const tex = buffer.currentTexture;
-		const packed =
-			tex && (tex as Record<string, unknown>)[SYM_PREMULTIPLIED]
-				? premultiplyTint(tint, alpha)
-				: tint + ((alpha * 255) << 24);
+		// All Heron textures are uploaded with UNPACK_PREMULTIPLY_ALPHA_WEBGL=1,
+		// so always premultiply the vertex color.
+		const packed = premultiplyTint(tint, alpha);
 
 		const m = buffer.globalMatrix;
 		let a = m.a,
@@ -502,34 +500,6 @@ export class WebGLVertexArrayObject {
 			sy = sourceY / th;
 		let sw: number, sh: number;
 		let idx = this._vertexIndex * MULTI_VERT_SIZE;
-
-		// @debug — remove after fixing
-		if ((globalThis as Record<string, unknown>).__HERON_DEBUG_VERTS) {
-			console.log('[VAO multi]', {
-				a,
-				b,
-				c,
-				d,
-				tx,
-				ty,
-				w,
-				h,
-				destX,
-				destY,
-				destWidth,
-				destHeight,
-				sourceWidth,
-				sourceHeight,
-				tw,
-				th,
-				tid,
-				idx: this._vertexIndex,
-			});
-			console.log('  v0:', tx, ty);
-			console.log('  v1:', a * w + tx, b * w + ty);
-			console.log('  v2:', a * w + c * h + tx, d * h + b * w + ty);
-			console.log('  v3:', c * h + tx, d * h + ty);
-		}
 
 		if (rotated) {
 			sw = sourceHeight / tw;
