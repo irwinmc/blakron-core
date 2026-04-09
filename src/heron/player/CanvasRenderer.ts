@@ -208,11 +208,69 @@ export class CanvasRenderer {
 		const bounds = displayObject.getOriginalBounds();
 		if (bounds.width <= 0 || bounds.height <= 0) return 0;
 
-		// Draw the object into an offscreen buffer
+		// Build CSS filter string for GPU-accelerated filters.
+		// ColorMatrixFilter cannot be expressed as a CSS filter string (arbitrary matrix),
+		// so it falls back to the CPU pixel path below.
+		const cssFilters: string[] = [];
+		let hasCpuFilter = false;
+
+		for (const filter of filters) {
+			if (filter instanceof BlurFilter) {
+				// Average blurX/blurY — CSS blur is isotropic.
+				const radius = (filter.blurX + filter.blurY) / 2;
+				if (radius > 0) cssFilters.push(`blur(${radius}px)`);
+			} else if (filter instanceof DropShadowFilter) {
+				const angleRad = (filter.angle / 180) * Math.PI;
+				const dx = Math.round(filter.distance * Math.cos(angleRad));
+				const dy = Math.round(filter.distance * Math.sin(angleRad));
+				const blur = (filter.blurX + filter.blurY) / 2;
+				const r = (filter.color >> 16) & 0xff;
+				const g = (filter.color >> 8) & 0xff;
+				const b = filter.color & 0xff;
+				const a = Math.round(filter.alpha * 255);
+				cssFilters.push(`drop-shadow(${dx}px ${dy}px ${blur}px rgba(${r},${g},${b},${a / 255}))`);
+			} else if (filter instanceof GlowFilter) {
+				// Approximate glow as a zero-offset drop-shadow.
+				const blur = (filter.blurX + filter.blurY) / 2;
+				const r = (filter.color >> 16) & 0xff;
+				const g = (filter.color >> 8) & 0xff;
+				const b = filter.color & 0xff;
+				const a = Math.round(filter.alpha * filter.strength * 255);
+				cssFilters.push(`drop-shadow(0px 0px ${blur}px rgba(${r},${g},${b},${a / 255}))`);
+			} else if (filter instanceof ColorMatrixFilter) {
+				hasCpuFilter = true;
+			}
+		}
+
+		const hasBlendMode = displayObject.internalBlendMode !== 0;
+
+		// ── Fast path: all filters expressible as CSS ─────────────────────────
+		if (!hasCpuFilter && cssFilters.length > 0) {
+			ctx.save();
+			ctx.filter = cssFilters.join(' ');
+			if (hasBlendMode) ctx.globalCompositeOperation = displayObject.blendMode as GlobalCompositeOperation;
+
+			let drawCalls = 0;
+			if (displayObject.internalMask) {
+				drawCalls += this.drawWithClip(displayObject, ctx, offsetX, offsetY);
+			} else if (displayObject.internalScrollRect || displayObject.internalMaskRect) {
+				drawCalls += this.drawWithScrollRect(displayObject, ctx, offsetX, offsetY);
+			} else {
+				drawCalls += this.drawDisplayObject(displayObject, ctx, offsetX, offsetY);
+			}
+
+			ctx.restore();
+			return drawCalls;
+		}
+
+		// ── CPU fallback: ColorMatrixFilter or mixed ──────────────────────────
 		const bufferW = Math.ceil(bounds.width);
 		const bufferH = Math.ceil(bounds.height);
 		const offscreen = new RenderBuffer(bufferW, bufferH);
 		const offCtx = offscreen.context;
+
+		// Apply CSS-capable filters on the offscreen context before drawing.
+		if (cssFilters.length > 0) offCtx.filter = cssFilters.join(' ');
 
 		let drawCalls = 0;
 		if (displayObject.internalMask) {
@@ -223,35 +281,25 @@ export class CanvasRenderer {
 			drawCalls += this.drawDisplayObject(displayObject, offCtx, -bounds.x, -bounds.y);
 		}
 
-		if (drawCalls === 0) return 0;
-
-		// Apply filters via pixel manipulation
-		const imageData = offCtx.getImageData(0, 0, offscreen.width, offscreen.height);
-		const data = imageData.data;
-		const w = offscreen.width;
-		const h = offscreen.height;
-
-		for (const filter of filters) {
-			if (filter instanceof ColorMatrixFilter) {
-				applyColorMatrix(data, w, h, filter.matrix);
-			} else if (filter instanceof BlurFilter) {
-				applyBlur(data, w, h, filter.blurX, filter.blurY);
-			} else if (filter instanceof DropShadowFilter) {
-				applyDropShadow(data, w, h, filter);
-			} else if (filter instanceof GlowFilter) {
-				applyGlow(data, w, h, filter);
-			}
-			// CustomFilter not supported in Canvas 2D
+		if (drawCalls === 0) {
+			offscreen.destroy();
+			return 0;
 		}
 
+		offCtx.filter = 'none';
+
+		// Apply CPU-only filters (ColorMatrixFilter).
+		const imageData = offCtx.getImageData(0, 0, offscreen.width, offscreen.height);
+		const data = imageData.data;
+		for (const filter of filters) {
+			if (filter instanceof ColorMatrixFilter) {
+				applyColorMatrix(data, filter.matrix);
+			}
+		}
 		offCtx.putImageData(imageData, 0, 0);
 
-		// Blend mode
-		const hasBlendMode = displayObject.internalBlendMode !== 0;
 		if (hasBlendMode) ctx.globalCompositeOperation = displayObject.blendMode as GlobalCompositeOperation;
-
 		ctx.drawImage(offscreen.surface, offsetX + bounds.x, offsetY + bounds.y);
-
 		if (hasBlendMode) ctx.globalCompositeOperation = 'source-over';
 
 		offscreen.destroy();
@@ -530,7 +578,7 @@ export class CanvasRenderer {
 
 // ── Filter pixel manipulation helpers ─────────────────────────────────────────
 
-function applyColorMatrix(data: Uint8ClampedArray, _w: number, _h: number, matrix: number[]): void {
+function applyColorMatrix(data: Uint8ClampedArray, matrix: number[]): void {
 	for (let i = 0; i < data.length; i += 4) {
 		const r = data[i],
 			g = data[i + 1],
@@ -549,218 +597,6 @@ function applyColorMatrix(data: Uint8ClampedArray, _w: number, _h: number, matri
 			0,
 			Math.min(255, r * matrix[15] + g * matrix[16] + b * matrix[17] + a * matrix[18] + matrix[19]),
 		);
-	}
-}
-
-function applyBlur(data: Uint8ClampedArray, w: number, h: number, blurX: number, blurY: number): void {
-	// Simple box blur approximation
-	const radiusX = Math.ceil(blurX) | 0;
-	const radiusY = Math.ceil(blurY) | 0;
-	if (radiusX <= 0 && radiusY <= 0) return;
-
-	const copy = new Uint8ClampedArray(data);
-
-	// Horizontal pass
-	if (radiusX > 0) {
-		for (let y = 0; y < h; y++) {
-			for (let x = 0; x < w; x++) {
-				let r = 0,
-					g = 0,
-					b = 0,
-					a = 0,
-					count = 0;
-				for (let dx = -radiusX; dx <= radiusX; dx++) {
-					const sx = Math.min(Math.max(x + dx, 0), w - 1);
-					const idx = (y * w + sx) * 4;
-					r += copy[idx];
-					g += copy[idx + 1];
-					b += copy[idx + 2];
-					a += copy[idx + 3];
-					count++;
-				}
-				const idx = (y * w + x) * 4;
-				data[idx] = r / count;
-				data[idx + 1] = g / count;
-				data[idx + 2] = b / count;
-				data[idx + 3] = a / count;
-			}
-		}
-	}
-
-	// Vertical pass
-	if (radiusY > 0) {
-		copy.set(data);
-		for (let y = 0; y < h; y++) {
-			for (let x = 0; x < w; x++) {
-				let r = 0,
-					g = 0,
-					b = 0,
-					a = 0,
-					count = 0;
-				for (let dy = -radiusY; dy <= radiusY; dy++) {
-					const sy = Math.min(Math.max(y + dy, 0), h - 1);
-					const idx = (sy * w + x) * 4;
-					r += copy[idx];
-					g += copy[idx + 1];
-					b += copy[idx + 2];
-					a += copy[idx + 3];
-					count++;
-				}
-				const idx = (y * w + x) * 4;
-				data[idx] = r / count;
-				data[idx + 1] = g / count;
-				data[idx + 2] = b / count;
-				data[idx + 3] = a / count;
-			}
-		}
-	}
-}
-
-function applyGlow(data: Uint8ClampedArray, w: number, h: number, filter: GlowFilter): void {
-	const blurX = Math.ceil(filter.blurX) | 0;
-	const blurY = Math.ceil(filter.blurY) | 0;
-	const cr = (filter.color >> 16) & 0xff;
-	const cg = (filter.color >> 8) & 0xff;
-	const cb = filter.color & 0xff;
-	const ca = filter.alpha;
-	const strength = filter.strength;
-
-	// Create alpha-only blurred copy
-	const alphaData = new Uint8ClampedArray(w * h);
-	for (let i = 0; i < data.length; i += 4) {
-		alphaData[i / 4] = data[i + 3];
-	}
-
-	// Blur the alpha channel
-	const blurred = new Uint8ClampedArray(alphaData);
-	if (blurX > 0) {
-		for (let y = 0; y < h; y++) {
-			for (let x = 0; x < w; x++) {
-				let sum = 0,
-					count = 0;
-				for (let dx = -blurX; dx <= blurX; dx++) {
-					const sx = Math.min(Math.max(x + dx, 0), w - 1);
-					sum += alphaData[y * w + sx];
-					count++;
-				}
-				blurred[y * w + x] = sum / count;
-			}
-		}
-	}
-	if (blurY > 0) {
-		alphaData.set(blurred);
-		for (let y = 0; y < h; y++) {
-			for (let x = 0; x < w; x++) {
-				let sum = 0,
-					count = 0;
-				for (let dy = -blurY; dy <= blurY; dy++) {
-					const sy = Math.min(Math.max(y + dy, 0), h - 1);
-					sum += alphaData[sy * w + x];
-					count++;
-				}
-				blurred[y * w + x] = sum / count;
-			}
-		}
-	}
-
-	// Composite glow under original
-	for (let i = 0; i < data.length; i += 4) {
-		const glowAlpha = (Math.min(255, blurred[i / 4] * strength) / 255) * ca;
-		const origAlpha = data[i + 3] / 255;
-		const outAlpha = origAlpha + glowAlpha * (1 - origAlpha);
-		if (outAlpha > 0) {
-			data[i] = (data[i] * origAlpha + cr * glowAlpha * (1 - origAlpha)) / outAlpha;
-			data[i + 1] = (data[i + 1] * origAlpha + cg * glowAlpha * (1 - origAlpha)) / outAlpha;
-			data[i + 2] = (data[i + 2] * origAlpha + cb * glowAlpha * (1 - origAlpha)) / outAlpha;
-			data[i + 3] = outAlpha * 255;
-		}
-	}
-}
-
-function applyDropShadow(data: Uint8ClampedArray, w: number, h: number, filter: DropShadowFilter): void {
-	// DropShadow is a glow with offset
-	const angleRad = (filter.angle / 180) * Math.PI;
-	const dx = Math.round(filter.distance * Math.cos(angleRad));
-	const dy = Math.round(filter.distance * Math.sin(angleRad));
-
-	// Shift the data for shadow offset, then apply glow
-	const shifted = new Uint8ClampedArray(data.length);
-	for (let y = 0; y < h; y++) {
-		for (let x = 0; x < w; x++) {
-			const sx = x - dx,
-				sy = y - dy;
-			if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
-				const srcIdx = (sy * w + sx) * 4;
-				const dstIdx = (y * w + x) * 4;
-				shifted[dstIdx + 3] = data[srcIdx + 3]; // only alpha
-			}
-		}
-	}
-
-	// Apply glow to the shifted alpha
-	const cr = (filter.color >> 16) & 0xff;
-	const cg = (filter.color >> 8) & 0xff;
-	const cb = filter.color & 0xff;
-	const ca = filter.alpha;
-	const blurX = Math.ceil(filter.blurX) | 0;
-	const blurY = Math.ceil(filter.blurY) | 0;
-	const strength = filter.strength;
-
-	// Blur shifted alpha
-	const alphaData = new Uint8ClampedArray(w * h);
-	for (let i = 0; i < shifted.length; i += 4) alphaData[i / 4] = shifted[i + 3];
-
-	const blurred = new Uint8ClampedArray(alphaData);
-	if (blurX > 0) {
-		for (let y = 0; y < h; y++) {
-			for (let x = 0; x < w; x++) {
-				let sum = 0,
-					count = 0;
-				for (let ddx = -blurX; ddx <= blurX; ddx++) {
-					sum += alphaData[y * w + Math.min(Math.max(x + ddx, 0), w - 1)];
-					count++;
-				}
-				blurred[y * w + x] = sum / count;
-			}
-		}
-	}
-	if (blurY > 0) {
-		alphaData.set(blurred);
-		for (let y = 0; y < h; y++) {
-			for (let x = 0; x < w; x++) {
-				let sum = 0,
-					count = 0;
-				for (let ddy = -blurY; ddy <= blurY; ddy++) {
-					sum += alphaData[Math.min(Math.max(y + ddy, 0), h - 1) * w + x];
-					count++;
-				}
-				blurred[y * w + x] = sum / count;
-			}
-		}
-	}
-
-	// Composite: shadow under original
-	if (!filter.hideObject) {
-		for (let i = 0; i < data.length; i += 4) {
-			const shadowAlpha = (Math.min(255, blurred[i / 4] * strength) / 255) * ca;
-			const origAlpha = data[i + 3] / 255;
-			const outAlpha = origAlpha + shadowAlpha * (1 - origAlpha);
-			if (outAlpha > 0) {
-				data[i] = (data[i] * origAlpha + cr * shadowAlpha * (1 - origAlpha)) / outAlpha;
-				data[i + 1] = (data[i + 1] * origAlpha + cg * shadowAlpha * (1 - origAlpha)) / outAlpha;
-				data[i + 2] = (data[i + 2] * origAlpha + cb * shadowAlpha * (1 - origAlpha)) / outAlpha;
-				data[i + 3] = outAlpha * 255;
-			}
-		}
-	} else {
-		// Only show shadow
-		for (let i = 0; i < data.length; i += 4) {
-			const shadowAlpha = (Math.min(255, blurred[i / 4] * strength) / 255) * ca;
-			data[i] = cr;
-			data[i + 1] = cg;
-			data[i + 2] = cb;
-			data[i + 3] = shadowAlpha * 255;
-		}
 	}
 }
 
