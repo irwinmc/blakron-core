@@ -13,6 +13,47 @@ void main(void) {
    vColor = aColor;
 }`,
 
+	// Multi-texture vertex shader: carries textureId as a float attribute.
+	multi_vert: /* glsl */ `
+attribute vec2 aVertexPosition;
+attribute vec2 aTextureCoord;
+attribute vec4 aColor;
+attribute float aTextureId;
+uniform vec2 projectionVector;
+varying vec2 vTextureCoord;
+varying vec4 vColor;
+varying float vTextureId;
+const vec2 center = vec2(-1.0, 1.0);
+void main(void) {
+   gl_Position = vec4((aVertexPosition / projectionVector) + center, 0.0, 1.0);
+   vTextureCoord = aTextureCoord;
+   vColor = aColor;
+   vTextureId = aTextureId;
+}`,
+
+	// Multi-texture fragment shader: samples from one of up to 8 texture units.
+	// WebGL 1 does not support dynamic indexing into sampler arrays, so we use
+	// an if/else chain — the same technique used by Pixi.js for WebGL1.
+	multi_frag: /* glsl */ `
+precision lowp float;
+varying vec2 vTextureCoord;
+varying vec4 vColor;
+varying float vTextureId;
+uniform sampler2D uSamplers[8];
+void main(void) {
+    vec4 color;
+    int id = int(vTextureId + 0.5);
+    if (id == 0)      color = texture2D(uSamplers[0], vTextureCoord);
+    else if (id == 1) color = texture2D(uSamplers[1], vTextureCoord);
+    else if (id == 2) color = texture2D(uSamplers[2], vTextureCoord);
+    else if (id == 3) color = texture2D(uSamplers[3], vTextureCoord);
+    else if (id == 4) color = texture2D(uSamplers[4], vTextureCoord);
+    else if (id == 5) color = texture2D(uSamplers[5], vTextureCoord);
+    else if (id == 6) color = texture2D(uSamplers[6], vTextureCoord);
+    else              color = texture2D(uSamplers[7], vTextureCoord);
+    gl_FragColor = color * vColor;
+}`,
+
 	texture_frag: /* glsl */ `
 precision lowp float;
 varying vec2 vTextureCoord;

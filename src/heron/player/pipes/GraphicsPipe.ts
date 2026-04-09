@@ -8,6 +8,9 @@ import type { CanvasRenderer } from '../CanvasRenderer.js';
 import { Rectangle } from '../../geom/index.js';
 import { RenderBuffer } from '../RenderBuffer.js';
 
+// Shared scratch rectangle — avoids per-execute allocation.
+const _scratchBounds = new Rectangle();
+
 // ── Instruction ───────────────────────────────────────────────────────────────
 
 export interface GraphicsInstruction extends Instruction {
@@ -96,7 +99,8 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 		const { graphics } = inst;
 		if (graphics.commands.length === 0) return;
 
-		const bounds = new Rectangle();
+		const bounds = _scratchBounds;
+		bounds.setEmpty();
 		graphics.measureContentBounds(bounds);
 		const w = Math.ceil(bounds.width);
 		const h = Math.ceil(bounds.height);

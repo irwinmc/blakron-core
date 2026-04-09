@@ -1,14 +1,43 @@
-import { Matrix } from '../../geom/index.js';
-import { Rectangle } from '../../geom/index.js';
+import { Matrix, Rectangle } from '../../geom/index.js';
 import { WebGLRenderTarget } from './WebGLRenderTarget.js';
 import { WebGLRenderContext } from './WebGLRenderContext.js';
 
 const _pool: WebGLRenderBuffer[] = [];
 
 export class WebGLRenderBuffer {
+	// ── Static pool ───────────────────────────────────────────────────────────
+
+	public static create(context: WebGLRenderContext, width: number, height: number): WebGLRenderBuffer {
+		const buf = _pool.pop();
+		if (buf) {
+			buf.resize(width, height);
+			const m = buf.globalMatrix;
+			m.a = 1;
+			m.b = 0;
+			m.c = 0;
+			m.d = 1;
+			m.tx = 0;
+			m.ty = 0;
+			buf.globalAlpha = 1;
+			buf.offsetX = 0;
+			buf.offsetY = 0;
+			return buf;
+		}
+		return new WebGLRenderBuffer(context, width, height, false);
+	}
+
+	public static release(buf: WebGLRenderBuffer): void {
+		if (_pool.length < 6) _pool.push(buf);
+		else buf.rootRenderTarget.resize(0, 0);
+	}
+
+	// ── Public readonly fields ────────────────────────────────────────────────
+
 	public readonly context: WebGLRenderContext;
 	public readonly rootRenderTarget: WebGLRenderTarget;
 	public readonly isRoot: boolean;
+
+	// ── Public mutable fields ─────────────────────────────────────────────────
 
 	public globalAlpha = 1;
 	public globalTintColor = 0xffffff;
@@ -17,18 +46,22 @@ export class WebGLRenderBuffer {
 	public offsetX = 0;
 	public offsetY = 0;
 	public currentTexture: WebGLTexture | undefined = undefined;
-
 	public drawCalls = 0;
 
 	// Stencil
-	private _stencilState = false;
 	public stencilList: { x: number; y: number; width: number; height: number }[] = [];
 	public stencilHandleCount = 0;
 
 	// Scissor
 	public scissorState = false;
 	public hasScissor = false;
-	private _scissorRect: Rectangle = new Rectangle();
+
+	// ── Private fields ────────────────────────────────────────────────────────
+
+	private _stencilState = false;
+	private readonly _scissorRect: Rectangle = new Rectangle();
+
+	// ── Constructor ───────────────────────────────────────────────────────────
 
 	public constructor(context: WebGLRenderContext, width?: number, height?: number, isRoot = false) {
 		this.context = context;
@@ -46,12 +79,17 @@ export class WebGLRenderBuffer {
 		if (width && height) this.resize(width, height);
 	}
 
+	// ── Getters ───────────────────────────────────────────────────────────────
+
 	public get width(): number {
 		return this.rootRenderTarget.width;
 	}
+
 	public get height(): number {
 		return this.rootRenderTarget.height;
 	}
+
+	// ── Lifecycle ─────────────────────────────────────────────────────────────
 
 	public resize(width: number, height: number): void {
 		width = Math.max(width, 1);
@@ -86,7 +124,7 @@ export class WebGLRenderBuffer {
 		this.rootRenderTarget.useFrameBuffer = useFrameBuffer;
 		this.rootRenderTarget.activate();
 
-		// Flip vertically and un-premultiply alpha
+		// Flip vertically and un-premultiply alpha.
 		const result = new Uint8Array(4 * width * height);
 		for (let i = 0; i < height; i++) {
 			for (let j = 0; j < width; j++) {
@@ -100,46 +138,6 @@ export class WebGLRenderBuffer {
 			}
 		}
 		return Array.from(result);
-	}
-
-	// ── Stencil ───────────────────────────────────────────────────────────────
-
-	public enableStencil(): void {
-		if (!this._stencilState) {
-			this.context.enableStencilTest();
-			this._stencilState = true;
-		}
-	}
-	public disableStencil(): void {
-		if (this._stencilState) {
-			this.context.disableStencilTest();
-			this._stencilState = false;
-		}
-	}
-	public restoreStencil(): void {
-		if (this._stencilState) this.context.enableStencilTest();
-		else this.context.disableStencilTest();
-	}
-
-	// ── Scissor ───────────────────────────────────────────────────────────────
-
-	public enableScissor(x: number, y: number, width: number, height: number): void {
-		if (!this.scissorState) {
-			this.scissorState = true;
-			this._scissorRect.setTo(x, y, width, height);
-			this.context.enableScissorTest(this._scissorRect);
-		}
-	}
-	public disableScissor(): void {
-		if (this.scissorState) {
-			this.scissorState = false;
-			this._scissorRect.setEmpty();
-			this.context.disableScissorTest();
-		}
-	}
-	public restoreScissor(): void {
-		if (this.scissorState) this.context.enableScissorTest(this._scissorRect);
-		else this.context.disableScissorTest();
 	}
 
 	// ── Transform ─────────────────────────────────────────────────────────────
@@ -199,29 +197,47 @@ export class WebGLRenderBuffer {
 		m.ty = s.ty;
 	}
 
-	// ── Pool ──────────────────────────────────────────────────────────────────
+	// ── Stencil ───────────────────────────────────────────────────────────────
 
-	public static create(context: WebGLRenderContext, width: number, height: number): WebGLRenderBuffer {
-		const buf = _pool.pop();
-		if (buf) {
-			buf.resize(width, height);
-			const m = buf.globalMatrix;
-			m.a = 1;
-			m.b = 0;
-			m.c = 0;
-			m.d = 1;
-			m.tx = 0;
-			m.ty = 0;
-			buf.globalAlpha = 1;
-			buf.offsetX = 0;
-			buf.offsetY = 0;
-			return buf;
+	public enableStencil(): void {
+		if (!this._stencilState) {
+			this.context.enableStencilTest();
+			this._stencilState = true;
 		}
-		return new WebGLRenderBuffer(context, width, height, false);
 	}
 
-	public static release(buf: WebGLRenderBuffer): void {
-		if (_pool.length < 6) _pool.push(buf);
-		else buf.rootRenderTarget.resize(0, 0);
+	public disableStencil(): void {
+		if (this._stencilState) {
+			this.context.disableStencilTest();
+			this._stencilState = false;
+		}
+	}
+
+	public restoreStencil(): void {
+		if (this._stencilState) this.context.enableStencilTest();
+		else this.context.disableStencilTest();
+	}
+
+	// ── Scissor ───────────────────────────────────────────────────────────────
+
+	public enableScissor(x: number, y: number, width: number, height: number): void {
+		if (!this.scissorState) {
+			this.scissorState = true;
+			this._scissorRect.setTo(x, y, width, height);
+			this.context.enableScissorTest(this._scissorRect);
+		}
+	}
+
+	public disableScissor(): void {
+		if (this.scissorState) {
+			this.scissorState = false;
+			this._scissorRect.setEmpty();
+			this.context.disableScissorTest();
+		}
+	}
+
+	public restoreScissor(): void {
+		if (this.scissorState) this.context.enableScissorTest(this._scissorRect);
+		else this.context.disableScissorTest();
 	}
 }

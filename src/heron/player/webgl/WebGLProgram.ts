@@ -4,16 +4,15 @@ export type UniformMap = Record<string, WebGLUniformLocation | null>;
 export type AttributeMap = Record<string, number>;
 
 // Alias to avoid name collision with the class itself.
-// Must be declared before the class so it's in scope inside the constructor.
 type NativeWebGLProgram = NonNullable<ReturnType<WebGLRenderingContext['createProgram']>>;
 
 export class WebGLProgram {
-	private static _cache: Map<string, WebGLProgram> = new Map();
+	// ── Static ────────────────────────────────────────────────────────────────
+
+	private static readonly _cache = new Map<string, WebGLProgram>();
 
 	public static get(gl: WebGLRenderingContext, vertSrc: string, fragSrc: string, key: string): WebGLProgram {
-		if (!this._cache.has(key)) {
-			this._cache.set(key, new WebGLProgram(gl, vertSrc, fragSrc));
-		}
+		if (!this._cache.has(key)) this._cache.set(key, new WebGLProgram(gl, vertSrc, fragSrc));
 		return this._cache.get(key)!;
 	}
 
@@ -21,24 +20,25 @@ export class WebGLProgram {
 		this._cache.clear();
 	}
 
+	// ── Instance ──────────────────────────────────────────────────────────────
+
 	public readonly id: NativeWebGLProgram;
 	public readonly uniforms: UniformMap = {};
 	public readonly attributes: AttributeMap = {};
 
 	private constructor(gl: WebGLRenderingContext, vertSrc: string, fragSrc: string) {
-		const prog = createProgram(gl, vertSrc, fragSrc)!;
-		this.id = prog;
+		this.id = createProgram(gl, vertSrc, fragSrc)!;
 
-		const totalUniforms = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS) as number;
+		const totalUniforms = gl.getProgramParameter(this.id, gl.ACTIVE_UNIFORMS) as number;
 		for (let i = 0; i < totalUniforms; i++) {
-			const info = gl.getActiveUniform(prog, i)!;
-			this.uniforms[info.name] = gl.getUniformLocation(prog, info.name);
+			const info = gl.getActiveUniform(this.id, i)!;
+			this.uniforms[info.name] = gl.getUniformLocation(this.id, info.name);
 		}
 
-		const totalAttribs = gl.getProgramParameter(prog, gl.ACTIVE_ATTRIBUTES) as number;
+		const totalAttribs = gl.getProgramParameter(this.id, gl.ACTIVE_ATTRIBUTES) as number;
 		for (let i = 0; i < totalAttribs; i++) {
-			const info = gl.getActiveAttrib(prog, i)!;
-			this.attributes[info.name] = gl.getAttribLocation(prog, info.name);
+			const info = gl.getActiveAttrib(this.id, i)!;
+			this.attributes[info.name] = gl.getAttribLocation(this.id, info.name);
 		}
 	}
 }

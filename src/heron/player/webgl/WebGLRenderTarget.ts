@@ -1,19 +1,27 @@
 export class WebGLRenderTarget {
+	// ── Public fields ─────────────────────────────────────────────────────────
+
 	public texture: WebGLTexture | undefined = undefined;
 	public width: number;
 	public height: number;
 	public useFrameBuffer = true;
 	public clearColor: [number, number, number, number] = [0, 0, 0, 0];
 
-	private _gl: WebGLRenderingContext;
+	// ── Private fields ────────────────────────────────────────────────────────
+
+	private readonly _gl: WebGLRenderingContext;
 	private _frameBuffer: WebGLFramebuffer | undefined = undefined;
 	private _stencilBuffer: WebGLRenderbuffer | undefined = undefined;
+
+	// ── Constructor ───────────────────────────────────────────────────────────
 
 	public constructor(gl: WebGLRenderingContext, width: number, height: number) {
 		this._gl = gl;
 		this.width = Math.max(width, 1);
 		this.height = Math.max(height, 1);
 	}
+
+	// ── Public methods ────────────────────────────────────────────────────────
 
 	public resize(width: number, height: number): void {
 		this.width = Math.max(width, 1);
@@ -75,6 +83,8 @@ export class WebGLRenderTarget {
 			this._stencilBuffer = undefined;
 		}
 	}
+
+	// ── Private methods ───────────────────────────────────────────────────────
 
 	private _createTexture(): WebGLTexture {
 		const gl = this._gl;

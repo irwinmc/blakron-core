@@ -8,6 +8,7 @@ import { BitmapData } from '../../display/texture/BitmapData.js';
 import type { Filter } from '../../filters/index.js';
 import { ColorMatrixFilter, BlurFilter, GlowFilter, DropShadowFilter } from '../../filters/index.js';
 import { Rectangle } from '../../geom/index.js';
+import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './MultiTextureBatcher.js';
 
 export class WebGLRenderContext {
 	private static _instance: WebGLRenderContext | undefined;
@@ -31,12 +32,15 @@ export class WebGLRenderContext {
 	public projectionY = 0;
 
 	private _vao: WebGLVertexArrayObject;
+	private _batcher = new MultiTextureBatcher();
 	private _bufferStack: WebGLRenderBuffer[] = [];
 	private _currentBuffer: WebGLRenderBuffer | undefined;
 	private _vertexBuffer: WebGLBuffer;
 	private _indexBuffer: WebGLBuffer;
 	private _bindIndices = false;
 	private _defaultEmptyTexture: WebGLTexture | undefined;
+	/** Max texture units available; capped at MultiTextureBatcher.MAX_TEXTURES. */
+	private _maxTextureUnits = MultiTextureBatcher.MAX_TEXTURES;
 
 	// Current filter applied to draw calls
 	public $filter: Filter | undefined = undefined;
@@ -54,6 +58,10 @@ export class WebGLRenderContext {
 		gl.activeTexture(gl.TEXTURE0);
 
 		this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+		this._maxTextureUnits = Math.min(
+			gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) as number,
+			MultiTextureBatcher.MAX_TEXTURES,
+		);
 
 		this._vertexBuffer = gl.createBuffer()!;
 		this._indexBuffer = gl.createBuffer()!;
@@ -340,6 +348,41 @@ export class WebGLRenderContext {
 
 		if (meshUVs) this._vao.changeToMeshIndices();
 
+		// ── Multi-texture path (plain quads without filter) ───────────────────
+		const useMulti = !this.$filter && !meshVertices && this._maxTextureUnits > 1;
+		if (useMulti) {
+			let slot = this._batcher.getOrAssignSlot(texture);
+			if (slot === -1) {
+				this.$drawWebGL();
+				slot = this._batcher.getOrAssignSlot(texture);
+			}
+			if (!this._vao.isMultiTexture()) this._vao.setMultiTexture(true);
+			this._vao.cacheArrays(
+				buf,
+				sourceX,
+				sourceY,
+				sourceWidth,
+				sourceHeight,
+				destX,
+				destY,
+				destWidth,
+				destHeight,
+				textureWidth,
+				textureHeight,
+				undefined,
+				undefined,
+				undefined,
+				rotated,
+				slot,
+			);
+			const cmd = makeMultiCmd(2, this._batcher.slots, this._batcher.textureCount);
+			this.drawCmdManager.pushDrawMultiTexture(cmd);
+			return;
+		}
+
+		// ── Single-texture path (filter, mesh, or single-unit device) ─────────
+		if (this._vao.isMultiTexture()) this.$drawWebGL();
+
 		this._vao.cacheArrays(
 			buf,
 			sourceX,
@@ -383,10 +426,6 @@ export class WebGLRenderContext {
 	// ── Execute draw commands ─────────────────────────────────────────────────
 
 	public $drawWebGL(): void {
-		if (this._vao.reachMaxSize(0, 0) || this.drawCmdManager.drawDataLen === 0) {
-			this._flush();
-			return;
-		}
 		this._flush();
 	}
 
@@ -461,6 +500,12 @@ export class WebGLRenderContext {
 					);
 					indexOffset += cmd.count;
 					break;
+				case DrawCmdType.MULTI_TEXTURE:
+					if (cmd.multiCmd) {
+						this._drawMultiTextureBatch(cmd.multiCmd, indexOffset, cmd.count);
+						indexOffset += cmd.count;
+					}
+					break;
 				case DrawCmdType.RECT:
 					this._drawRectBatch(indexOffset, cmd.count);
 					indexOffset += cmd.count;
@@ -470,6 +515,7 @@ export class WebGLRenderContext {
 
 		vao.clear();
 		cmds.clear();
+		this._batcher.reset();
 		this._bindIndices = false;
 	}
 
@@ -506,6 +552,51 @@ export class WebGLRenderContext {
 			default:
 				gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		}
+	}
+
+	private _drawMultiTextureBatch(cmd: MultiTextureDrawCmd, indexOffset: number, count: number): void {
+		const gl = this.gl;
+		const prog = WebGLProgram.get(gl, ShaderLib.multi_vert, ShaderLib.multi_frag, 'multi');
+		gl.useProgram(prog.id);
+
+		const stride = 6 * 4; // MULTI_VERT_BYTE_SIZE
+		const aPos = prog.attributes['aVertexPosition'];
+		const aUV = prog.attributes['aTextureCoord'];
+		const aColor = prog.attributes['aColor'];
+		const aTid = prog.attributes['aTextureId'];
+		if (aPos !== undefined && aPos >= 0) {
+			gl.enableVertexAttribArray(aPos);
+			gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, stride, 0);
+		}
+		if (aUV !== undefined && aUV >= 0) {
+			gl.enableVertexAttribArray(aUV);
+			gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, stride, 8);
+		}
+		if (aColor !== undefined && aColor >= 0) {
+			gl.enableVertexAttribArray(aColor);
+			gl.vertexAttribPointer(aColor, 4, gl.UNSIGNED_BYTE, true, stride, 16);
+		}
+		if (aTid !== undefined && aTid >= 0) {
+			gl.enableVertexAttribArray(aTid);
+			gl.vertexAttribPointer(aTid, 1, gl.FLOAT, false, stride, 20);
+		}
+
+		const uProj = prog.uniforms['projectionVector'];
+		if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
+
+		// Bind each texture to its unit and set the sampler uniform array.
+		const uSamplers = prog.uniforms['uSamplers[0]'];
+		const samplerIndices = new Int32Array(cmd.textureCount);
+		for (let i = 0; i < cmd.textureCount; i++) {
+			gl.activeTexture(gl.TEXTURE0 + i);
+			gl.bindTexture(gl.TEXTURE_2D, cmd.textures[i] ?? null);
+			samplerIndices[i] = i;
+		}
+		if (uSamplers) gl.uniform1iv(uSamplers, samplerIndices);
+		// Restore active texture unit to 0 for subsequent single-texture draws.
+		gl.activeTexture(gl.TEXTURE0);
+
+		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 2);
 	}
 
 	private _getTextureProgram(filter?: Filter): WebGLProgram {

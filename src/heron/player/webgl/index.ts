@@ -7,3 +7,4 @@ export { WebGLDrawCmdManager } from './WebGLDrawCmdManager.js';
 export { WebGLProgram } from './WebGLProgram.js';
 export { ShaderLib } from './ShaderLib.js';
 export { checkWebGLSupport } from './WebGLUtils.js';
+export { MultiTextureBatcher } from './MultiTextureBatcher.js';

@@ -1,5 +1,8 @@
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import type { Filter } from '../../filters/index.js';
+import type { MultiTextureDrawCmd } from './MultiTextureBatcher.js';
+
+// ── DrawCmdType ───────────────────────────────────────────────────────────────
 
 export const enum DrawCmdType {
 	TEXTURE = 0,
@@ -13,7 +16,10 @@ export const enum DrawCmdType {
 	ENABLE_SCISSOR = 8,
 	DISABLE_SCISSOR = 9,
 	SMOOTHING = 10,
+	MULTI_TEXTURE = 11,
 }
+
+// ── DrawCmd ───────────────────────────────────────────────────────────────────
 
 export interface DrawCmd {
 	type: DrawCmdType;
@@ -29,6 +35,8 @@ export interface DrawCmd {
 	smoothing: boolean;
 	x: number;
 	y: number;
+	/** Populated only for MULTI_TEXTURE commands. */
+	multiCmd: MultiTextureDrawCmd | undefined;
 }
 
 function makeCmd(): DrawCmd {
@@ -46,16 +54,19 @@ function makeCmd(): DrawCmd {
 		smoothing: false,
 		x: 0,
 		y: 0,
+		multiCmd: undefined,
 	};
 }
 
+// ── WebGLDrawCmdManager ───────────────────────────────────────────────────────
+
 export class WebGLDrawCmdManager {
+	// ── Public fields ─────────────────────────────────────────────────────────
+
 	public readonly drawData: DrawCmd[] = [];
 	public drawDataLen = 0;
 
-	private _get(): DrawCmd {
-		return this.drawData[this.drawDataLen] ?? (this.drawData[this.drawDataLen] = makeCmd());
-	}
+	// ── Public methods — push ─────────────────────────────────────────────────
 
 	public pushDrawRect(): void {
 		const last = this.drawData[this.drawDataLen - 1];
@@ -85,19 +96,44 @@ export class WebGLDrawCmdManager {
 			d.textureWidth = textureWidth ?? 0;
 			d.textureHeight = textureHeight ?? 0;
 			this.drawDataLen++;
-		} else {
-			const last = this.drawData[this.drawDataLen - 1];
-			if (this.drawDataLen > 0 && last.type === DrawCmdType.TEXTURE && last.texture === texture && !last.filter) {
-				last.count += count;
-				return;
-			}
-			const d = this._get();
-			d.type = DrawCmdType.TEXTURE;
-			d.texture = texture;
-			d.filter = undefined;
-			d.count = count;
-			this.drawDataLen++;
+			return;
 		}
+		const last = this.drawData[this.drawDataLen - 1];
+		if (this.drawDataLen > 0 && last.type === DrawCmdType.TEXTURE && last.texture === texture && !last.filter) {
+			last.count += count;
+			return;
+		}
+		const d = this._get();
+		d.type = DrawCmdType.TEXTURE;
+		d.texture = texture;
+		d.filter = undefined;
+		d.count = count;
+		this.drawDataLen++;
+	}
+
+	/**
+	 * Push a multi-texture batch draw command.
+	 * The caller is responsible for ensuring the VAO is in multi-texture mode
+	 * and that `multiCmd` contains the correct texture slot snapshot.
+	 */
+	public pushDrawMultiTexture(multiCmd: MultiTextureDrawCmd): void {
+		const last = this.drawData[this.drawDataLen - 1];
+		// Merge consecutive commands that share the same slot layout.
+		if (
+			this.drawDataLen > 0 &&
+			last.type === DrawCmdType.MULTI_TEXTURE &&
+			last.multiCmd &&
+			last.multiCmd.textureCount === multiCmd.textureCount &&
+			last.multiCmd.textures.every((t, i) => t === multiCmd.textures[i])
+		) {
+			last.multiCmd.count += multiCmd.count;
+			return;
+		}
+		const d = this._get();
+		d.type = DrawCmdType.MULTI_TEXTURE;
+		d.multiCmd = multiCmd;
+		d.count = multiCmd.count;
+		this.drawDataLen++;
 	}
 
 	public pushChangeSmoothing(texture: WebGLTexture, smoothing: boolean): void {
@@ -194,6 +230,8 @@ export class WebGLDrawCmdManager {
 		this.drawDataLen++;
 	}
 
+	// ── Public methods — reset ────────────────────────────────────────────────
+
 	public clear(): void {
 		for (let i = 0; i < this.drawDataLen; i++) {
 			const d = this.drawData[i];
@@ -210,7 +248,14 @@ export class WebGLDrawCmdManager {
 			d.smoothing = false;
 			d.x = 0;
 			d.y = 0;
+			d.multiCmd = undefined;
 		}
 		this.drawDataLen = 0;
+	}
+
+	// ── Private methods ───────────────────────────────────────────────────────
+
+	private _get(): DrawCmd {
+		return this.drawData[this.drawDataLen] ?? (this.drawData[this.drawDataLen] = makeCmd());
 	}
 }
