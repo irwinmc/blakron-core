@@ -11,6 +11,8 @@ import { Rectangle } from '../../geom/index.js';
 import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './MultiTextureBatcher.js';
 
 export class WebGLRenderContext {
+	// ── Static ────────────────────────────────────────────────────────────────
+
 	private static _instance: WebGLRenderContext | undefined;
 
 	public static getInstance(canvas: HTMLCanvasElement): WebGLRenderContext {
@@ -22,28 +24,33 @@ export class WebGLRenderContext {
 		this._instance = undefined;
 	}
 
+	// ── Public readonly fields ────────────────────────────────────────────────
+
 	public readonly gl: WebGLRenderingContext;
 	public readonly surface: HTMLCanvasElement;
 	public readonly drawCmdManager: WebGLDrawCmdManager;
+
+	// ── Public mutable fields ─────────────────────────────────────────────────
+
 	public maxTextureSize = 2048;
 	public contextLost = false;
-
 	public projectionX = 0;
 	public projectionY = 0;
+	/** Active filter applied to the next draw call. Set by FilterPipe. */
+	public $filter: Filter | undefined = undefined;
 
-	private _vao: WebGLVertexArrayObject;
-	private _batcher = new MultiTextureBatcher();
-	private _bufferStack: WebGLRenderBuffer[] = [];
+	// ── Private fields ────────────────────────────────────────────────────────
+
+	private readonly _vao: WebGLVertexArrayObject;
+	private readonly _batcher = new MultiTextureBatcher();
+	private readonly _bufferStack: WebGLRenderBuffer[] = [];
 	private _currentBuffer: WebGLRenderBuffer | undefined;
-	private _vertexBuffer: WebGLBuffer;
-	private _indexBuffer: WebGLBuffer;
+	private readonly _vertexBuffer: WebGLBuffer;
+	private readonly _indexBuffer: WebGLBuffer;
 	private _bindIndices = false;
 	private _defaultEmptyTexture: WebGLTexture | undefined;
 	/** Max texture units available; capped at MultiTextureBatcher.MAX_TEXTURES. */
 	private _maxTextureUnits = MultiTextureBatcher.MAX_TEXTURES;
-
-	// Current filter applied to draw calls
-	public $filter: Filter | undefined = undefined;
 
 	private constructor(canvas: HTMLCanvasElement) {
 		this.surface = canvas;
@@ -81,11 +88,26 @@ export class WebGLRenderContext {
 		});
 	}
 
-	// ── Buffer stack ──────────────────────────────────────────────────────────
+	// ── Getter ────────────────────────────────────────────────────────────────
 
 	public get activatedBuffer(): WebGLRenderBuffer | undefined {
 		return this._currentBuffer;
 	}
+
+	public get defaultEmptyTexture(): WebGLTexture {
+		if (!this._defaultEmptyTexture) {
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = 16;
+			const ctx = canvas.getContext('2d')!;
+			ctx.fillStyle = 'white';
+			ctx.fillRect(0, 0, 16, 16);
+			this._defaultEmptyTexture = this.createTexture(canvas);
+			(this._defaultEmptyTexture as Record<string, unknown>)[SYM_DEFAULT_EMPTY] = true;
+		}
+		return this._defaultEmptyTexture;
+	}
+
+	// ── Buffer stack ──────────────────────────────────────────────────────────
 
 	public pushBuffer(buffer: WebGLRenderBuffer): void {
 		this._bufferStack.push(buffer);
@@ -215,19 +237,6 @@ export class WebGLRenderContext {
 			(tex as Record<string, unknown>)[SYM_SMOOTHING] = true;
 		}
 		return bitmapData.webGLTexture;
-	}
-
-	public get defaultEmptyTexture(): WebGLTexture {
-		if (!this._defaultEmptyTexture) {
-			const canvas = document.createElement('canvas');
-			canvas.width = canvas.height = 16;
-			const ctx = canvas.getContext('2d')!;
-			ctx.fillStyle = 'white';
-			ctx.fillRect(0, 0, 16, 16);
-			this._defaultEmptyTexture = this.createTexture(canvas);
-			(this._defaultEmptyTexture as Record<string, unknown>)[SYM_DEFAULT_EMPTY] = true;
-		}
-		return this._defaultEmptyTexture;
 	}
 
 	// ── Draw ──────────────────────────────────────────────────────────────────
@@ -423,11 +432,13 @@ export class WebGLRenderContext {
 		this.gl.readPixels(x, y, width, height, this.gl.RGBA, this.gl.UNSIGNED_BYTE, pixels);
 	}
 
-	// ── Execute draw commands ─────────────────────────────────────────────────
+	// ── Execute ───────────────────────────────────────────────────────────────
 
 	public $drawWebGL(): void {
 		this._flush();
 	}
+
+	// ── Private — flush & dispatch ────────────────────────────────────────────
 
 	private _flush(): void {
 		const gl = this.gl;
@@ -519,14 +530,17 @@ export class WebGLRenderContext {
 		this._bindIndices = false;
 	}
 
+	// ── Private — blend & program ─────────────────────────────────────────────
+
 	private _activateBuffer(buffer: WebGLRenderBuffer, width: number, height: number): void {
+		const gl = this.gl;
 		buffer.rootRenderTarget?.activate();
 		if (!this._bindIndices) {
 			const vao = this._vao;
-			this.gl.bufferData(
-				this.gl.ELEMENT_ARRAY_BUFFER,
+			gl.bufferData(
+				gl.ELEMENT_ARRAY_BUFFER,
 				vao.isMesh() ? vao.getMeshIndices() : vao.getIndices(),
-				this.gl.STATIC_DRAW,
+				gl.STATIC_DRAW,
 			);
 		}
 		buffer.restoreStencil();
@@ -553,6 +567,8 @@ export class WebGLRenderContext {
 				gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		}
 	}
+
+	// ── Private — draw batches ────────────────────────────────────────────────
 
 	private _drawMultiTextureBatch(cmd: MultiTextureDrawCmd, indexOffset: number, count: number): void {
 		const gl = this.gl;
@@ -698,7 +714,7 @@ export class WebGLRenderContext {
 
 	private _drawRectBatch(indexOffset: number, count: number): void {
 		const gl = this.gl;
-		const prog = WebGLProgram.get(this.gl, ShaderLib.default_vert, ShaderLib.primitive_frag, 'primitive');
+		const prog = WebGLProgram.get(gl, ShaderLib.default_vert, ShaderLib.primitive_frag, 'primitive');
 		gl.useProgram(prog.id);
 
 		const stride = 5 * 4;
@@ -718,6 +734,8 @@ export class WebGLRenderContext {
 
 		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 2);
 	}
+
+	// ── Private — stencil mask ────────────────────────────────────────────────
 
 	private _pushMaskDraw(indexOffset: number, count: number): void {
 		const gl = this.gl;
