@@ -1,7 +1,7 @@
 import { DisplayObject, RenderMode, Bitmap, Shape, Sprite, Mesh } from '../../display/index.js';
 import { RenderObjectType } from '../../display/DisplayObject.js';
 import { DisplayObjectContainer } from '../../display/DisplayObjectContainer.js';
-import { Matrix } from '../../geom/index.js';
+import { Matrix, Rectangle } from '../../geom/index.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { CanvasRenderer } from '../CanvasRenderer.js';
 import { InstructionSet } from '../InstructionSet.js';
@@ -136,7 +136,7 @@ export class WebGLRenderer {
 		// ── Phase B: execute ──────────────────────────────────────────────────
 		this._executeInstructions(set, buffer);
 
-		ctx.$drawWebGL();
+		ctx.flush();
 		const drawCalls = buffer.drawCalls;
 		buffer.onRenderFinish();
 
@@ -529,11 +529,14 @@ export class WebGLRenderer {
 				// ── Filter push/pop ───────────────────────────────────────────
 				case 'filterPush': {
 					const push = inst as FilterPushInstruction;
-					this._applyTransform(activeBuffer, (push as EffectPushInstruction).transform);
+					const pushT = (push as EffectPushInstruction).transform;
+					this._applyTransform(activeBuffer, pushT);
 					const offscreen = this._filterPipe.executePush(push, activeBuffer);
 					offscreenStack.push(offscreen);
-					// If an offscreen buffer was allocated, redirect subsequent draws into it.
-					if (offscreen) activeBuffer = offscreen;
+					if (offscreen) {
+						this._setOffscreenOrigin(offscreen, push.renderable.getOriginalBounds(), pushT);
+						activeBuffer = offscreen;
+					}
 					break;
 				}
 				case 'filterPop': {
@@ -550,7 +553,8 @@ export class WebGLRenderer {
 				// ── Mask / clip push/pop ──────────────────────────────────────
 				case 'maskPush': {
 					const push = inst as MaskPushInstruction;
-					this._applyTransform(activeBuffer, (push as EffectPushInstruction).transform);
+					const pushT = (push as EffectPushInstruction).transform;
+					this._applyTransform(activeBuffer, pushT);
 					if (push.isScrollRect) {
 						const usedScissor = this._maskPipe.executeScrollRectPush(push, activeBuffer);
 						scissorStack.push(usedScissor);
@@ -558,8 +562,10 @@ export class WebGLRenderer {
 					} else {
 						const displayBuffer = this._maskPipe.executeClipPush(push, activeBuffer, this);
 						offscreenStack.push(displayBuffer);
-						// Redirect subsequent draws into the offscreen buffer.
-						if (displayBuffer) activeBuffer = displayBuffer;
+						if (displayBuffer) {
+							this._setOffscreenOrigin(displayBuffer, push.renderable.getOriginalBounds(), pushT);
+							activeBuffer = displayBuffer;
+						}
 					}
 					break;
 				}
@@ -592,10 +598,20 @@ export class WebGLRenderer {
 		m.b = t.b;
 		m.c = t.c;
 		m.d = t.d;
-		m.tx = t.tx;
-		m.ty = t.ty;
+		m.tx = t.tx - buffer.offscreenOriginX;
+		m.ty = t.ty - buffer.offscreenOriginY;
 		buffer.globalAlpha = t.alpha;
 		buffer.globalTintColor = t.tint;
+	}
+
+	/**
+	 * Compute the world-space position of the bounds origin and store it
+	 * on the offscreen buffer so that _applyTransform subtracts it,
+	 * effectively making the bounds origin map to (0,0) in the buffer.
+	 */
+	private _setOffscreenOrigin(buf: WebGLRenderBuffer, bounds: Rectangle, t: TransformState): void {
+		buf.offscreenOriginX = t.a * bounds.x + t.c * bounds.y + t.tx;
+		buf.offscreenOriginY = t.b * bounds.x + t.d * bounds.y + t.ty;
 	}
 
 	/** Execute a cacheAsBitmap DisplayList instruction. */

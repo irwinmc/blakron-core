@@ -37,7 +37,7 @@ export class WebGLRenderContext {
 	public projectionX = 0;
 	public projectionY = 0;
 	/** Active filter applied to the next draw call. Set by FilterPipe. */
-	public $filter: Filter | undefined = undefined;
+	public activeFilter: Filter | undefined = undefined;
 
 	// ── Private fields ────────────────────────────────────────────────────────
 
@@ -348,9 +348,9 @@ export class WebGLRenderContext {
 
 		if (meshVertices && meshIndices) {
 			const meshNum = meshIndices.length / 3;
-			if (this._vao.reachMaxSize(meshNum * 4, meshNum * 6)) this.$drawWebGL();
+			if (this._vao.reachMaxSize(meshNum * 4, meshNum * 6)) this.flush();
 		} else {
-			if (this._vao.reachMaxSize()) this.$drawWebGL();
+			if (this._vao.reachMaxSize()) this.flush();
 		}
 
 		if (smoothing !== undefined && (texture as Record<string, unknown>)[SYM_SMOOTHING] !== smoothing) {
@@ -360,11 +360,11 @@ export class WebGLRenderContext {
 		if (meshUVs) this._vao.changeToMeshIndices();
 
 		// ── Multi-texture path (plain quads without filter) ───────────────────
-		const useMulti = !this.$filter && !meshVertices && this._maxTextureUnits > 1;
+		const useMulti = !this.activeFilter && !meshVertices && this._maxTextureUnits > 1;
 		if (useMulti) {
 			let slot = this._batcher.getOrAssignSlot(texture);
 			if (slot === -1) {
-				this.$drawWebGL();
+				this.flush();
 				slot = this._batcher.getOrAssignSlot(texture);
 			}
 			if (!this._vao.isMultiTexture()) this._vao.setMultiTexture(true);
@@ -392,7 +392,7 @@ export class WebGLRenderContext {
 		}
 
 		// ── Single-texture path (filter, mesh, or single-unit device) ─────────
-		if (this._vao.isMultiTexture()) this.$drawWebGL();
+		if (this._vao.isMultiTexture()) this.flush();
 
 		this._vao.cacheArrays(
 			buf,
@@ -413,25 +413,31 @@ export class WebGLRenderContext {
 		);
 
 		const count = meshIndices ? (meshIndices.length / 3) * 2 : 2;
-		this.drawCmdManager.pushDrawTexture(texture, count, this.$filter ?? undefined, textureWidth, textureHeight);
+		this.drawCmdManager.pushDrawTexture(
+			texture,
+			count,
+			this.activeFilter ?? undefined,
+			textureWidth,
+			textureHeight,
+		);
 	}
 
-	public drawTargetWidthFilters(filters: Filter[], buffer: WebGLRenderBuffer): void {
-		const target = buffer.rootRenderTarget;
+	public compositeFilterResult(filters: Filter[], offscreen: WebGLRenderBuffer): void {
+		const target = offscreen.rootRenderTarget;
 		if (!target?.texture) return;
 		const w = target.width;
 		const h = target.height;
 
 		for (const filter of filters) {
 			if (filter instanceof BlurFilter && (filter.blurX > 0 || filter.blurY > 0)) {
-				// ── Ping-pong two-pass Gaussian blur ──────────────────────────
-				// Pass 1 (horizontal): source → intermediate buffer
-				// Pass 2 (vertical):   intermediate → draw into current context
-				this._drawBlurPingPong(target.texture, w, h, filter, buffer);
-			} else {
-				this.drawCmdManager.pushDrawTexture(target.texture, 2, filter, w, h);
+				this._drawBlurPingPong(target.texture, w, h, filter, offscreen);
 			}
 		}
+
+		const nonBlurFilter = filters.find(f => !(f instanceof BlurFilter)) ?? undefined;
+		this.activeFilter = nonBlurFilter;
+		this.drawTexture(target.texture, 0, 0, w, h, 0, 0, w, h, w, h);
+		this.activeFilter = undefined;
 	}
 
 	/**
@@ -447,7 +453,7 @@ export class WebGLRenderContext {
 		buffer: WebGLRenderBuffer,
 	): void {
 		// Flush any pending draw calls before we start manipulating FBOs.
-		this.$drawWebGL();
+		this.flush();
 
 		const gl = this.gl;
 
@@ -491,6 +497,14 @@ export class WebGLRenderContext {
 		// ── Cleanup ───────────────────────────────────────────────────────────
 		gl.deleteFramebuffer(tmpFbo);
 		gl.deleteTexture(tmpTex);
+
+		// Restore the current buffer's FBO + projection so that subsequent
+		// drawTexture calls (e.g. the final composite in compositeFilterResult)
+		// land in the correct render target, not the offscreen we just wrote to.
+		if (this._currentBuffer) {
+			this._currentBuffer.rootRenderTarget.activate();
+			this.onResize(this._currentBuffer.width, this._currentBuffer.height);
+		}
 	}
 
 	/**
@@ -579,7 +593,7 @@ export class WebGLRenderContext {
 
 	// ── Execute ───────────────────────────────────────────────────────────────
 
-	public $drawWebGL(): void {
+	public flush(): void {
 		this._flush();
 	}
 

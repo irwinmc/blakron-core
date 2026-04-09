@@ -78,7 +78,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 	 * Called by the renderer when it encounters a filterPush instruction.
 	 *
 	 * Two paths:
-	 * - ColorMatrix inline: sets $filter on the main buffer, returns null.
+	 * - ColorMatrix inline: sets activeFilter on the main buffer, returns null.
 	 *   Subsequent leaf instructions draw directly to the main buffer with the
 	 *   filter applied per-draw-call.
 	 * - All other filters: allocates an offscreen buffer and activates it via
@@ -102,7 +102,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 					BLEND_MODES[inst.renderable.internalBlendMode] ?? 'source-over',
 				);
 			}
-			buffer.context.$filter = filters[0];
+			buffer.context.activeFilter = filters[0];
 			return null; // signal: inline mode, no offscreen
 		}
 
@@ -129,7 +129,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 
 		// Inline ColorMatrix path — just clear the filter flag.
 		if (!offscreen) {
-			buffer.context.$filter = undefined;
+			buffer.context.activeFilter = undefined;
 			if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
 			return;
 		}
@@ -147,7 +147,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		buffer.offsetY = push.offsetY + by;
 		buffer.saveTransform();
 		buffer.useOffset();
-		buffer.context.drawTargetWidthFilters(filters, offscreen);
+		buffer.context.compositeFilterResult(filters, offscreen);
 		buffer.restoreTransform();
 
 		if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');

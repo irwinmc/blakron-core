@@ -21,6 +21,8 @@ export class WebGLRenderBuffer {
 			buf.globalAlpha = 1;
 			buf.offsetX = 0;
 			buf.offsetY = 0;
+			buf.offscreenOriginX = 0;
+			buf.offscreenOriginY = 0;
 			return buf;
 		}
 		return new WebGLRenderBuffer(context, width, height, false);
@@ -47,6 +49,16 @@ export class WebGLRenderBuffer {
 	public offsetY = 0;
 	public currentTexture: WebGLTexture | undefined = undefined;
 	public drawCalls = 0;
+
+	/**
+	 * World-space origin that should be subtracted from transforms when
+	 * drawing into this buffer.  Set by the renderer when an offscreen FBO
+	 * is allocated for a filter or mask so that leaf instructions (which
+	 * carry world-space transforms) are drawn in the buffer's local space.
+	 * Zero for the root / main buffer — no adjustment needed.
+	 */
+	public offscreenOriginX = 0;
+	public offscreenOriginY = 0;
 
 	// Stencil
 	public stencilList: { x: number; y: number; width: number; height: number }[] = [];

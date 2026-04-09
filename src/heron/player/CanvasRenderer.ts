@@ -565,32 +565,30 @@ export class CanvasRenderer {
 					this._hasFill = true;
 					break;
 				}
+				// createGradientBox uses the Flash/Egret convention where the matrix
+				// maps gradient space ±819.2 (1638.4/2) to the desired box edges.
+				const GH = 819.2;
 				let gradient: CanvasGradient;
 				if (cmd.matrix) {
 					const m = cmd.matrix;
-					// The gradient is defined in a normalized [-1,1] space.
-					// The matrix maps from that space to local coordinates.
-					// We compute the gradient endpoints in local space.
 					if (cmd.gradientType === 'radial') {
-						// Radial: center at (0,0) radius 1 in gradient space
 						const cx = m.tx;
 						const cy = m.ty;
-						// Approximate radius from the matrix scale
-						const rx = Math.sqrt(m.a * m.a + m.b * m.b);
-						gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+						const rx = Math.sqrt(m.a * m.a + m.b * m.b) * GH;
+						const ry = Math.sqrt(m.c * m.c + m.d * m.d) * GH;
+						gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
 					} else {
-						// Linear: from (-1,0) to (1,0) in gradient space
-						const x0 = m.a * -1 + m.tx;
-						const y0 = m.b * -1 + m.ty;
-						const x1 = m.a * 1 + m.tx;
-						const y1 = m.b * 1 + m.ty;
+						const x0 = m.a * -GH + m.tx;
+						const y0 = m.b * -GH + m.ty;
+						const x1 = m.a * GH + m.tx;
+						const y1 = m.b * GH + m.ty;
 						gradient = ctx.createLinearGradient(x0, y0, x1, y1);
 					}
 				} else {
 					if (cmd.gradientType === 'radial') {
-						gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+						gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, GH);
 					} else {
-						gradient = ctx.createLinearGradient(-1, 0, 1, 0);
+						gradient = ctx.createLinearGradient(-GH, 0, GH, 0);
 					}
 				}
 				for (let i = 0; i < cmd.colors.length; i++) {
