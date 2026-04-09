@@ -419,11 +419,154 @@ export class WebGLRenderContext {
 	public drawTargetWidthFilters(filters: Filter[], buffer: WebGLRenderBuffer): void {
 		const target = buffer.rootRenderTarget;
 		if (!target?.texture) return;
-		const w = target.width,
-			h = target.height;
+		const w = target.width;
+		const h = target.height;
+
 		for (const filter of filters) {
-			this.drawCmdManager.pushDrawTexture(target.texture, 2, filter, w, h);
+			if (filter instanceof BlurFilter && (filter.blurX > 0 || filter.blurY > 0)) {
+				// ── Ping-pong two-pass Gaussian blur ──────────────────────────
+				// Pass 1 (horizontal): source → intermediate buffer
+				// Pass 2 (vertical):   intermediate → draw into current context
+				this._drawBlurPingPong(target.texture, w, h, filter, buffer);
+			} else {
+				this.drawCmdManager.pushDrawTexture(target.texture, 2, filter, w, h);
+			}
 		}
+	}
+
+	/**
+	 * Two-pass separable Gaussian blur.
+	 * Horizontal pass renders into a temporary buffer; vertical pass composites
+	 * the result back into the active draw context.
+	 */
+	private _drawBlurPingPong(
+		texture: WebGLTexture,
+		w: number,
+		h: number,
+		filter: BlurFilter,
+		buffer: WebGLRenderBuffer,
+	): void {
+		// Flush any pending draw calls before we start manipulating FBOs.
+		this.$drawWebGL();
+
+		const gl = this.gl;
+
+		// ── Create a temporary FBO for the horizontal pass output ─────────────
+		const tmpTex = gl.createTexture()!;
+		gl.bindTexture(gl.TEXTURE_2D, tmpTex);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+		const tmpFbo = gl.createFramebuffer()!;
+		gl.bindFramebuffer(gl.FRAMEBUFFER, tmpFbo);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tmpTex, 0);
+		gl.viewport(0, 0, w, h);
+		gl.clearColor(0, 0, 0, 0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		// ── Pass 1: horizontal blur → tmpFbo ──────────────────────────────────
+		const hProg = WebGLProgram.get(gl, ShaderLib.default_vert, ShaderLib.blur_h_frag, 'blur_h');
+		this._drawFullscreenQuad(hProg, texture, w, h, prog => {
+			const uBlurX = prog.uniforms['blurX'];
+			const uSize = prog.uniforms['uTextureSize'];
+			if (uBlurX) gl.uniform1f(uBlurX, filter.blurX);
+			if (uSize) gl.uniform2f(uSize, w, h);
+		});
+
+		// ── Pass 2: vertical blur → restore original FBO ─────────────────────
+		buffer.rootRenderTarget.activate();
+		this.onResize(w, h);
+
+		const vProg = WebGLProgram.get(gl, ShaderLib.default_vert, ShaderLib.blur_v_frag, 'blur_v');
+		this._drawFullscreenQuad(vProg, tmpTex, w, h, prog => {
+			const uBlurY = prog.uniforms['blurY'];
+			const uSize = prog.uniforms['uTextureSize'];
+			if (uBlurY) gl.uniform1f(uBlurY, filter.blurY);
+			if (uSize) gl.uniform2f(uSize, w, h);
+		});
+
+		// ── Cleanup ───────────────────────────────────────────────────────────
+		gl.deleteFramebuffer(tmpFbo);
+		gl.deleteTexture(tmpTex);
+	}
+
+	/**
+	 * Draws a single full-screen quad using the given program and texture.
+	 * `setUniforms` is called after `useProgram` to let the caller set
+	 * filter-specific uniforms.
+	 */
+	private _drawFullscreenQuad(
+		prog: WebGLProgram,
+		texture: WebGLTexture,
+		w: number,
+		h: number,
+		setUniforms: (prog: WebGLProgram) => void,
+	): void {
+		const gl = this.gl;
+		gl.useProgram(prog.id);
+
+		const stride = 5 * 4;
+		const aPos = prog.attributes['aVertexPosition'];
+		const aUV = prog.attributes['aTextureCoord'];
+		const aColor = prog.attributes['aColor'];
+		if (aPos !== undefined && aPos >= 0) {
+			gl.enableVertexAttribArray(aPos);
+			gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, stride, 0);
+		}
+		if (aUV !== undefined && aUV >= 0) {
+			gl.enableVertexAttribArray(aUV);
+			gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, stride, 8);
+		}
+		if (aColor !== undefined && aColor >= 0) {
+			gl.enableVertexAttribArray(aColor);
+			gl.vertexAttribPointer(aColor, 4, gl.UNSIGNED_BYTE, true, stride, 16);
+		}
+
+		const uProj = prog.uniforms['projectionVector'];
+		if (uProj) gl.uniform2f(uProj, w / 2, -h / 2);
+
+		const uSampler = prog.uniforms['uSampler'];
+		if (uSampler) gl.uniform1i(uSampler, 0);
+
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		setUniforms(prog);
+
+		// Build a single quad covering [0,w] × [0,h] directly in a local buffer.
+		const f32 = new Float32Array(20);
+		const u32 = new Uint32Array(f32.buffer);
+		const packed = 0xffffffff; // white, full alpha (premultiplied)
+		// v0 (0,0)
+		f32[0] = 0;
+		f32[1] = 0;
+		f32[2] = 0;
+		f32[3] = 0;
+		u32[4] = packed;
+		// v1 (w,0)
+		f32[5] = w;
+		f32[6] = 0;
+		f32[7] = 1;
+		f32[8] = 0;
+		u32[9] = packed;
+		// v2 (w,h)
+		f32[10] = w;
+		f32[11] = h;
+		f32[12] = 1;
+		f32[13] = 1;
+		u32[14] = packed;
+		// v3 (0,h)
+		f32[15] = 0;
+		f32[16] = h;
+		f32[17] = 0;
+		f32[18] = 1;
+		u32[19] = packed;
+
+		gl.bufferData(gl.ARRAY_BUFFER, f32, gl.STREAM_DRAW);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
+		gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+		this._bindIndices = false;
 	}
 
 	public clear(): void {
