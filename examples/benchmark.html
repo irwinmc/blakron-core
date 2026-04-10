@@ -235,10 +235,10 @@
         <div class="panel-section">
           <h4>场景选择</h4>
           <div class="scene-radio-group" id="scene-radios">
-            <label><input type="radio" name="scene" value="sprite-batch" checked /> Sprite Batch</label>
+            <label><input type="radio" name="scene" value="sprite-batch" /> Sprite Batch</label>
             <label><input type="radio" name="scene" value="mixed-texture" /> Mixed Texture</label>
             <label><input type="radio" name="scene" value="filter-heavy" /> Filter Heavy</label>
-            <label><input type="radio" name="scene" value="dynamic-transform" /> Dynamic Transform</label>
+            <label><input type="radio" name="scene" value="dynamic-transform" checked /> Dynamic Transform</label>
             <label><input type="radio" name="scene" value="deep-container" /> Deep Container</label>
           </div>
         </div>
@@ -416,7 +416,9 @@
         }
 
         switchScene(sceneId, count) {
+          console.log(`[Runner] switchScene: ${this.currentSceneId} → ${sceneId}, count=${count}`);
           if (this.cleanup) {
+            console.log(`[Runner] calling cleanup for: ${this.currentSceneId}`);
             this.cleanup();
             this.cleanup = undefined;
           }
@@ -424,6 +426,7 @@
           if (descriptor) {
             try {
               this.cleanup = descriptor.build(this.container, count, factory);
+              console.log(`[Runner] build done for: ${sceneId}, root.numChildren=${this.container.numChildren}`);
             } catch (e) {
               console.error('Scene build error:', e);
             }
@@ -709,26 +712,39 @@
           maxCount: 2000,
           build(container, count, factory) {
             const objects = [];
+            // 用一个专用 Sprite 承载所有对象和事件监听，cleanup 时只需 removeChild 它
+            const holder = factory.createSprite();
+            factory.addChild(container, holder);
+            console.log(`[DynamicTransform] build: added holder, container.numChildren=${container.numChildren}`);
             for (let i = 0; i < count; i++) {
               const bmp = factory.createBitmap(0);
               bmp.x = Math.random() * 760;
               bmp.y = Math.random() * 560;
-              factory.addChild(container, bmp);
-              objects.push({ bmp, phase: Math.random() * Math.PI * 2, speed: 0.02 + Math.random() * 0.03 });
+              factory.addChild(holder, bmp);
+              objects.push({
+                bmp,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.02 + Math.random() * 0.03,
+                radiusX: 100 + Math.random() * 250,
+                radiusY: 80 + Math.random() * 180,
+              });
             }
+            console.log(`[DynamicTransform] build done: holder.numChildren=${holder.numChildren}`);
             const onFrame = () => {
               for (const o of objects) {
                 o.phase += o.speed;
-                o.bmp.x = 380 + Math.cos(o.phase) * (300 + Math.random() * 50);
-                o.bmp.y = 280 + Math.sin(o.phase) * (200 + Math.random() * 50);
+                o.bmp.x = 380 + Math.cos(o.phase) * o.radiusX;
+                o.bmp.y = 280 + Math.sin(o.phase) * o.radiusY;
                 o.bmp.rotation = (o.bmp.rotation ?? 0) + 1.5;
-                o.bmp.alpha = 0.5 + 0.5 * Math.sin(o.phase * 2);
+                o.bmp.alpha = 0.6;
               }
             };
-            factory.addEventListener(container, Event.ENTER_FRAME, onFrame);
+            factory.addEventListener(holder, Event.ENTER_FRAME, onFrame);
             return () => {
-              factory.removeEventListener(container, Event.ENTER_FRAME, onFrame);
-              objects.forEach(o => factory.removeChild(container, o.bmp));
+              console.log(`[DynamicTransform] cleanup: removing holder, container.numChildren before=${container.numChildren}`);
+              factory.removeEventListener(holder, Event.ENTER_FRAME, onFrame);
+              factory.removeChild(container, holder);
+              console.log(`[DynamicTransform] cleanup done: container.numChildren after=${container.numChildren}`);
             };
           },
         },
@@ -739,15 +755,16 @@
           minCount: 50,
           maxCount: 2000,
           build(container, count, factory) {
+            const holder = factory.createSprite();
+            factory.addChild(container, holder);
+
             const maxDepth = 10;
             const branchFactor = Math.max(2, Math.ceil(Math.pow(count, 1 / maxDepth)));
-            const allChildren = [];
 
             function buildTree(parent, depth) {
               if (depth >= maxDepth) {
                 const bmp = factory.createBitmap(0);
                 factory.addChild(parent, bmp);
-                allChildren.push({ node: bmp, parent });
                 return;
               }
               for (let i = 0; i < branchFactor; i++) {
@@ -755,20 +772,14 @@
                 child.x = i * 10;
                 child.y = depth * 5;
                 factory.addChild(parent, child);
-                allChildren.push({ node: child, parent });
                 buildTree(child, depth + 1);
               }
             }
 
-            buildTree(container, 0);
+            buildTree(holder, 0);
 
             return () => {
-              // Remove only direct children of root; nested cleanup cascades
-              for (let i = 0; i < branchFactor; i++) {
-                if (allChildren[i]) {
-                  factory.removeChild(container, allChildren[i].node);
-                }
-              }
+              factory.removeChild(container, holder);
             };
           },
         },
@@ -880,8 +891,8 @@
       });
 
       // 当前场景 ID（用于导出报告）
-      let currentSceneId = 'sprite-batch';
-      let currentCount = 500;
+      let currentSceneId = 'dynamic-transform';
+      let currentCount = 300;
 
       const runner = new BenchmarkRunner(
         collector,
@@ -905,7 +916,11 @@
           renderTimeMs: perf.renderTimeMs,
         });
         const stats = collector.getStats();
-        panel.update(stats, runner.getPhase());
+        const phase = runner.getPhase();
+        if (stats.frameCount % 60 === 1) {
+          console.log(`[Frame] phase=${phase} frameCount=${stats.frameCount} fps=${perf.fps.toFixed(1)} drawCalls=${perf.drawCalls} root.numChildren=${root.numChildren}`);
+        }
+        panel.update(stats, phase);
       });
 
       // ─────────────────────────────────────────────────────────────────────────
@@ -1007,9 +1022,9 @@
       // ─────────────────────────────────────────────────────────────────────────
       // 启动默认场景
       // ─────────────────────────────────────────────────────────────────────────
-      switchToScene('sprite-batch', 500);
+      switchToScene('dynamic-transform', 300);
 
-      console.log('[Benchmark] 初始化完成，当前场景：sprite-batch，对象数量：500');
+      console.log('[Benchmark] 初始化完成，当前场景：dynamic-transform，对象数量：300');
     </script>
   </body>
 </html>
