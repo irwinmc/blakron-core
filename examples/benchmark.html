@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 
+<!--
   WebGL Performance Benchmark — Heron Engine
   前提条件：需要通过 HTTP dev server 访问（ES module 不支持 file:// 协议）
   推荐运行方式：
@@ -8,1023 +8,1122 @@
   或使用 VS Code Live Server 插件打开此文件。
 -->
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>WebGL Performance Benchmark — Heron Engine</title>
-    <style>
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        background: #1a1a2e;
-        font-family: monospace;
-        color: #eee;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-      header {
-        padding: 10px 16px;
-        border-bottom: 1px solid #333;
-        font-size: 14px;
-        color: #8cf;
-        letter-spacing: 0.05em;
-      }
-      #main-layout {
-        display: flex;
-        flex-direction: row;
-        flex: 1;
-        gap: 0;
-      }
-      #canvas-area {
-        flex: 0 0 auto;
-        padding: 10px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      #gameCanvas {
-        border: 1px solid #444;
-        display: block;
-      }
-      #webgl-error {
-        display: none;
-        width: 800px;
-        height: 600px;
-        border: 1px solid #f44;
-        background: #1a0000;
-        color: #f88;
-        font-size: 14px;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 20px;
-      }
-      #control-panel {
-        flex: 0 0 auto;
-        min-width: 280px;
-        max-width: 340px;
-        padding: 10px 14px;
-        border-left: 1px solid #333;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      .panel-section {
-        background: rgba(255,255,255,0.04);
-        border: 1px solid #333;
-        border-radius: 6px;
-        padding: 10px 12px;
-      }
-      .panel-section h4 {
-        margin: 0 0 8px 0;
-        padding-bottom: 5px;
-        border-bottom: 1px solid #444;
-        font-size: 12px;
-        color: #8cf;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-      .scene-radio-group {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-      }
-      .scene-radio-group label {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 12px;
-        cursor: pointer;
-        padding: 3px 5px;
-        border-radius: 3px;
-        transition: background 0.15s;
-      }
-      .scene-radio-group label:hover { background: rgba(255,255,255,0.06); }
-      .scene-radio-group input[type=radio] { accent-color: #8cf; }
-      .slider-row {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        font-size: 12px;
-      }
-      .slider-row .slider-label {
-        display: flex;
-        justify-content: space-between;
-        color: #aaa;
-      }
-      .slider-row input[type=range] {
-        width: 100%;
-        accent-color: #8cf;
-      }
-      .metric-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 12px;
-        line-height: 1.8;
-      }
-      .metric-row .label { color: #aaa; }
-      .metric-row .value { color: #fff; font-weight: bold; }
-      .metric-row .value.good { color: #4caf50; }
-      .metric-row .value.warn { color: #ffeb3b; }
-      .metric-row .value.bad  { color: #f44336; }
-      .metric-row .value.dimmed { color: #555; }
-      #status-badge {
-        display: inline-block;
-        font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 10px;
-        background: #333;
-        color: #aaa;
-      }
-      #status-badge.warmup  { background: #2a2a00; color: #ffeb3b; }
-      #status-badge.measuring { background: #002a00; color: #4caf50; }
-      #status-badge.paused  { background: #2a0000; color: #f44336; }
-      #fps-graph {
-        border: none;
-        margin: 6px 0 0 0;
-        width: 100%;
-        height: 60px;
-        display: block;
-      }
-      .btn-row {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-      button {
-        background: #2a2a3e;
-        border: 1px solid #555;
-        color: #ccc;
-        font-family: monospace;
-        font-size: 12px;
-        padding: 5px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background 0.15s, border-color 0.15s;
-      }
-      button:hover { background: #3a3a5e; border-color: #8cf; color: #fff; }
-      button:active { background: #1a1a3e; }
-      #toast {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.85);
-        border: 1px solid #555;
-        border-radius: 6px;
-        padding: 8px 18px;
-        font-size: 13px;
-        color: #eee;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.3s;
-        z-index: 9999;
-      }
-      #toast.show { opacity: 1; }
-      #fallback-textarea-wrap {
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #1a1a2e;
-        border: 1px solid #555;
-        border-radius: 8px;
-        padding: 16px;
-        z-index: 9999;
-        width: 500px;
-      }
-      #fallback-textarea-wrap h5 {
-        margin: 0 0 8px 0;
-        color: #8cf;
-        font-size: 13px;
-      }
-      #fallback-textarea-wrap textarea {
-        width: 100%;
-        height: 120px;
-        background: #111;
-        border: 1px solid #444;
-        color: #eee;
-        font-family: monospace;
-        font-size: 11px;
-        padding: 6px;
-        resize: vertical;
-      }
-      #fallback-textarea-wrap button {
-        margin-top: 8px;
-      }
-    </style>
-  </head>
-  <body>
-    <header>WebGL Performance Benchmark — Heron Engine</header>
-    <div id="main-layout">
-      <div id="canvas-area">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="webgl-error">
-          <div>
-            <div style="font-size:32px;margin-bottom:12px;">⚠️</div>
-            <strong>WebGL 不可用</strong><br/>
-            请使用支持 WebGL 的浏览器（Chrome、Firefox、Safari 等）。
-          </div>
-        </div>
-      </div>
-      <div id="control-panel">
-        <!-- 场景选择 -->
-        <div class="panel-section">
-          <h4>场景选择</h4>
-          <div class="scene-radio-group" id="scene-radios">
-            <label><input type="radio" name="scene" value="sprite-batch" /> Sprite Batch</label>
-            <label><input type="radio" name="scene" value="mixed-texture" /> Mixed Texture</label>
-            <label><input type="radio" name="scene" value="filter-heavy" /> Filter Heavy</label>
-            <label><input type="radio" name="scene" value="dynamic-transform" checked /> Dynamic Transform</label>
-            <label><input type="radio" name="scene" value="deep-container" /> Deep Container</label>
-          </div>
-        </div>
-        <!-- 对象数量 -->
-        <div class="panel-section">
-          <h4>对象数量</h4>
-          <div class="slider-row">
-            <div class="slider-label">
-              <span>数量</span>
-              <span id="count-display">500</span>
-            </div>
-            <input type="range" id="count-slider" min="50" max="2000" step="10" value="500" />
-          </div>
-        </div>
-        <!-- 性能指标 -->
-        <div class="panel-section">
-          <h4>性能指标 <span id="status-badge" class="warmup">预热中…</span></h4>
-          <div class="metric-row"><span class="label">FPS</span><span class="value dimmed" id="m-fps">--</span></div>
-          <div class="metric-row"><span class="label">Draw Calls</span><span class="value dimmed" id="m-dc">--</span></div>
-          <div class="metric-row"><span class="label">Render</span><span class="value dimmed" id="m-render">--</span></div>
-          <div class="metric-row"><span class="label">Avg Render</span><span class="value dimmed" id="m-avg-render">--</span></div>
-          <div class="metric-row"><span class="label">p95 Render</span><span class="value dimmed" id="m-p95-render">--</span></div>
-          <div class="metric-row"><span class="label">Batch Efficiency</span><span class="value dimmed" id="m-batch">--</span></div>
-          <div class="metric-row"><span class="label">Frames</span><span class="value dimmed" id="m-frames">--</span></div>
-          <canvas id="fps-graph" width="200" height="60"></canvas>
-        </div>
-        <!-- 操作按钮 -->
-        <div class="panel-section">
-          <h4>操作</h4>
-          <div class="btn-row">
-            <button id="btn-reset">重置测量</button>
-            <button id="btn-pause">暂停</button>
-          </div>
-          <div class="btn-row" style="margin-top:6px;">
-            <button id="btn-export-json">导出 JSON</button>
-            <button id="btn-copy-md">复制 Markdown</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div id="toast"></div>
-    <div id="fallback-textarea-wrap">
-      <h5>复制以下 Markdown（Ctrl+A 全选后复制）</h5>
-      <textarea id="fallback-textarea" readonly></textarea>
-      <button id="btn-close-fallback">关闭</button>
-    </div>
-    <script type="module">
-      import {
-        createPlayer,
-        Sprite,
-        Bitmap,
-        BitmapData,
-        Texture,
-        Shape,
-        BlurFilter,
-        GlowFilter,
-        Event,
-      } from '../src/index.js';
+	<head>
+		<meta charset="utf-8" />
+		<title>WebGL Performance Benchmark — Heron Engine</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: #1a1a2e;
+				font-family: monospace;
+				color: #eee;
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+			}
+			header {
+				padding: 10px 16px;
+				border-bottom: 1px solid #333;
+				font-size: 14px;
+				color: #8cf;
+				letter-spacing: 0.05em;
+			}
+			#main-layout {
+				display: flex;
+				flex-direction: row;
+				flex: 1;
+				gap: 0;
+			}
+			#canvas-area {
+				flex: 0 0 auto;
+				padding: 10px;
+				display: flex;
+				flex-direction: column;
+				align-items: flex-start;
+			}
+			#gameCanvas {
+				border: 1px solid #444;
+				display: block;
+			}
+			#webgl-error {
+				display: none;
+				width: 800px;
+				height: 600px;
+				border: 1px solid #f44;
+				background: #1a0000;
+				color: #f88;
+				font-size: 14px;
+				align-items: center;
+				justify-content: center;
+				text-align: center;
+				padding: 20px;
+			}
+			#control-panel {
+				flex: 0 0 auto;
+				min-width: 280px;
+				max-width: 340px;
+				padding: 10px 14px;
+				border-left: 1px solid #333;
+				overflow-y: auto;
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+			}
+			.panel-section {
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid #333;
+				border-radius: 6px;
+				padding: 10px 12px;
+			}
+			.panel-section h4 {
+				margin: 0 0 8px 0;
+				padding-bottom: 5px;
+				border-bottom: 1px solid #444;
+				font-size: 12px;
+				color: #8cf;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+			}
+			.scene-radio-group {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+			.scene-radio-group label {
+				display: flex;
+				align-items: center;
+				gap: 7px;
+				font-size: 12px;
+				cursor: pointer;
+				padding: 3px 5px;
+				border-radius: 3px;
+				transition: background 0.15s;
+			}
+			.scene-radio-group label:hover {
+				background: rgba(255, 255, 255, 0.06);
+			}
+			.scene-radio-group input[type='radio'] {
+				accent-color: #8cf;
+			}
+			.slider-row {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+				font-size: 12px;
+			}
+			.slider-row .slider-label {
+				display: flex;
+				justify-content: space-between;
+				color: #aaa;
+			}
+			.slider-row input[type='range'] {
+				width: 100%;
+				accent-color: #8cf;
+			}
+			.metric-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				font-size: 12px;
+				line-height: 1.8;
+			}
+			.metric-row .label {
+				color: #aaa;
+			}
+			.metric-row .value {
+				color: #fff;
+				font-weight: bold;
+			}
+			.metric-row .value.good {
+				color: #4caf50;
+			}
+			.metric-row .value.warn {
+				color: #ffeb3b;
+			}
+			.metric-row .value.bad {
+				color: #f44336;
+			}
+			.metric-row .value.dimmed {
+				color: #555;
+			}
+			#status-badge {
+				display: inline-block;
+				font-size: 11px;
+				padding: 2px 8px;
+				border-radius: 10px;
+				background: #333;
+				color: #aaa;
+			}
+			#status-badge.warmup {
+				background: #2a2a00;
+				color: #ffeb3b;
+			}
+			#status-badge.measuring {
+				background: #002a00;
+				color: #4caf50;
+			}
+			#status-badge.paused {
+				background: #2a0000;
+				color: #f44336;
+			}
+			#fps-graph {
+				border: none;
+				margin: 6px 0 0 0;
+				width: 100%;
+				height: 60px;
+				display: block;
+			}
+			.btn-row {
+				display: flex;
+				gap: 6px;
+				flex-wrap: wrap;
+			}
+			button {
+				background: #2a2a3e;
+				border: 1px solid #555;
+				color: #ccc;
+				font-family: monospace;
+				font-size: 12px;
+				padding: 5px 10px;
+				border-radius: 4px;
+				cursor: pointer;
+				transition:
+					background 0.15s,
+					border-color 0.15s;
+			}
+			button:hover {
+				background: #3a3a5e;
+				border-color: #8cf;
+				color: #fff;
+			}
+			button:active {
+				background: #1a1a3e;
+			}
+			#toast {
+				position: fixed;
+				bottom: 20px;
+				left: 50%;
+				transform: translateX(-50%);
+				background: rgba(0, 0, 0, 0.85);
+				border: 1px solid #555;
+				border-radius: 6px;
+				padding: 8px 18px;
+				font-size: 13px;
+				color: #eee;
+				pointer-events: none;
+				opacity: 0;
+				transition: opacity 0.3s;
+				z-index: 9999;
+			}
+			#toast.show {
+				opacity: 1;
+			}
+			#fallback-textarea-wrap {
+				display: none;
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				background: #1a1a2e;
+				border: 1px solid #555;
+				border-radius: 8px;
+				padding: 16px;
+				z-index: 9999;
+				width: 500px;
+			}
+			#fallback-textarea-wrap h5 {
+				margin: 0 0 8px 0;
+				color: #8cf;
+				font-size: 13px;
+			}
+			#fallback-textarea-wrap textarea {
+				width: 100%;
+				height: 120px;
+				background: #111;
+				border: 1px solid #444;
+				color: #eee;
+				font-family: monospace;
+				font-size: 11px;
+				padding: 6px;
+				resize: vertical;
+			}
+			#fallback-textarea-wrap button {
+				margin-top: 8px;
+			}
+		</style>
+	</head>
+	<body>
+		<header>WebGL Performance Benchmark — Heron Engine</header>
+		<div id="main-layout">
+			<div id="canvas-area">
+				<canvas id="gameCanvas" width="800" height="600"></canvas>
+				<div id="webgl-error">
+					<div>
+						<div style="font-size: 32px; margin-bottom: 12px">⚠️</div>
+						<strong>WebGL 不可用</strong>
+						<br />
+						请使用支持 WebGL 的浏览器（Chrome、Firefox、Safari 等）。
+					</div>
+				</div>
+			</div>
+			<div id="control-panel">
+				<!-- 场景选择 -->
+				<div class="panel-section">
+					<h4>场景选择</h4>
+					<div class="scene-radio-group" id="scene-radios">
+						<label>
+							<input type="radio" name="scene" value="sprite-batch" />
+							Sprite Batch
+						</label>
+						<label>
+							<input type="radio" name="scene" value="mixed-texture" />
+							Mixed Texture
+						</label>
+						<label>
+							<input type="radio" name="scene" value="filter-heavy" />
+							Filter Heavy
+						</label>
+						<label>
+							<input type="radio" name="scene" value="dynamic-transform" checked />
+							Dynamic Transform
+						</label>
+						<label>
+							<input type="radio" name="scene" value="deep-container" />
+							Deep Container
+						</label>
+					</div>
+				</div>
+				<!-- 对象数量 -->
+				<div class="panel-section">
+					<h4>对象数量</h4>
+					<div class="slider-row">
+						<div class="slider-label">
+							<span>数量</span>
+							<span id="count-display">500</span>
+						</div>
+						<input type="range" id="count-slider" min="50" max="2000" step="10" value="500" />
+					</div>
+				</div>
+				<!-- 性能指标 -->
+				<div class="panel-section">
+					<h4>
+						性能指标
+						<span id="status-badge" class="warmup">预热中…</span>
+					</h4>
+					<div class="metric-row">
+						<span class="label">FPS</span>
+						<span class="value dimmed" id="m-fps">--</span>
+					</div>
+					<div class="metric-row">
+						<span class="label">Draw Calls</span>
+						<span class="value dimmed" id="m-dc">--</span>
+					</div>
+					<div class="metric-row">
+						<span class="label">Render</span>
+						<span class="value dimmed" id="m-render">--</span>
+					</div>
+					<div class="metric-row">
+						<span class="label">Avg Render</span>
+						<span class="value dimmed" id="m-avg-render">--</span>
+					</div>
+					<div class="metric-row">
+						<span class="label">p95 Render</span>
+						<span class="value dimmed" id="m-p95-render">--</span>
+					</div>
+					<div class="metric-row">
+						<span class="label">Batch Efficiency</span>
+						<span class="value dimmed" id="m-batch">--</span>
+					</div>
+					<div class="metric-row">
+						<span class="label">Frames</span>
+						<span class="value dimmed" id="m-frames">--</span>
+					</div>
+					<canvas id="fps-graph" width="200" height="60"></canvas>
+				</div>
+				<!-- 操作按钮 -->
+				<div class="panel-section">
+					<h4>操作</h4>
+					<div class="btn-row">
+						<button id="btn-reset">重置测量</button>
+						<button id="btn-pause">暂停</button>
+					</div>
+					<div class="btn-row" style="margin-top: 6px">
+						<button id="btn-export-json">导出 JSON</button>
+						<button id="btn-copy-md">复制 Markdown</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="toast"></div>
+		<div id="fallback-textarea-wrap">
+			<h5>复制以下 Markdown（Ctrl+A 全选后复制）</h5>
+			<textarea id="fallback-textarea" readonly></textarea>
+			<button id="btn-close-fallback">关闭</button>
+		</div>
+		<script type="module">
+			import {
+				createPlayer,
+				Sprite,
+				Bitmap,
+				BitmapData,
+				Texture,
+				Shape,
+				BlurFilter,
+				GlowFilter,
+				Event,
+			} from '../src/index.js';
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // MetricsCollector（内联自 src/heron/benchmark/MetricsCollector.ts）
-      // ─────────────────────────────────────────────────────────────────────────
-      function percentile(sortedArr, p) {
-        if (sortedArr.length === 0) return 0;
-        const idx = Math.ceil(p * sortedArr.length) - 1;
-        const clamped = Math.max(0, Math.min(idx, sortedArr.length - 1));
-        return sortedArr[clamped];
-      }
+			// ─────────────────────────────────────────────────────────────────────────
+			// MetricsCollector（内联自 src/heron/benchmark/MetricsCollector.ts）
+			// ─────────────────────────────────────────────────────────────────────────
+			function percentile(sortedArr, p) {
+				if (sortedArr.length === 0) return 0;
+				const idx = Math.ceil(p * sortedArr.length) - 1;
+				const clamped = Math.max(0, Math.min(idx, sortedArr.length - 1));
+				return sortedArr[clamped];
+			}
 
-      class MetricsCollector {
-        constructor(windowSize = 300) {
-          this.windowSize = windowSize;
-          this.buffer = new Array(windowSize);
-          this.writeIdx = 0;
-          this.frameCount = 0;
-        }
+			class MetricsCollector {
+				constructor(windowSize = 300) {
+					this.windowSize = windowSize;
+					this.buffer = new Array(windowSize);
+					this.writeIdx = 0;
+					this.frameCount = 0;
+				}
 
-        record(frame) {
-          this.buffer[this.writeIdx] = frame;
-          this.writeIdx = (this.writeIdx + 1) % this.windowSize;
-          if (this.frameCount < this.windowSize) {
-            this.frameCount++;
-          }
-        }
+				record(frame) {
+					this.buffer[this.writeIdx] = frame;
+					this.writeIdx = (this.writeIdx + 1) % this.windowSize;
+					if (this.frameCount < this.windowSize) {
+						this.frameCount++;
+					}
+				}
 
-        reset() {
-          this.writeIdx = 0;
-          this.frameCount = 0;
-          for (let i = 0; i < this.windowSize; i++) {
-            this.buffer[i] = undefined;
-          }
-        }
+				reset() {
+					this.writeIdx = 0;
+					this.frameCount = 0;
+					for (let i = 0; i < this.windowSize; i++) {
+						this.buffer[i] = undefined;
+					}
+				}
 
-        isLowFps() {
-          if (this.frameCount < 10) return false;
-          for (let i = 0; i < 10; i++) {
-            const idx = (this.writeIdx - 1 - i + this.windowSize) % this.windowSize;
-            const frame = this.buffer[idx];
-            if (!frame || frame.renderTimeMs <= 33.3) return false;
-          }
-          return true;
-        }
+				isLowFps() {
+					if (this.frameCount < 10) return false;
+					for (let i = 0; i < 10; i++) {
+						const idx = (this.writeIdx - 1 - i + this.windowSize) % this.windowSize;
+						const frame = this.buffer[idx];
+						if (!frame || frame.renderTimeMs <= 33.3) return false;
+					}
+					return true;
+				}
 
-        getStats() {
-          if (this.frameCount === 0) {
-            return {
-              frameCount: 0,
-              fps: { current: 0, avg: 0, p50: 0, p95: 0, max: 0 },
-              render: { current: 0, avg: 0, p50: 0, p95: 0, max: 0 },
-              drawCalls: { current: 0, avg: 0 },
-              batchEfficiency: 0,
-              isLowFps: false,
-            };
-          }
-          const fpsValues = [], renderValues = [], drawCallValues = [];
-          for (let i = 0; i < this.frameCount; i++) {
-            const idx = (this.writeIdx - this.frameCount + i + this.windowSize * 2) % this.windowSize;
-            const frame = this.buffer[idx];
-            if (frame) {
-              fpsValues.push(frame.fps);
-              renderValues.push(frame.renderTimeMs);
-              drawCallValues.push(frame.drawCalls);
-            }
-          }
-          const latestIdx = (this.writeIdx - 1 + this.windowSize) % this.windowSize;
-          const latestFrame = this.buffer[latestIdx];
-          const sortedFps = [...fpsValues].sort((a, b) => a - b);
-          const sortedRender = [...renderValues].sort((a, b) => a - b);
-          const avgFps = fpsValues.reduce((s, v) => s + v, 0) / fpsValues.length;
-          const avgRender = renderValues.reduce((s, v) => s + v, 0) / renderValues.length;
-          const avgDrawCalls = drawCallValues.reduce((s, v) => s + v, 0) / drawCallValues.length;
-          const batchEfficiency = latestFrame && latestFrame.drawCalls > 0
-            ? latestFrame.objectCount / latestFrame.drawCalls : 0;
-          return {
-            frameCount: this.frameCount,
-            fps: {
-              current: latestFrame?.fps ?? 0,
-              avg: avgFps,
-              p50: percentile(sortedFps, 0.5),
-              p95: percentile(sortedFps, 0.95),
-              max: sortedFps[sortedFps.length - 1] ?? 0,
-            },
-            render: {
-              current: latestFrame?.renderTimeMs ?? 0,
-              avg: avgRender,
-              p50: percentile(sortedRender, 0.5),
-              p95: percentile(sortedRender, 0.95),
-              max: sortedRender[sortedRender.length - 1] ?? 0,
-            },
-            drawCalls: {
-              current: latestFrame?.drawCalls ?? 0,
-              avg: avgDrawCalls,
-            },
-            batchEfficiency,
-            isLowFps: this.isLowFps(),
-          };
-        }
-      }
+				getStats() {
+					if (this.frameCount === 0) {
+						return {
+							frameCount: 0,
+							fps: { current: 0, avg: 0, p50: 0, p95: 0, max: 0 },
+							render: { current: 0, avg: 0, p50: 0, p95: 0, max: 0 },
+							drawCalls: { current: 0, avg: 0 },
+							batchEfficiency: 0,
+							isLowFps: false,
+						};
+					}
+					const fpsValues = [],
+						renderValues = [],
+						drawCallValues = [];
+					for (let i = 0; i < this.frameCount; i++) {
+						const idx = (this.writeIdx - this.frameCount + i + this.windowSize * 2) % this.windowSize;
+						const frame = this.buffer[idx];
+						if (frame) {
+							fpsValues.push(frame.fps);
+							renderValues.push(frame.renderTimeMs);
+							drawCallValues.push(frame.drawCalls);
+						}
+					}
+					const latestIdx = (this.writeIdx - 1 + this.windowSize) % this.windowSize;
+					const latestFrame = this.buffer[latestIdx];
+					const sortedFps = [...fpsValues].sort((a, b) => a - b);
+					const sortedRender = [...renderValues].sort((a, b) => a - b);
+					const avgFps = fpsValues.reduce((s, v) => s + v, 0) / fpsValues.length;
+					const avgRender = renderValues.reduce((s, v) => s + v, 0) / renderValues.length;
+					const avgDrawCalls = drawCallValues.reduce((s, v) => s + v, 0) / drawCallValues.length;
+					const batchEfficiency =
+						latestFrame && latestFrame.drawCalls > 0 ? latestFrame.objectCount / latestFrame.drawCalls : 0;
+					return {
+						frameCount: this.frameCount,
+						fps: {
+							current: latestFrame?.fps ?? 0,
+							avg: avgFps,
+							p50: percentile(sortedFps, 0.5),
+							p95: percentile(sortedFps, 0.95),
+							max: sortedFps[sortedFps.length - 1] ?? 0,
+						},
+						render: {
+							current: latestFrame?.renderTimeMs ?? 0,
+							avg: avgRender,
+							p50: percentile(sortedRender, 0.5),
+							p95: percentile(sortedRender, 0.95),
+							max: sortedRender[sortedRender.length - 1] ?? 0,
+						},
+						drawCalls: {
+							current: latestFrame?.drawCalls ?? 0,
+							avg: avgDrawCalls,
+						},
+						batchEfficiency,
+						isLowFps: this.isLowFps(),
+					};
+				}
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // BenchmarkRunner（内联自 src/heron/benchmark/BenchmarkRunner.ts）
-      // ─────────────────────────────────────────────────────────────────────────
-      class BenchmarkRunner {
-        constructor(collector, onPhaseChange, getSceneDescriptor, container) {
-          this.collector = collector;
-          this.onPhaseChange = onPhaseChange;
-          this.getSceneDescriptor = getSceneDescriptor;
-          this.container = container;
-          this.phase = 'idle';
-          this.warmupFrames = 0;
-          this.warmupTarget = 60;
-          this.currentSceneId = undefined;
-          this.currentCount = 0;
-          this.cleanup = undefined;
-        }
+			// ─────────────────────────────────────────────────────────────────────────
+			// BenchmarkRunner（内联自 src/heron/benchmark/BenchmarkRunner.ts）
+			// ─────────────────────────────────────────────────────────────────────────
+			class BenchmarkRunner {
+				constructor(collector, onPhaseChange, getSceneDescriptor, container) {
+					this.collector = collector;
+					this.onPhaseChange = onPhaseChange;
+					this.getSceneDescriptor = getSceneDescriptor;
+					this.container = container;
+					this.phase = 'idle';
+					this.warmupFrames = 0;
+					this.warmupTarget = 60;
+					this.currentSceneId = undefined;
+					this.currentCount = 0;
+					this.cleanup = undefined;
+				}
 
-        switchScene(sceneId, count) {
-          console.log(`[Runner] switchScene: ${this.currentSceneId} → ${sceneId}, count=${count}`);
-          if (this.cleanup) {
-            console.log(`[Runner] calling cleanup for: ${this.currentSceneId}`);
-            this.cleanup();
-            this.cleanup = undefined;
-          }
-          const descriptor = this.getSceneDescriptor(sceneId);
-          if (descriptor) {
-            try {
-              this.cleanup = descriptor.build(this.container, count, factory);
-              console.log(`[Runner] build done for: ${sceneId}, root.numChildren=${this.container.numChildren}`);
-            } catch (e) {
-              console.error('Scene build error:', e);
-            }
-          }
-          this.currentSceneId = sceneId;
-          this.currentCount = count;
-          this.warmupFrames = 0;
-          this.phase = 'warmup';
-          this.onPhaseChange(this.phase);
-          this.collector.reset();
-        }
+				switchScene(sceneId, count) {
+					console.log(`[Runner] switchScene: ${this.currentSceneId} → ${sceneId}, count=${count}`);
+					if (this.cleanup) {
+						console.log(`[Runner] calling cleanup for: ${this.currentSceneId}`);
+						this.cleanup();
+						this.cleanup = undefined;
+					}
+					const descriptor = this.getSceneDescriptor(sceneId);
+					if (descriptor) {
+						try {
+							this.cleanup = descriptor.build(this.container, count, factory);
+							console.log(
+								`[Runner] build done for: ${sceneId}, root.numChildren=${this.container.numChildren}`,
+							);
+						} catch (e) {
+							console.error('Scene build error:', e);
+						}
+					}
+					this.currentSceneId = sceneId;
+					this.currentCount = count;
+					this.warmupFrames = 0;
+					this.phase = 'warmup';
+					this.onPhaseChange(this.phase);
+					this.collector.reset();
+				}
 
-        rebuildScene(count) {
-          if (this.currentSceneId !== undefined) {
-            this.switchScene(this.currentSceneId, count);
-          }
-        }
+				rebuildScene(count) {
+					if (this.currentSceneId !== undefined) {
+						this.switchScene(this.currentSceneId, count);
+					}
+				}
 
-        pause() {
-          if (this.phase === 'measuring') {
-            this.phase = 'paused';
-            this.onPhaseChange(this.phase);
-          }
-        }
+				pause() {
+					if (this.phase === 'measuring') {
+						this.phase = 'paused';
+						this.onPhaseChange(this.phase);
+					}
+				}
 
-        resume() {
-          if (this.phase === 'paused') {
-            this.phase = 'measuring';
-            this.onPhaseChange(this.phase);
-          }
-        }
+				resume() {
+					if (this.phase === 'paused') {
+						this.phase = 'measuring';
+						this.onPhaseChange(this.phase);
+					}
+				}
 
-        resetMeasurement() {
-          this.collector.reset();
-          this.warmupFrames = 0;
-          this.phase = 'warmup';
-          this.onPhaseChange(this.phase);
-        }
+				resetMeasurement() {
+					this.collector.reset();
+					this.warmupFrames = 0;
+					this.phase = 'warmup';
+					this.onPhaseChange(this.phase);
+				}
 
-        onFrame(perf) {
-          if (this.phase === 'idle' || this.phase === 'paused') return;
-          if (this.phase === 'warmup') {
-            this.warmupFrames++;
-            if (this.warmupFrames >= this.warmupTarget) {
-              this.phase = 'measuring';
-              this.onPhaseChange(this.phase);
-            }
-            return;
-          }
-          if (this.phase === 'measuring') {
-            this.collector.record({
-              fps: perf.fps,
-              drawCalls: perf.drawCalls,
-              renderTimeMs: perf.renderTimeMs,
-              objectCount: this.currentCount,
-            });
-          }
-        }
+				onFrame(perf) {
+					if (this.phase === 'idle' || this.phase === 'paused') return;
+					if (this.phase === 'warmup') {
+						this.warmupFrames++;
+						if (this.warmupFrames >= this.warmupTarget) {
+							this.phase = 'measuring';
+							this.onPhaseChange(this.phase);
+						}
+						return;
+					}
+					if (this.phase === 'measuring') {
+						this.collector.record({
+							fps: perf.fps,
+							drawCalls: perf.drawCalls,
+							renderTimeMs: perf.renderTimeMs,
+							objectCount: this.currentCount,
+						});
+					}
+				}
 
-        getPhase() { return this.phase; }
-      }
+				getPhase() {
+					return this.phase;
+				}
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // PerfPanel（内联自 src/heron/benchmark/PerfPanel.ts）
-      // ─────────────────────────────────────────────────────────────────────────
-      function fpsColorClass(fps) {
-        if (fps >= 55) return 'good';
-        if (fps >= 30) return 'warn';
-        return 'bad';
-      }
+			// ─────────────────────────────────────────────────────────────────────────
+			// PerfPanel（内联自 src/heron/benchmark/PerfPanel.ts）
+			// ─────────────────────────────────────────────────────────────────────────
+			function fpsColorClass(fps) {
+				if (fps >= 55) return 'good';
+				if (fps >= 30) return 'warn';
+				return 'bad';
+			}
 
-      class PerfPanel {
-        constructor(els) {
-          this.els = els;
-          this.fpsHistory = new Array(200).fill(0);
-          this.historyWriteIdx = 0;
-        }
+			class PerfPanel {
+				constructor(els) {
+					this.els = els;
+					this.fpsHistory = new Array(200).fill(0);
+					this.historyWriteIdx = 0;
+				}
 
-        update(stats, phase) {
-          const badge = this.els.status;
-          if (phase === 'warmup') {
-            badge.textContent = '预热中…';
-            badge.className = 'warmup';
-            const dimEls = [
-              this.els.fps, this.els.drawCalls, this.els.renderCurrent,
-              this.els.renderAvg, this.els.renderP95, this.els.batchEfficiency, this.els.frameCount,
-            ];
-            for (const el of dimEls) {
-              el.textContent = '--';
-              el.className = 'value dimmed';
-            }
-          } else if (phase === 'measuring') {
-            badge.textContent = '测量中';
-            badge.className = 'measuring';
+				update(stats, phase) {
+					const badge = this.els.status;
+					if (phase === 'warmup') {
+						badge.textContent = '预热中…';
+						badge.className = 'warmup';
+						const dimEls = [
+							this.els.fps,
+							this.els.drawCalls,
+							this.els.renderCurrent,
+							this.els.renderAvg,
+							this.els.renderP95,
+							this.els.batchEfficiency,
+							this.els.frameCount,
+						];
+						for (const el of dimEls) {
+							el.textContent = '--';
+							el.className = 'value dimmed';
+						}
+					} else if (phase === 'measuring') {
+						badge.textContent = '测量中';
+						badge.className = 'measuring';
 
-            this.els.fps.textContent = stats.fps.current.toFixed(1);
-            this.els.fps.className = 'value ' + fpsColorClass(stats.fps.current);
-            this.els.drawCalls.textContent = String(stats.drawCalls.current);
-            this.els.drawCalls.className = 'value';
-            this.els.renderCurrent.textContent = stats.render.current.toFixed(2) + ' ms';
-            this.els.renderCurrent.className = 'value ' + (stats.render.current < 4 ? 'good' : stats.render.current < 8 ? 'warn' : 'bad');
-            this.els.renderAvg.textContent = stats.render.avg.toFixed(2) + ' ms';
-            this.els.renderAvg.className = 'value';
-            this.els.renderP95.textContent = stats.render.p95.toFixed(2) + ' ms';
-            this.els.renderP95.className = 'value';
-            this.els.batchEfficiency.textContent = stats.batchEfficiency.toFixed(1) + 'x';
-            this.els.batchEfficiency.className = 'value';
-            this.els.frameCount.textContent = String(stats.frameCount);
-            this.els.frameCount.className = 'value';
+						this.els.fps.textContent = stats.fps.current.toFixed(1);
+						this.els.fps.className = 'value ' + fpsColorClass(stats.fps.current);
+						this.els.drawCalls.textContent = String(stats.drawCalls.current);
+						this.els.drawCalls.className = 'value';
+						this.els.renderCurrent.textContent = stats.render.current.toFixed(2) + ' ms';
+						this.els.renderCurrent.className =
+							'value ' + (stats.render.current < 4 ? 'good' : stats.render.current < 8 ? 'warn' : 'bad');
+						this.els.renderAvg.textContent = stats.render.avg.toFixed(2) + ' ms';
+						this.els.renderAvg.className = 'value';
+						this.els.renderP95.textContent = stats.render.p95.toFixed(2) + ' ms';
+						this.els.renderP95.className = 'value';
+						this.els.batchEfficiency.textContent = stats.batchEfficiency.toFixed(1) + 'x';
+						this.els.batchEfficiency.className = 'value';
+						this.els.frameCount.textContent = String(stats.frameCount);
+						this.els.frameCount.className = 'value';
 
-            this.fpsHistory[this.historyWriteIdx] = stats.fps.current;
-            this.historyWriteIdx = (this.historyWriteIdx + 1) % 200;
-          } else if (phase === 'paused') {
-            badge.textContent = '已暂停';
-            badge.className = 'paused';
-          }
-          this._drawGraph(this.fpsHistory, this.historyWriteIdx);
-        }
+						this.fpsHistory[this.historyWriteIdx] = stats.fps.current;
+						this.historyWriteIdx = (this.historyWriteIdx + 1) % 200;
+					} else if (phase === 'paused') {
+						badge.textContent = '已暂停';
+						badge.className = 'paused';
+					}
+					this._drawGraph(this.fpsHistory, this.historyWriteIdx);
+				}
 
-        _drawGraph(fpsHistory, writeIdx) {
-          const canvas = this.els.graphCanvas;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          const width = canvas.width;
-          const height = canvas.height;
-          const maxFps = 70;
-          const refFps = 60;
+				_drawGraph(fpsHistory, writeIdx) {
+					const canvas = this.els.graphCanvas;
+					const ctx = canvas.getContext('2d');
+					if (!ctx) return;
+					const width = canvas.width;
+					const height = canvas.height;
+					const maxFps = 70;
+					const refFps = 60;
 
-          ctx.fillStyle = '#111';
-          ctx.fillRect(0, 0, width, height);
+					ctx.fillStyle = '#111';
+					ctx.fillRect(0, 0, width, height);
 
-          const refY = height - (refFps / maxFps) * height;
-          ctx.strokeStyle = '#444';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(0, refY);
-          ctx.lineTo(width, refY);
-          ctx.stroke();
+					const refY = height - (refFps / maxFps) * height;
+					ctx.strokeStyle = '#444';
+					ctx.lineWidth = 1;
+					ctx.beginPath();
+					ctx.moveTo(0, refY);
+					ctx.lineTo(width, refY);
+					ctx.stroke();
 
-          const len = fpsHistory.length;
-          ctx.lineWidth = 1;
-          for (let i = 0; i < len; i++) {
-            const sampleIdx = (writeIdx + i) % len;
-            const fps = fpsHistory[sampleIdx];
-            const x = i;
-            const y = height - Math.min(fps / maxFps, 1) * height;
-            const cc = fpsColorClass(fps);
-            ctx.strokeStyle = cc === 'good' ? '#4caf50' : cc === 'warn' ? '#ffeb3b' : '#f44336';
-            if (i === 0) {
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-            } else {
-              const prevIdx = (writeIdx + i - 1) % len;
-              const prevCc = fpsColorClass(fpsHistory[prevIdx]);
-              if (prevCc !== cc) {
-                ctx.lineTo(x, y);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-              } else {
-                ctx.lineTo(x, y);
-              }
-            }
-            if (i === len - 1) ctx.stroke();
-          }
-        }
-      }
+					const len = fpsHistory.length;
+					ctx.lineWidth = 1;
+					for (let i = 0; i < len; i++) {
+						const sampleIdx = (writeIdx + i) % len;
+						const fps = fpsHistory[sampleIdx];
+						const x = i;
+						const y = height - Math.min(fps / maxFps, 1) * height;
+						const cc = fpsColorClass(fps);
+						ctx.strokeStyle = cc === 'good' ? '#4caf50' : cc === 'warn' ? '#ffeb3b' : '#f44336';
+						if (i === 0) {
+							ctx.beginPath();
+							ctx.moveTo(x, y);
+						} else {
+							const prevIdx = (writeIdx + i - 1) % len;
+							const prevCc = fpsColorClass(fpsHistory[prevIdx]);
+							if (prevCc !== cc) {
+								ctx.lineTo(x, y);
+								ctx.stroke();
+								ctx.beginPath();
+								ctx.moveTo(x, y);
+							} else {
+								ctx.lineTo(x, y);
+							}
+						}
+						if (i === len - 1) ctx.stroke();
+					}
+				}
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // ReportExporter（内联自 src/heron/benchmark/ReportExporter.ts）
-      // ─────────────────────────────────────────────────────────────────────────
-      class ReportExporter {
-        buildReport(sceneId, objectCount, stats) {
-          return {
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            scene: sceneId,
-            objectCount,
-            fps: { avg: stats.fps.avg, p95: stats.fps.p95, max: stats.fps.max },
-            renderTimeMs: { avg: stats.render.avg, p95: stats.render.p95, max: stats.render.max },
-            drawCallsAvg: stats.drawCalls.avg,
-            batchEfficiencyAvg: stats.batchEfficiency,
-          };
-        }
+			// ─────────────────────────────────────────────────────────────────────────
+			// ReportExporter（内联自 src/heron/benchmark/ReportExporter.ts）
+			// ─────────────────────────────────────────────────────────────────────────
+			class ReportExporter {
+				buildReport(sceneId, objectCount, stats) {
+					return {
+						timestamp: new Date().toISOString(),
+						userAgent: navigator.userAgent,
+						scene: sceneId,
+						objectCount,
+						fps: { avg: stats.fps.avg, p95: stats.fps.p95, max: stats.fps.max },
+						renderTimeMs: { avg: stats.render.avg, p95: stats.render.p95, max: stats.render.max },
+						drawCallsAvg: stats.drawCalls.avg,
+						batchEfficiencyAvg: stats.batchEfficiency,
+					};
+				}
 
-        exportJSON(report) {
-          const json = JSON.stringify(report, null, 2);
-          const ts = report.timestamp.replace(/[:.]/g, '-').slice(0, 19);
-          const filename = `benchmark-${report.scene}-${ts}.json`;
-          const blob = new Blob([json], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
+				exportJSON(report) {
+					const json = JSON.stringify(report, null, 2);
+					const ts = report.timestamp.replace(/[:.]/g, '-').slice(0, 19);
+					const filename = `benchmark-${report.scene}-${ts}.json`;
+					const blob = new Blob([json], { type: 'application/json' });
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					a.download = filename;
+					a.click();
+					URL.revokeObjectURL(url);
+				}
 
-        formatMarkdown(report) {
-          const header = '| 场景 | 对象数 | FPS avg | FPS p95 | FPS max | Render avg (ms) | Render p95 (ms) | Render max (ms) | Draw Calls avg | Batch Efficiency |';
-          const separator = '|---|---|---|---|---|---|---|---|---|---|';
-          const row = `| ${report.scene} | ${report.objectCount} | ${report.fps.avg.toFixed(1)} | ${report.fps.p95.toFixed(1)} | ${report.fps.max.toFixed(1)} | ${report.renderTimeMs.avg.toFixed(2)} | ${report.renderTimeMs.p95.toFixed(2)} | ${report.renderTimeMs.max.toFixed(2)} | ${report.drawCallsAvg.toFixed(1)} | ${report.batchEfficiencyAvg.toFixed(2)} |`;
-          return [header, separator, row].join('\n');
-        }
+				formatMarkdown(report) {
+					const header =
+						'| 场景 | 对象数 | FPS avg | FPS p95 | FPS max | Render avg (ms) | Render p95 (ms) | Render max (ms) | Draw Calls avg | Batch Efficiency |';
+					const separator = '|---|---|---|---|---|---|---|---|---|---|';
+					const row = `| ${report.scene} | ${report.objectCount} | ${report.fps.avg.toFixed(1)} | ${report.fps.p95.toFixed(1)} | ${report.fps.max.toFixed(1)} | ${report.renderTimeMs.avg.toFixed(2)} | ${report.renderTimeMs.p95.toFixed(2)} | ${report.renderTimeMs.max.toFixed(2)} | ${report.drawCallsAvg.toFixed(1)} | ${report.batchEfficiencyAvg.toFixed(2)} |`;
+					return [header, separator, row].join('\n');
+				}
 
-        async copyMarkdown(report, fallback) {
-          const text = this.formatMarkdown(report);
-          try {
-            await navigator.clipboard.writeText(text);
-          } catch {
-            fallback?.(text);
-          }
-        }
-      }
+				async copyMarkdown(report, fallback) {
+					const text = this.formatMarkdown(report);
+					try {
+						await navigator.clipboard.writeText(text);
+					} catch {
+						fallback?.(text);
+					}
+				}
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // SceneRegistry（内联自 src/heron/benchmark/SceneRegistry.ts）
-      // ─────────────────────────────────────────────────────────────────────────
-      const scenes = [
-        {
-          id: 'sprite-batch',
-          label: 'Sprite Batch',
-          defaultCount: 500,
-          minCount: 50,
-          maxCount: 2000,
-          build(container, count, factory) {
-            const children = [];
-            for (let i = 0; i < count; i++) {
-              const bmp = factory.createBitmap(0);
-              bmp.x = Math.random() * 760;
-              bmp.y = Math.random() * 560;
-              factory.addChild(container, bmp);
-              children.push(bmp);
-            }
-            return () => children.forEach(ch => factory.removeChild(container, ch));
-          },
-        },
-        {
-          id: 'mixed-texture',
-          label: 'Mixed Texture',
-          defaultCount: 400,
-          minCount: 50,
-          maxCount: 2000,
-          build(container, count, factory) {
-            const children = [];
-            const numTextures = 8;
-            const perTex = Math.floor(count / numTextures);
-            for (let t = 0; t < numTextures; t++) {
-              for (let i = 0; i < perTex; i++) {
-                const bmp = factory.createBitmap(t);
-                bmp.x = Math.random() * 760;
-                bmp.y = Math.random() * 560;
-                factory.addChild(container, bmp);
-                children.push(bmp);
-              }
-            }
-            return () => children.forEach(ch => factory.removeChild(container, ch));
-          },
-        },
-        {
-          id: 'filter-heavy',
-          label: 'Filter Heavy',
-          defaultCount: 50,
-          minCount: 50,
-          maxCount: 200,
-          build(container, count, factory) {
-            const children = [];
-            for (let i = 0; i < count; i++) {
-              const shape = factory.createShape(i);
-              shape.x = (i % 10) * 75 + 10;
-              shape.y = Math.floor(i / 10) * 75 + 10;
-              factory.addChild(container, shape);
-              children.push(shape);
-            }
-            return () => children.forEach(ch => factory.removeChild(container, ch));
-          },
-        },
-        {
-          id: 'dynamic-transform',
-          label: 'Dynamic Transform',
-          defaultCount: 300,
-          minCount: 50,
-          maxCount: 2000,
-          build(container, count, factory) {
-            const objects = [];
-            // 用一个专用 Sprite 承载所有对象和事件监听，cleanup 时只需 removeChild 它
-            const holder = factory.createSprite();
-            factory.addChild(container, holder);
-            console.log(`[DynamicTransform] build: added holder, container.numChildren=${container.numChildren}`);
-            for (let i = 0; i < count; i++) {
-              const bmp = factory.createBitmap(0);
-              bmp.x = Math.random() * 760;
-              bmp.y = Math.random() * 560;
-              factory.addChild(holder, bmp);
-              objects.push({
-                bmp,
-                phase: Math.random() * Math.PI * 2,
-                speed: 0.02 + Math.random() * 0.03,
-                radiusX: 100 + Math.random() * 250,
-                radiusY: 80 + Math.random() * 180,
-              });
-            }
-            console.log(`[DynamicTransform] build done: holder.numChildren=${holder.numChildren}`);
-            const onFrame = () => {
-              for (const o of objects) {
-                o.phase += o.speed;
-                o.bmp.x = 380 + Math.cos(o.phase) * o.radiusX;
-                o.bmp.y = 280 + Math.sin(o.phase) * o.radiusY;
-                o.bmp.rotation = (o.bmp.rotation ?? 0) + 1.5;
-                o.bmp.alpha = 0.6;
-              }
-            };
-            factory.addEventListener(holder, Event.ENTER_FRAME, onFrame);
-            return () => {
-              console.log(`[DynamicTransform] cleanup: removing holder, container.numChildren before=${container.numChildren}`);
-              factory.removeEventListener(holder, Event.ENTER_FRAME, onFrame);
-              factory.removeChild(container, holder);
-              console.log(`[DynamicTransform] cleanup done: container.numChildren after=${container.numChildren}`);
-            };
-          },
-        },
-        {
-          id: 'deep-container',
-          label: 'Deep Container',
-          defaultCount: 100,
-          minCount: 50,
-          maxCount: 2000,
-          build(container, count, factory) {
-            const holder = factory.createSprite();
-            factory.addChild(container, holder);
+			// ─────────────────────────────────────────────────────────────────────────
+			// SceneRegistry（内联自 src/heron/benchmark/SceneRegistry.ts）
+			// ─────────────────────────────────────────────────────────────────────────
+			const scenes = [
+				{
+					id: 'sprite-batch',
+					label: 'Sprite Batch',
+					defaultCount: 500,
+					minCount: 50,
+					maxCount: 2000,
+					build(container, count, factory) {
+						const children = [];
+						for (let i = 0; i < count; i++) {
+							const bmp = factory.createBitmap(0);
+							bmp.x = Math.random() * 760;
+							bmp.y = Math.random() * 560;
+							factory.addChild(container, bmp);
+							children.push(bmp);
+						}
+						return () => children.forEach(ch => factory.removeChild(container, ch));
+					},
+				},
+				{
+					id: 'mixed-texture',
+					label: 'Mixed Texture',
+					defaultCount: 400,
+					minCount: 50,
+					maxCount: 2000,
+					build(container, count, factory) {
+						const children = [];
+						const numTextures = 8;
+						const perTex = Math.floor(count / numTextures);
+						for (let t = 0; t < numTextures; t++) {
+							for (let i = 0; i < perTex; i++) {
+								const bmp = factory.createBitmap(t);
+								bmp.x = Math.random() * 760;
+								bmp.y = Math.random() * 560;
+								factory.addChild(container, bmp);
+								children.push(bmp);
+							}
+						}
+						return () => children.forEach(ch => factory.removeChild(container, ch));
+					},
+				},
+				{
+					id: 'filter-heavy',
+					label: 'Filter Heavy',
+					defaultCount: 50,
+					minCount: 50,
+					maxCount: 200,
+					build(container, count, factory) {
+						const children = [];
+						for (let i = 0; i < count; i++) {
+							const shape = factory.createShape(i);
+							shape.x = (i % 10) * 75 + 10;
+							shape.y = Math.floor(i / 10) * 75 + 10;
+							factory.addChild(container, shape);
+							children.push(shape);
+						}
+						return () => children.forEach(ch => factory.removeChild(container, ch));
+					},
+				},
+				{
+					id: 'dynamic-transform',
+					label: 'Dynamic Transform',
+					defaultCount: 300,
+					minCount: 50,
+					maxCount: 2000,
+					build(container, count, factory) {
+						const objects = [];
+						// 用一个专用 Sprite 承载所有对象和事件监听，cleanup 时只需 removeChild 它
+						const holder = factory.createSprite();
+						factory.addChild(container, holder);
+						console.log(
+							`[DynamicTransform] build: added holder, container.numChildren=${container.numChildren}`,
+						);
+						for (let i = 0; i < count; i++) {
+							const bmp = factory.createBitmap(0);
+							bmp.x = Math.random() * 760;
+							bmp.y = Math.random() * 560;
+							factory.addChild(holder, bmp);
+							objects.push({
+								bmp,
+								phase: Math.random() * Math.PI * 2,
+								speed: 0.02 + Math.random() * 0.03,
+								radiusX: 100 + Math.random() * 250,
+								radiusY: 80 + Math.random() * 180,
+							});
+						}
+						console.log(`[DynamicTransform] build done: holder.numChildren=${holder.numChildren}`);
+						const onFrame = () => {
+							for (const o of objects) {
+								o.phase += o.speed;
+								o.bmp.x = 380 + Math.cos(o.phase) * o.radiusX;
+								o.bmp.y = 280 + Math.sin(o.phase) * o.radiusY;
+								o.bmp.rotation = (o.bmp.rotation ?? 0) + 1.5;
+								o.bmp.alpha = 0.8;
+							}
+						};
+						factory.addEventListener(holder, Event.ENTER_FRAME, onFrame);
+						return () => {
+							console.log(
+								`[DynamicTransform] cleanup: removing holder, container.numChildren before=${container.numChildren}`,
+							);
+							factory.removeEventListener(holder, Event.ENTER_FRAME, onFrame);
+							factory.removeChild(container, holder);
+							console.log(
+								`[DynamicTransform] cleanup done: container.numChildren after=${container.numChildren}`,
+							);
+						};
+					},
+				},
+				{
+					id: 'deep-container',
+					label: 'Deep Container',
+					defaultCount: 100,
+					minCount: 50,
+					maxCount: 2000,
+					build(container, count, factory) {
+						const holder = factory.createSprite();
+						factory.addChild(container, holder);
 
-            const maxDepth = 10;
-            const branchFactor = Math.max(2, Math.ceil(Math.pow(count, 1 / maxDepth)));
+						const maxDepth = 10;
+						const branchFactor = Math.max(2, Math.ceil(Math.pow(count, 1 / maxDepth)));
 
-            function buildTree(parent, depth) {
-              if (depth >= maxDepth) {
-                const bmp = factory.createBitmap(0);
-                factory.addChild(parent, bmp);
-                return;
-              }
-              for (let i = 0; i < branchFactor; i++) {
-                const child = factory.createSprite();
-                child.x = i * 10;
-                child.y = depth * 5;
-                factory.addChild(parent, child);
-                buildTree(child, depth + 1);
-              }
-            }
+						function buildTree(parent, depth) {
+							if (depth >= maxDepth) {
+								const bmp = factory.createBitmap(0);
+								factory.addChild(parent, bmp);
+								return;
+							}
+							for (let i = 0; i < branchFactor; i++) {
+								const child = factory.createSprite();
+								child.x = i * 10;
+								child.y = depth * 5;
+								factory.addChild(parent, child);
+								buildTree(child, depth + 1);
+							}
+						}
 
-            buildTree(holder, 0);
+						buildTree(holder, 0);
 
-            return () => {
-              factory.removeChild(container, holder);
-            };
-          },
-        },
-      ];
+						return () => {
+							factory.removeChild(container, holder);
+						};
+					},
+				},
+			];
 
-      function getScene(id) {
-        return scenes.find(s => s.id === id);
-      }
+			function getScene(id) {
+				return scenes.find(s => s.id === id);
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // 初始化 Heron 引擎
-      // ─────────────────────────────────────────────────────────────────────────
-      const canvas = document.getElementById('gameCanvas');
-      const webglError = document.getElementById('webgl-error');
+			// ─────────────────────────────────────────────────────────────────────────
+			// 初始化 Heron 引擎
+			// ─────────────────────────────────────────────────────────────────────────
+			const canvas = document.getElementById('gameCanvas');
+			const webglError = document.getElementById('webgl-error');
 
-      const app = createPlayer({
-        canvas,
-        contentWidth: 800,
-        contentHeight: 600,
-        scaleMode: 'showAll',
-        frameRate: 60,
-      });
+			const app = createPlayer({
+				canvas,
+				contentWidth: 800,
+				contentHeight: 600,
+				scaleMode: 'showAll',
+				frameRate: 60,
+			});
 
-      // WebGL 可用性检查
-      if (app.player && app.player.isWebGL === false) {
-        canvas.style.display = 'none';
-        webglError.style.display = 'flex';
-        console.error('[Benchmark] WebGL 不可用，请使用支持 WebGL 的浏览器。');
-        throw new Error('WebGL not available');
-      }
+			// WebGL 可用性检查
+			if (app.player && app.player.isWebGL === false) {
+				canvas.style.display = 'none';
+				webglError.style.display = 'flex';
+				console.error('[Benchmark] WebGL 不可用，请使用支持 WebGL 的浏览器。');
+				throw new Error('WebGL not available');
+			}
 
-      const root = new Sprite();
-      app.start(root);
+			const root = new Sprite();
+			app.start(root);
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // 预先创建 8 种颜色纹理
-      // ─────────────────────────────────────────────────────────────────────────
-      const textures = [];
-      for (let i = 0; i < 8; i++) {
-        const c = document.createElement('canvas');
-        c.width = 32;
-        c.height = 32;
-        const ctx = c.getContext('2d');
-        const hue = (i / 8) * 360;
-        ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
-        ctx.fillRect(0, 0, 32, 32);
-        const bd = new BitmapData(c);
-        const tex = new Texture();
-        tex.setBitmapData(bd);
-        textures.push(tex);
-      }
+			// ─────────────────────────────────────────────────────────────────────────
+			// 预先创建 8 种颜色纹理
+			// ─────────────────────────────────────────────────────────────────────────
+			const textures = [];
+			for (let i = 0; i < 8; i++) {
+				const c = document.createElement('canvas');
+				c.width = 32;
+				c.height = 32;
+				const ctx = c.getContext('2d');
+				const hue = (i / 8) * 360;
+				ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+				ctx.fillRect(0, 0, 32, 32);
+				const bd = new BitmapData(c);
+				const tex = new Texture();
+				tex.setBitmapData(bd);
+				textures.push(tex);
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // SceneFactory：创建真实 Heron 对象
-      // ─────────────────────────────────────────────────────────────────────────
-      const factory = {
-        createBitmap(texIndex = 0) {
-          return new Bitmap(textures[texIndex % textures.length]);
-        },
-        createShape(index = 0) {
-          const s = new Shape();
-          const color = Math.floor(Math.random() * 0xffffff);
-          s.graphics.beginFill(color, 1);
-          s.graphics.drawRect(0, 0, 40, 40);
-          s.graphics.endFill();
-          // 交替添加 BlurFilter 和 GlowFilter
-          if (index % 2 === 0) {
-            s.filters = [new BlurFilter(4, 4)];
-          } else {
-            s.filters = [new GlowFilter(0xffffff, 0.8, 6, 6, 1)];
-          }
-          return s;
-        },
-        createSprite() {
-          return new Sprite();
-        },
-        addChild(parent, child) {
-          parent.addChild(child);
-        },
-        removeChild(parent, child) {
-          parent.removeChild(child);
-        },
-        addEventListener(target, event, handler) {
-          target.addEventListener(event, handler);
-        },
-        removeEventListener(target, event, handler) {
-          target.removeEventListener(event, handler);
-        },
-      };
+			// ─────────────────────────────────────────────────────────────────────────
+			// SceneFactory：创建真实 Heron 对象
+			// ─────────────────────────────────────────────────────────────────────────
+			const factory = {
+				createBitmap(texIndex = 0) {
+					return new Bitmap(textures[texIndex % textures.length]);
+				},
+				createShape(index = 0) {
+					const s = new Shape();
+					const color = Math.floor(Math.random() * 0xffffff);
+					s.graphics.beginFill(color, 1);
+					s.graphics.drawRect(0, 0, 40, 40);
+					s.graphics.endFill();
+					// 交替添加 BlurFilter 和 GlowFilter
+					if (index % 2 === 0) {
+						s.filters = [new BlurFilter(4, 4)];
+					} else {
+						s.filters = [new GlowFilter(0xffffff, 0.8, 6, 6, 1)];
+					}
+					return s;
+				},
+				createSprite() {
+					return new Sprite();
+				},
+				addChild(parent, child) {
+					parent.addChild(child);
+				},
+				removeChild(parent, child) {
+					parent.removeChild(child);
+				},
+				addEventListener(target, event, handler) {
+					target.addEventListener(event, handler);
+				},
+				removeEventListener(target, event, handler) {
+					target.removeEventListener(event, handler);
+				},
+			};
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // 实例化核心模块
-      // ─────────────────────────────────────────────────────────────────────────
-      const collector = new MetricsCollector(300);
-      const exporter = new ReportExporter();
+			// ─────────────────────────────────────────────────────────────────────────
+			// 实例化核心模块
+			// ─────────────────────────────────────────────────────────────────────────
+			const collector = new MetricsCollector(300);
+			const exporter = new ReportExporter();
 
-      // DOM 元素引用
-      const $ = id => document.getElementById(id);
-      const panel = new PerfPanel({
-        fps: $('m-fps'),
-        drawCalls: $('m-dc'),
-        renderCurrent: $('m-render'),
-        renderAvg: $('m-avg-render'),
-        renderP95: $('m-p95-render'),
-        batchEfficiency: $('m-batch'),
-        frameCount: $('m-frames'),
-        status: $('status-badge'),
-        graphCanvas: $('fps-graph'),
-      });
+			// DOM 元素引用
+			const $ = id => document.getElementById(id);
+			const panel = new PerfPanel({
+				fps: $('m-fps'),
+				drawCalls: $('m-dc'),
+				renderCurrent: $('m-render'),
+				renderAvg: $('m-avg-render'),
+				renderP95: $('m-p95-render'),
+				batchEfficiency: $('m-batch'),
+				frameCount: $('m-frames'),
+				status: $('status-badge'),
+				graphCanvas: $('fps-graph'),
+			});
 
-      // 当前场景 ID（用于导出报告）
-      let currentSceneId = 'dynamic-transform';
-      let currentCount = 300;
+			// 当前场景 ID（用于导出报告）
+			let currentSceneId = 'dynamic-transform';
+			let currentCount = 300;
 
-      const runner = new BenchmarkRunner(
-        collector,
-        (phase) => {
-          // phase 变化时更新 UI（panel.update 会在帧循环中处理）
-        },
-        getScene,
-        root,
-      );
+			const runner = new BenchmarkRunner(
+				collector,
+				phase => {
+					// phase 变化时更新 UI（panel.update 会在帧循环中处理）
+				},
+				getScene,
+				root,
+			);
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // 帧循环：通过 ENTER_FRAME 事件驱动
-      // ─────────────────────────────────────────────────────────────────────────
-      const frameProxy = new Sprite();
-      root.addChild(frameProxy);
-      frameProxy.addEventListener(Event.ENTER_FRAME, () => {
-        const perf = app.player.perf;
-        runner.onFrame({
-          fps: perf.fps,
-          drawCalls: perf.drawCalls,
-          renderTimeMs: perf.renderTimeMs,
-        });
-        const stats = collector.getStats();
-        const phase = runner.getPhase();
-        if (stats.frameCount % 60 === 1) {
-          console.log(`[Frame] phase=${phase} frameCount=${stats.frameCount} fps=${perf.fps.toFixed(1)} drawCalls=${perf.drawCalls} root.numChildren=${root.numChildren}`);
-        }
-        panel.update(stats, phase);
-      });
+			// ─────────────────────────────────────────────────────────────────────────
+			// 帧循环：通过 ENTER_FRAME 事件驱动
+			// ─────────────────────────────────────────────────────────────────────────
+			const frameProxy = new Sprite();
+			root.addChild(frameProxy);
+			frameProxy.addEventListener(Event.ENTER_FRAME, () => {
+				const perf = app.player.perf;
+				runner.onFrame({
+					fps: perf.fps,
+					drawCalls: perf.drawCalls,
+					renderTimeMs: perf.renderTimeMs,
+				});
+				const stats = collector.getStats();
+				const phase = runner.getPhase();
+				if (stats.frameCount % 60 === 1) {
+					console.log(
+						`[Frame] phase=${phase} frameCount=${stats.frameCount} fps=${perf.fps.toFixed(1)} drawCalls=${perf.drawCalls} root.numChildren=${root.numChildren}`,
+					);
+				}
+				panel.update(stats, phase);
+			});
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // 场景切换辅助函数
-      // ─────────────────────────────────────────────────────────────────────────
-      function switchToScene(sceneId, count) {
-        currentSceneId = sceneId;
-        currentCount = count;
-        runner.switchScene(sceneId, count);
-        // 更新滑块范围
-        const scene = getScene(sceneId);
-        if (scene) {
-          const slider = $('count-slider');
-          slider.min = scene.minCount;
-          slider.max = scene.maxCount;
-          // 如果当前值超出范围则修正
-          const clamped = Math.max(scene.minCount, Math.min(scene.maxCount, parseInt(slider.value)));
-          slider.value = clamped;
-          $('count-display').textContent = clamped;
-          currentCount = clamped;
-        }
-      }
+			// ─────────────────────────────────────────────────────────────────────────
+			// 场景切换辅助函数
+			// ─────────────────────────────────────────────────────────────────────────
+			function switchToScene(sceneId, count) {
+				currentSceneId = sceneId;
+				currentCount = count;
+				runner.switchScene(sceneId, count);
+				// 更新滑块范围
+				const scene = getScene(sceneId);
+				if (scene) {
+					const slider = $('count-slider');
+					slider.min = scene.minCount;
+					slider.max = scene.maxCount;
+					// 如果当前值超出范围则修正
+					const clamped = Math.max(scene.minCount, Math.min(scene.maxCount, parseInt(slider.value)));
+					slider.value = clamped;
+					$('count-display').textContent = clamped;
+					currentCount = clamped;
+				}
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // 控件事件绑定
-      // ─────────────────────────────────────────────────────────────────────────
+			// ─────────────────────────────────────────────────────────────────────────
+			// 控件事件绑定
+			// ─────────────────────────────────────────────────────────────────────────
 
-      // 场景单选按钮
-      document.querySelectorAll('input[name="scene"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-          if (radio.checked) {
-            switchToScene(radio.value, currentCount);
-          }
-        });
-      });
+			// 场景单选按钮
+			document.querySelectorAll('input[name="scene"]').forEach(radio => {
+				radio.addEventListener('change', () => {
+					if (radio.checked) {
+						switchToScene(radio.value, currentCount);
+					}
+				});
+			});
 
-      // 对象数量滑块
-      const countSlider = $('count-slider');
-      const countDisplay = $('count-display');
-      countSlider.addEventListener('input', () => {
-        const val = parseInt(countSlider.value);
-        countDisplay.textContent = val;
-        currentCount = val;
-        runner.rebuildScene(val);
-      });
+			// 对象数量滑块
+			const countSlider = $('count-slider');
+			const countDisplay = $('count-display');
+			countSlider.addEventListener('input', () => {
+				const val = parseInt(countSlider.value);
+				countDisplay.textContent = val;
+				currentCount = val;
+				runner.rebuildScene(val);
+			});
 
-      // 重置测量
-      $('btn-reset').addEventListener('click', () => {
-        runner.resetMeasurement();
-      });
+			// 重置测量
+			$('btn-reset').addEventListener('click', () => {
+				runner.resetMeasurement();
+			});
 
-      // 暂停/继续
-      const btnPause = $('btn-pause');
-      btnPause.addEventListener('click', () => {
-        const phase = runner.getPhase();
-        if (phase === 'measuring') {
-          runner.pause();
-          btnPause.textContent = '继续';
-        } else if (phase === 'paused') {
-          runner.resume();
-          btnPause.textContent = '暂停';
-        }
-      });
+			// 暂停/继续
+			const btnPause = $('btn-pause');
+			btnPause.addEventListener('click', () => {
+				const phase = runner.getPhase();
+				if (phase === 'measuring') {
+					runner.pause();
+					btnPause.textContent = '继续';
+				} else if (phase === 'paused') {
+					runner.resume();
+					btnPause.textContent = '暂停';
+				}
+			});
 
-      // 导出 JSON
-      $('btn-export-json').addEventListener('click', () => {
-        const stats = collector.getStats();
-        const report = exporter.buildReport(currentSceneId, currentCount, stats);
-        exporter.exportJSON(report);
-      });
+			// 导出 JSON
+			$('btn-export-json').addEventListener('click', () => {
+				const stats = collector.getStats();
+				const report = exporter.buildReport(currentSceneId, currentCount, stats);
+				exporter.exportJSON(report);
+			});
 
-      // 复制 Markdown
-      $('btn-copy-md').addEventListener('click', async () => {
-        const stats = collector.getStats();
-        const report = exporter.buildReport(currentSceneId, currentCount, stats);
-        await exporter.copyMarkdown(report, (text) => {
-          // fallback：显示文本框
-          $('fallback-textarea').value = text;
-          $('fallback-textarea-wrap').style.display = 'block';
-        });
-        showToast('已复制到剪贴板');
-      });
+			// 复制 Markdown
+			$('btn-copy-md').addEventListener('click', async () => {
+				const stats = collector.getStats();
+				const report = exporter.buildReport(currentSceneId, currentCount, stats);
+				await exporter.copyMarkdown(report, text => {
+					// fallback：显示文本框
+					$('fallback-textarea').value = text;
+					$('fallback-textarea-wrap').style.display = 'block';
+				});
+				showToast('已复制到剪贴板');
+			});
 
-      // 关闭 fallback 文本框
-      $('btn-close-fallback').addEventListener('click', () => {
-        $('fallback-textarea-wrap').style.display = 'none';
-      });
+			// 关闭 fallback 文本框
+			$('btn-close-fallback').addEventListener('click', () => {
+				$('fallback-textarea-wrap').style.display = 'none';
+			});
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // Toast 提示
-      // ─────────────────────────────────────────────────────────────────────────
-      function showToast(msg) {
-        const toast = $('toast');
-        toast.textContent = msg;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 2000);
-      }
+			// ─────────────────────────────────────────────────────────────────────────
+			// Toast 提示
+			// ─────────────────────────────────────────────────────────────────────────
+			function showToast(msg) {
+				const toast = $('toast');
+				toast.textContent = msg;
+				toast.classList.add('show');
+				setTimeout(() => toast.classList.remove('show'), 2000);
+			}
 
-      // ─────────────────────────────────────────────────────────────────────────
-      // 启动默认场景
-      // ─────────────────────────────────────────────────────────────────────────
-      switchToScene('dynamic-transform', 300);
+			// ─────────────────────────────────────────────────────────────────────────
+			// 启动默认场景
+			// ─────────────────────────────────────────────────────────────────────────
+			switchToScene('dynamic-transform', 300);
 
-      console.log('[Benchmark] 初始化完成，当前场景：dynamic-transform，对象数量：300');
-    </script>
-  </body>
+			console.log('[Benchmark] 初始化完成，当前场景：dynamic-transform，对象数量：300');
+		</script>
+	</body>
 </html>

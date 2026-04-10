@@ -26,7 +26,7 @@
 				position: fixed;
 				top: 10px;
 				right: 10px;
-				background: rgba(0,0,0,0.85);
+				background: rgba(0, 0, 0, 0.85);
 				border: 1px solid #555;
 				border-radius: 6px;
 				padding: 10px 14px;
@@ -45,12 +45,26 @@
 				font-size: 13px;
 				color: #8cf;
 			}
-			#perf-panel .row { display: flex; justify-content: space-between; }
-			#perf-panel .label { color: #aaa; }
-			#perf-panel .value { color: #fff; font-weight: bold; }
-			#perf-panel .good { color: #4f4; }
-			#perf-panel .warn { color: #ff4; }
-			#perf-panel .bad  { color: #f44; }
+			#perf-panel .row {
+				display: flex;
+				justify-content: space-between;
+			}
+			#perf-panel .label {
+				color: #aaa;
+			}
+			#perf-panel .value {
+				color: #fff;
+				font-weight: bold;
+			}
+			#perf-panel .good {
+				color: #4f4;
+			}
+			#perf-panel .warn {
+				color: #ff4;
+			}
+			#perf-panel .bad {
+				color: #f44;
+			}
 			#perf-panel canvas {
 				border: none;
 				margin: 6px 0 0 0;
@@ -64,12 +78,30 @@
 		<canvas id="gameCanvas" width="800" height="600"></canvas>
 		<div id="perf-panel">
 			<h4>Heron Performance</h4>
-			<div class="row"><span class="label">FPS</span><span class="value" id="pf-fps">--</span></div>
-			<div class="row"><span class="label">Draw Calls</span><span class="value" id="pf-dc">--</span></div>
-			<div class="row"><span class="label">Render</span><span class="value" id="pf-rt">--</span></div>
-			<div class="row"><span class="label">Avg Render</span><span class="value" id="pf-art">--</span></div>
-			<div class="row"><span class="label">Max Render</span><span class="value" id="pf-mrt">--</span></div>
-			<div class="row"><span class="label">Frames</span><span class="value" id="pf-fc">--</span></div>
+			<div class="row">
+				<span class="label">FPS</span>
+				<span class="value" id="pf-fps">--</span>
+			</div>
+			<div class="row">
+				<span class="label">Draw Calls</span>
+				<span class="value" id="pf-dc">--</span>
+			</div>
+			<div class="row">
+				<span class="label">Render</span>
+				<span class="value" id="pf-rt">--</span>
+			</div>
+			<div class="row">
+				<span class="label">Avg Render</span>
+				<span class="value" id="pf-art">--</span>
+			</div>
+			<div class="row">
+				<span class="label">Max Render</span>
+				<span class="value" id="pf-mrt">--</span>
+			</div>
+			<div class="row">
+				<span class="label">Frames</span>
+				<span class="value" id="pf-fc">--</span>
+			</div>
 			<canvas id="pf-graph" width="200" height="40"></canvas>
 		</div>
 
@@ -165,7 +197,7 @@
 			root.addChild(bmp3);
 
 			// ── Test 4: SpriteSheet sub-textures ────────────────────────────────
-			const sheetCanvas = makeTestImage(128, 32, (ctx) => {
+			const sheetCanvas = makeTestImage(128, 32, ctx => {
 				const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
 				for (let i = 0; i < 4; i++) {
 					ctx.fillStyle = colors[i];
@@ -292,8 +324,12 @@
 
 			// ── Performance Panel ─────────────────────────────────────────────────
 			const $ = id => document.getElementById(id);
-			const pfFps = $('pf-fps'), pfDc = $('pf-dc'), pfRt = $('pf-rt');
-			const pfArt = $('pf-art'), pfMrt = $('pf-mrt'), pfFc = $('pf-fc');
+			const pfFps = $('pf-fps'),
+				pfDc = $('pf-dc'),
+				pfRt = $('pf-rt');
+			const pfArt = $('pf-art'),
+				pfMrt = $('pf-mrt'),
+				pfFc = $('pf-fc');
 			const graphCanvas = $('pf-graph');
 			const graphCtx = graphCanvas.getContext('2d');
 			const fpsHistory = new Array(200).fill(0);
@@ -313,7 +349,8 @@
 				fpsHistory[graphIdx % 200] = p.fps;
 				graphIdx++;
 
-				const gw = graphCanvas.width, gh = graphCanvas.height;
+				const gw = graphCanvas.width,
+					gh = graphCanvas.height;
 				graphCtx.fillStyle = '#111';
 				graphCtx.fillRect(0, 0, gw, gh);
 				graphCtx.strokeStyle = '#333';
