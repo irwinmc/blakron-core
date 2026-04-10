@@ -4,7 +4,9 @@
 		<meta charset="utf-8" />
 		<title>Video Test</title>
 		<style>
-			* { box-sizing: border-box; }
+			* {
+				box-sizing: border-box;
+			}
 			body {
 				margin: 0;
 				background: #111;
@@ -23,7 +25,11 @@
 				border-bottom: 1px solid #333;
 				color: #8cf;
 			}
-			#main { display: flex; flex: 1; overflow: hidden; }
+			#main {
+				display: flex;
+				flex: 1;
+				overflow: hidden;
+			}
 			#controls {
 				width: 340px;
 				flex-shrink: 0;
@@ -53,8 +59,14 @@
 				gap: 8px;
 				margin-bottom: 6px;
 			}
-			.row label { width: 90px; color: #aaa; flex-shrink: 0; }
-			input[type='text'], input[type='number'], input[type='range'] {
+			.row label {
+				width: 90px;
+				color: #aaa;
+				flex-shrink: 0;
+			}
+			input[type='text'],
+			input[type='number'],
+			input[type='range'] {
 				flex: 1;
 				background: #111;
 				border: 1px solid #444;
@@ -64,7 +76,9 @@
 				font-family: monospace;
 				font-size: 12px;
 			}
-			input[type='range'] { padding: 0; }
+			input[type='range'] {
+				padding: 0;
+			}
 			button {
 				background: #2a2a4a;
 				border: 1px solid #555;
@@ -76,9 +90,17 @@
 				font-size: 12px;
 				white-space: nowrap;
 			}
-			button:hover { background: #3a3a6a; border-color: #8cf; }
-			button.danger { border-color: #f44; color: #f88; }
-			button.danger:hover { background: #3a1a1a; }
+			button:hover {
+				background: #3a3a6a;
+				border-color: #8cf;
+			}
+			button.danger {
+				border-color: #f44;
+				color: #f88;
+			}
+			button.danger:hover {
+				background: #3a1a1a;
+			}
 			.status-badge {
 				display: inline-block;
 				padding: 2px 7px;
@@ -86,14 +108,34 @@
 				font-size: 11px;
 				font-weight: bold;
 			}
-			.badge-idle    { background: #333; color: #aaa; }
-			.badge-loading { background: #553; color: #ff8; }
-			.badge-ready   { background: #253; color: #4f8; }
-			.badge-playing { background: #235; color: #48f; }
-			.badge-paused  { background: #433; color: #fa8; }
-			.badge-ended   { background: #333; color: #888; }
-			.badge-error   { background: #522; color: #f88; }
-			/* canvas area */
+			.badge-idle {
+				background: #333;
+				color: #aaa;
+			}
+			.badge-loading {
+				background: #553;
+				color: #ff8;
+			}
+			.badge-ready {
+				background: #253;
+				color: #4f8;
+			}
+			.badge-playing {
+				background: #235;
+				color: #48f;
+			}
+			.badge-paused {
+				background: #433;
+				color: #fa8;
+			}
+			.badge-ended {
+				background: #333;
+				color: #888;
+			}
+			.badge-error {
+				background: #522;
+				color: #f88;
+			}
 			#canvas-area {
 				flex: 1;
 				display: flex;
@@ -108,8 +150,9 @@
 				background: #000;
 				overflow: hidden;
 			}
-			canvas { border: 1px solid #333; }
-			/* log -->
+			canvas {
+				border: 1px solid #333;
+			}
 			#log-panel {
 				height: 180px;
 				border-top: 1px solid #333;
@@ -126,20 +169,53 @@
 				background: #161622;
 				flex-shrink: 0;
 			}
-			#log-header span { color: #8cf; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-			#log { flex: 1; overflow-y: auto; padding: 6px 12px; line-height: 1.6; }
-			.log-entry { display: flex; gap: 10px; padding: 1px 0; border-bottom: 1px solid #1a1a1a; }
-			.log-time { color: #555; flex-shrink: 0; width: 70px; }
-			.log-tag  { flex-shrink: 0; width: 80px; font-weight: bold; }
-			.log-msg  { color: #ccc; }
-			.tag-event  { color: #4af; }
-			.tag-action { color: #fa4; }
-			.tag-error  { color: #f44; }
-			.tag-info   { color: #aaa; }
+			#log-header span {
+				color: #8cf;
+				font-size: 12px;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+			#log {
+				flex: 1;
+				overflow-y: auto;
+				padding: 6px 12px;
+				line-height: 1.6;
+			}
+			.log-entry {
+				display: flex;
+				gap: 10px;
+				padding: 1px 0;
+				border-bottom: 1px solid #1a1a1a;
+			}
+			.log-time {
+				color: #555;
+				flex-shrink: 0;
+				width: 70px;
+			}
+			.log-tag {
+				flex-shrink: 0;
+				width: 80px;
+				font-weight: bold;
+			}
+			.log-msg {
+				color: #ccc;
+			}
+			.tag-event {
+				color: #4af;
+			}
+			.tag-action {
+				color: #fa4;
+			}
+			.tag-error {
+				color: #f44;
+			}
+			.tag-info {
+				color: #aaa;
+			}
 		</style>
 	</head>
 	<body>
-		<h1>🎬 Video Test</h1>
+		<h1>Video Test</h1>
 		<div id="main">
 			<div id="controls">
 				<!-- Load -->
