@@ -64,17 +64,43 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 
 	// ── Factory helpers used by the renderer ─────────────────────────────────
 
+	private static readonly _pushPool: FilterPushInstruction[] = [];
+	private static readonly _popPool: FilterPopInstruction[] = [];
+
 	public static makePush(
 		renderable: DisplayObject,
 		filters: Filter[],
 		offsetX: number,
 		offsetY: number,
 	): FilterPushInstruction {
+		const inst = FilterPipe._pushPool.pop();
+		if (inst) {
+			inst.renderable = renderable;
+			inst.filters = filters;
+			inst.offsetX = offsetX;
+			inst.offsetY = offsetY;
+			inst.savedBlendMode = 'source-over';
+			return inst;
+		}
 		return { renderPipeId: 'filterPush', renderable, filters, offsetX, offsetY, savedBlendMode: 'source-over' };
 	}
 
 	public static makePop(renderable: DisplayObject, push: FilterPushInstruction): FilterPopInstruction {
+		const inst = FilterPipe._popPool.pop();
+		if (inst) {
+			inst.renderable = renderable;
+			inst.push = push;
+			return inst;
+		}
 		return { renderPipeId: 'filterPop', renderable, push };
+	}
+
+	public static releasePush(inst: FilterPushInstruction): void {
+		FilterPipe._pushPool.push(inst);
+	}
+
+	public static releasePop(inst: FilterPopInstruction): void {
+		FilterPipe._popPool.push(inst);
 	}
 
 	// ── Execute ───────────────────────────────────────────────────────────────

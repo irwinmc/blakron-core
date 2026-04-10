@@ -5,20 +5,18 @@
 
 ---
 
-## P0: 必须修复（阻塞发布）
+## P0: 必须修复（阻塞发布） ✅ 已完成
 
-### Context Lost 恢复完善
+### ~~Context Lost 恢复完善~~
 
-当前 `_onContextRestored()` 已实现 GL 状态重置和 shader 缓存清除，但缺少两个关键步骤：
+- ✅ 纹理重上传：`WebGLRenderContext` 通过 `_trackedBitmapDatas` 追踪所有 BitmapData，context restored 时清除 `webGLTexture` 引用，下次 `getWebGLTexture()` 自动重建。
+- ✅ InstructionSet 重建：`Player` 注册 context restored 回调，调用 `markStructureDirty()` 触发全量重建（含所有 RenderGroup）。
 
-- **纹理重上传**：context loss 后所有 `WebGLTexture` 句柄失效，需要遍历所有 `BitmapData` 清除 `webGLTexture` 引用，下次 `getWebGLTexture()` 时自动重建。
-- **InstructionSet 重建**：需要标记 `structureDirty = true`，否则 execute 阶段会使用包含失效纹理引用的旧指令。
+### ~~FilterPipe blend mode 恢复~~
 
-### FilterPipe blend mode 恢复
-
-`executePop()` 中 blend mode 硬编码恢复为 `'source-over'`，但父级可能有不同的 blend mode。需要在 `executePush()` 时保存当前 blend mode，`executePop()` 时恢复。
-
-影响场景：嵌套 filter + 非默认 blend mode 的显示对象。
+- ✅ `WebGLRenderContext` 新增 `currentBlendMode` 追踪当前 blend 状态。
+- ✅ `FilterPipe.executePush()` 保存当前 blend mode 到 `savedBlendMode`，`executePop()` 恢复。
+- ✅ `MaskPipe.executeClipPop()` 同步修复。
 
 ---
 
@@ -29,23 +27,16 @@
 当前文本通过 Canvas 2D 光栅化后上传纹理，频繁更新文本时开销大。
 引入文字图集缓存（参考 Egret TextAtlasRender），对频繁变化的文本（如分数、计时器）效果显著。
 
-### Bounds 计算缓存
+### ~~Bounds 计算缓存~~ ✅ 已完成
 
-`getOriginalBounds()` 在以下路径被频繁调用且每次重新计算：
+- ✅ `DisplayObject` 新增 `_boundsDirty` + `_cachedBounds`，`getOriginalBounds()` 命中缓存时直接返回。
+- ✅ `markDirty()` 标脏自身，`cacheDirtyUp()` 向上传播标脏父级 bounds。
 
-- FilterPipe.executePush() — 每个带滤镜的对象每帧调用
-- FilterPipe.executePop() — 同上
-- hitTest — 每次触摸事件
-- getBounds() — 外部调用
+### ~~FilterPipe / MaskPipe 指令对象池~~ ✅ 已完成
 
-增加 `_boundsDirty` 标记 + `_cachedBounds` 缓存，在子节点变化或属性变化时标脏。
-复杂场景（100+ 带滤镜对象）预计有明显帧率提升。
-
-### FilterPipe / MaskPipe 指令对象池
-
-BitmapPipe 已有 `_pool` 复用机制，但 FilterPush/Pop 和 MaskPush/Pop 每帧创建新对象。
-对于大量使用滤镜/遮罩的场景，GC 压力会导致帧率抖动。
-参考 BitmapPipe 的池化模式实现即可。
+- ✅ `FilterPipe` 新增 `_pushPool` / `_popPool`，`makePush()` / `makePop()` 优先从池中复用。
+- ✅ `MaskPipe` 同步实现。
+- ✅ `WebGLRenderer._releaseInstructions()` 在 `set.reset()` 前回收指令到池中。
 
 ---
 

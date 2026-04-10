@@ -132,7 +132,7 @@ export class EventDispatcher extends HashObject implements IEventDispatcher {
 		return false;
 	}
 
-	private notifyListener(event: Event, capturePhase: boolean): boolean {
+	protected notifyListener(event: Event, capturePhase: boolean): boolean {
 		const list = this.getMap(capturePhase).get(event.type);
 		if (!list || list.length === 0) return true;
 

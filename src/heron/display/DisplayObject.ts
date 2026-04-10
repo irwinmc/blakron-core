@@ -163,6 +163,10 @@ export class DisplayObject extends EventDispatcher {
 	private _zIndex = 0;
 	private _sortableChildren = false;
 
+	/** @internal Bounds cache — avoids recomputing bounds every frame. */
+	/** @internal */ _boundsDirty = true;
+	private readonly _cachedBounds = new Rectangle();
+
 	/**
 	 * The Graphics object attached to this display object, if any.
 	 * Assigned by Shape and Sprite; undefined on all other types.
@@ -631,7 +635,9 @@ export class DisplayObject extends EventDispatcher {
 
 	setHasDisplayList(value: boolean): void {
 		const hasDisplayList = !!this.displayList;
-		if (hasDisplayList === value) return;
+		if (hasDisplayList === value) {
+			return;
+		}
 		if (value) {
 			const dl = DisplayList.create(this);
 			if (dl) {
@@ -655,6 +661,7 @@ export class DisplayObject extends EventDispatcher {
 		const p = this.internalParent;
 		if (p && !p.cacheDirty) {
 			p.cacheDirty = true;
+			p._boundsDirty = true;
 			p.cacheDirtyUp();
 		}
 	}
@@ -688,9 +695,12 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	getOriginalBounds(): Rectangle {
+		if (!this._boundsDirty) return this._cachedBounds;
 		const bounds = this.getContentBounds();
 		this.measureChildBounds(bounds);
-		return bounds;
+		this._cachedBounds.copyFrom(bounds);
+		this._boundsDirty = false;
+		return this._cachedBounds;
 	}
 
 	measureChildBounds(_bounds: Rectangle): void {}
@@ -706,9 +716,13 @@ export class DisplayObject extends EventDispatcher {
 
 	getTransformedBoundsInternal(targetCoordinateSpace: DisplayObject, resultRect?: Rectangle): Rectangle {
 		const bounds = this.getOriginalBounds();
-		if (!resultRect) resultRect = new Rectangle();
+		if (!resultRect) {
+			resultRect = new Rectangle();
+		}
 		resultRect.copyFrom(bounds);
-		if (targetCoordinateSpace === this) return resultRect;
+		if (targetCoordinateSpace === this) {
+			return resultRect;
+		}
 		const m = sharedMatrix;
 		targetCoordinateSpace.getInvertedConcatenatedMatrix().preMultiplyInto(this.getConcatenatedMatrix(), m);
 		m.transformBounds(resultRect);
@@ -733,17 +747,27 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	hitTest(stageX: number, stageY: number): DisplayObject | undefined {
-		if (!this.internalVisible || this._scaleX === 0 || this._scaleY === 0) return undefined;
+		if (!this.internalVisible || this._scaleX === 0 || this._scaleY === 0) {
+			return undefined;
+		}
+
 		const m = this.getInvertedConcatenatedMatrix();
-		if (m.a === 0 && m.b === 0 && m.c === 0 && m.d === 0) return undefined;
+		if (m.a === 0 && m.b === 0 && m.c === 0 && m.d === 0) {
+			return undefined;
+		}
+
 		const bounds = this.getContentBounds();
 		const localX = m.a * stageX + m.c * stageY + m.tx;
 		const localY = m.b * stageX + m.d * stageY + m.ty;
 		if (bounds.contains(localX, localY)) {
 			if (!this.children) {
 				const rect = this.internalScrollRect ?? this.internalMaskRect;
-				if (rect && !rect.contains(localX, localY)) return undefined;
-				if (this.internalMask && !this.internalMask.hitTest(stageX, stageY)) return undefined;
+				if (rect && !rect.contains(localX, localY)) {
+					return undefined;
+				}
+				if (this.internalMask && !this.internalMask.hitTest(stageX, stageY)) {
+					return undefined;
+				}
 			}
 			return this;
 		}
@@ -763,22 +787,26 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	dispatchPropagationEvent(event: Event, list: DisplayObject[], targetIndex: number): void {
-		const captureIndex = targetIndex - 1;
 		for (let i = 0; i < list.length; i++) {
 			const currentTarget = list[i];
-			const phase =
-				i < captureIndex
-					? EventPhase.CAPTURING_PHASE
-					: i === targetIndex || i === captureIndex
-						? EventPhase.AT_TARGET
-						: EventPhase.BUBBLING_PHASE;
+
+			let phase: number;
+			if (i < targetIndex - 1) {
+				phase = EventPhase.CAPTURING_PHASE;
+			} else if (i > targetIndex) {
+				phase = EventPhase.BUBBLING_PHASE;
+			} else {
+				phase = EventPhase.AT_TARGET;
+			}
+
 			event.setCurrentTarget(currentTarget);
 			event.setDispatchContext(currentTarget, phase);
-			(currentTarget as unknown as { notifyListener(e: Event, capture: boolean): boolean }).notifyListener(
-				event,
-				i < targetIndex,
-			);
-			if (event.isPropagationStopped || event.isPropagationImmediateStopped) return;
+
+			currentTarget.notifyListener(event, i < targetIndex);
+
+			if (event.isPropagationStopped || event.isPropagationImmediateStopped) {
+				return;
+			}
 		}
 	}
 
@@ -812,6 +840,7 @@ export class DisplayObject extends EventDispatcher {
 
 	markDirty(): void {
 		this.renderDirty = true;
+		this._boundsDirty = true;
 
 		// Update cached world alpha and tint so _refreshLeafTransform can read
 		// them in O(1) without walking the parent chain.

@@ -119,6 +119,27 @@ export class WebGLRenderer {
 
 	// ── Public entry point ────────────────────────────────────────────────────
 
+	/** Release pooled instructions back to their respective pipes before a rebuild. */
+	private _releaseInstructions(set: InstructionSet): void {
+		for (let i = 0; i < set.instructionSize; i++) {
+			const inst = set.instructions[i];
+			switch (inst.renderPipeId) {
+				case 'filterPush':
+					FilterPipe.releasePush(inst as FilterPushInstruction);
+					break;
+				case 'filterPop':
+					FilterPipe.releasePop(inst as FilterPopInstruction);
+					break;
+				case 'maskPush':
+					MaskPipe.releasePush(inst as MaskPushInstruction);
+					break;
+				case 'maskPop':
+					MaskPipe.releasePop(inst as MaskPopInstruction);
+					break;
+			}
+		}
+	}
+
 	public render(displayObject: DisplayObject, buffer: WebGLRenderBuffer, matrix: Matrix): number {
 		this._nestLevel++;
 		const ctx = buffer.context;
@@ -131,6 +152,7 @@ export class WebGLRenderer {
 
 		// ── Phase A: build instructions if scene structure changed ────────────
 		if (set.structureDirty) {
+			this._releaseInstructions(set);
 			set.reset();
 			this._buildInstructions(displayObject, set, buffer, matrix.tx, matrix.ty, true);
 			set.structureDirty = false;
@@ -387,6 +409,7 @@ export class WebGLRenderer {
 		}
 
 		if (groupSet.structureDirty) {
+			this._releaseInstructions(groupSet);
 			groupSet.reset();
 			this._buildInstructions(obj, groupSet, buffer, offsetX, offsetY);
 			groupSet.structureDirty = false;

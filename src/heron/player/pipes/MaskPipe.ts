@@ -47,12 +47,37 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 
 	// ── Factory helpers ───────────────────────────────────────────────────────
 
+	private static readonly _pushPool: MaskPushInstruction[] = [];
+	private static readonly _popPool: MaskPopInstruction[] = [];
+
 	public static makePush(renderable: DisplayObject, offsetX: number, offsetY: number): MaskPushInstruction {
+		const inst = MaskPipe._pushPool.pop();
+		if (inst) {
+			inst.renderable = renderable;
+			inst.offsetX = offsetX;
+			inst.offsetY = offsetY;
+			inst.isScrollRect = undefined;
+			return inst;
+		}
 		return { renderPipeId: 'maskPush', renderable, offsetX, offsetY };
 	}
 
 	public static makePop(renderable: DisplayObject, push: MaskPushInstruction): MaskPopInstruction {
+		const inst = MaskPipe._popPool.pop();
+		if (inst) {
+			inst.renderable = renderable;
+			inst.push = push;
+			return inst;
+		}
 		return { renderPipeId: 'maskPop', renderable, push };
+	}
+
+	public static releasePush(inst: MaskPushInstruction): void {
+		MaskPipe._pushPool.push(inst);
+	}
+
+	public static releasePop(inst: MaskPopInstruction): void {
+		MaskPipe._popPool.push(inst);
 	}
 
 	// ── Execute ───────────────────────────────────────────────────────────────
