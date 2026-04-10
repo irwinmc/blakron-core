@@ -100,6 +100,24 @@ pnpm run dev          # watch 模式
 
 详细的架构设计、渲染管线说明、API 对比和 Breaking Changes 见 [架构文档](docs/architecture.md)。
 
+## 测试页面
+
+`examples/` 目录包含交互式测试页面，需要通过 HTTP dev server 访问（ES Module 不支持 `file://` 协议）：
+
+```bash
+pnpm benchmark
+```
+
+| 页面 | 说明 |
+| --- | --- |
+| **Visual Test** | 渲染验证：Shape、Graphics、滤镜、Mask、RenderGroup、动画等 18 个用例 |
+| **Bitmap Test** | Bitmap 渲染：缩放、旋转、SpriteSheet、scale9Grid、批处理 |
+| **Mesh Test** | Mesh 顶点变形：Quad / Fan / Grid 预设，Wave / Ripple / Twist 动画 |
+| **Sound Test** | Sound / SoundChannel：加载、播放、音量、循环、错误处理 |
+| **Video Test** | Video 播放：加载、播放/暂停、seek、音量、尺寸调整 |
+| **Net Test** | HttpRequest / ImageLoader：GET / POST、responseType、timeout、abort |
+| **Benchmark** | WebGL 性能基准：5 种场景压力测试，含 FPS / Draw Calls / Batch Efficiency 指标 |
+
 ## 许可证
 
 MIT
