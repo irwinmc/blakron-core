@@ -253,7 +253,7 @@ export class WebGLRenderContext {
 		return texture;
 	}
 
-	public updateTexture(texture: WebGLTexture, source: HTMLCanvasElement): void {
+	public updateTexture(texture: WebGLTexture, source: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement): void {
 		const gl = this.gl;
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
@@ -261,12 +261,16 @@ export class WebGLRenderContext {
 	}
 
 	public getWebGLTexture(bitmapData: BitmapData): WebGLTexture | undefined {
+		const source = bitmapData.source;
+		if (!source) return undefined;
 		if (!bitmapData.webGLTexture) {
-			if (!bitmapData.source) return undefined;
-			const tex = this.createTexture(bitmapData.source as HTMLImageElement);
+			const tex = this.createTexture(source as HTMLImageElement);
 			bitmapData.webGLTexture = tex;
 			(tex as Record<string, unknown>)[SYM_SMOOTHING] = true;
 			this._trackedBitmapDatas.add(new WeakRef(bitmapData));
+		} else if (source instanceof HTMLVideoElement) {
+			// Video frames change every tick — re-upload the current frame
+			this.updateTexture(bitmapData.webGLTexture, source);
 		}
 		return bitmapData.webGLTexture;
 	}

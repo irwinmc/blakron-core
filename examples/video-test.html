@@ -372,7 +372,7 @@
 					<h3>1. Load</h3>
 					<div class="row">
 						<label>URL</label>
-						<input type="text" id="video-url" value="https://www.w3schools.com/html/mov_bbb.mp4" />
+						<input type="text" id="video-url" value="https://lorem.video/1280x720" />
 					</div>
 					<div class="row">
 						<label>Poster</label>
@@ -563,8 +563,6 @@
 			// ── Video + Bitmap display ────────────────────────────────────────
 			let video = new Video();
 			let videoBitmap = new Bitmap();
-			videoBitmap.x = 160;
-			videoBitmap.y = 120;
 			root.addChild(videoBitmap);
 
 			// Update bitmap texture each frame from video bitmapData
@@ -574,6 +572,18 @@
 				const tex = new Texture();
 				tex.setBitmapData(bd);
 				videoBitmap.texture = tex;
+				// Scale to fit canvas (640x480) and center
+				const dw = videoBitmap.width || bd.width;
+				const dh = videoBitmap.height || bd.height;
+				if (dw > 0 && dh > 0) {
+					const scale = Math.min(640 / dw, 480 / dh, 1);
+					const sw = dw * scale;
+					const sh = dh * scale;
+					videoBitmap.scaleX = scale;
+					videoBitmap.scaleY = scale;
+					videoBitmap.x = (640 - sw) / 2;
+					videoBitmap.y = (480 - sh) / 2;
+				}
 				document.getElementById('position-display').textContent = video.position.toFixed(2) + 's';
 			});
 
