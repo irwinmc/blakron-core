@@ -887,7 +887,10 @@ export class WebGLRenderContext {
 		if (filter instanceof ColorMatrixFilter) {
 			const uMatrix = prog.uniforms['matrix'];
 			const uAdd = prog.uniforms['colorAdd'];
-			const fu = filter.uniforms as { matrix: number[]; colorAdd: { x: number; y: number; z: number; w: number } };
+			const fu = filter.uniforms as {
+				matrix: number[];
+				colorAdd: { x: number; y: number; z: number; w: number };
+			};
 			if (uMatrix) gl.uniformMatrix4fv(uMatrix, false, new Float32Array(fu.matrix));
 			if (uAdd) gl.uniform4f(uAdd, fu.colorAdd.x, fu.colorAdd.y, fu.colorAdd.z, fu.colorAdd.w);
 		} else if (filter instanceof BlurFilter) {

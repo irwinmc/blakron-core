@@ -1,7 +1,5 @@
 import type { Bitmap } from '../../display/Bitmap.js';
-import type { DisplayObject } from '../../display/DisplayObject.js';
 import type { WebGLRenderBuffer } from '../webgl/WebGLRenderBuffer.js';
-import type { WebGLRenderContext } from '../webgl/WebGLRenderContext.js';
 import type { Instruction } from '../InstructionSet.js';
 import type { InstructionSet } from '../InstructionSet.js';
 import type { RenderPipe } from '../RenderPipe.js';
@@ -140,7 +138,7 @@ export class BitmapPipe implements RenderPipe<Bitmap> {
 		const tgtW2 = srcW2;
 		const tgtH2 = srcH2;
 
-		if ((tgtW0 + tgtW2) > destW || (tgtH0 + tgtH2) > destH) {
+		if (tgtW0 + tgtW2 > destW || tgtH0 + tgtH2 > destH) {
 			buffer.context.drawImage(bd, bx, by, bw, bh, ox, oy, destW, destH, sw, sh, rotated, smoothing);
 			return;
 		}
@@ -165,7 +163,16 @@ export class BitmapPipe implements RenderPipe<Bitmap> {
 		const tgtY2 = tgtY0 + destH - tgtH2;
 
 		const ctx = buffer.context;
-		const draw = (sx: number, sy: number, sW: number, sH: number, dx: number, dy: number, dW: number, dH: number) => {
+		const draw = (
+			sx: number,
+			sy: number,
+			sW: number,
+			sH: number,
+			dx: number,
+			dy: number,
+			dW: number,
+			dH: number,
+		) => {
 			if (sW <= 0 || sH <= 0 || dW <= 0 || dH <= 0) return;
 			ctx.drawImage(bd, sx, sy, sW, sH, dx, dy, dW, dH, sw, sh, rotated, smoothing);
 		};

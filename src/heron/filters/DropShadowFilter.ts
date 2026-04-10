@@ -70,14 +70,20 @@ export class DropShadowFilter extends GlowFilter {
 		this.paddingLeft = this.paddingRight = this.blurX;
 		this.paddingTop = this.paddingBottom = this.blurY;
 		if (this._distance !== 0) {
-			let dx = this._distance * NumberUtils.cos(this._angle);
-			dx = dx > 0 ? Math.ceil(dx) : Math.floor(dx);
-			let dy = this._distance * NumberUtils.sin(this._angle);
-			dy = dy > 0 ? Math.ceil(dy) : Math.floor(dy);
-			this.paddingLeft += dx;
-			this.paddingRight += dx;
-			this.paddingTop += dy;
-			this.paddingBottom += dy;
+			const dx = this._distance * NumberUtils.cos(this._angle);
+			const dy = this._distance * NumberUtils.sin(this._angle);
+			// Shadow offset goes right/down → expand right/bottom padding.
+			// Shadow offset goes left/up → expand left/top padding.
+			if (dx > 0) {
+				this.paddingRight += Math.ceil(dx);
+			} else {
+				this.paddingLeft += Math.ceil(-dx);
+			}
+			if (dy > 0) {
+				this.paddingBottom += Math.ceil(dy);
+			} else {
+				this.paddingTop += Math.ceil(-dy);
+			}
 		}
 	}
 
