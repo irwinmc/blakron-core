@@ -19,33 +19,35 @@ export class Bitmap extends DisplayObject {
 
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	private _texture: Texture | undefined = undefined;
+	private _texture?: Texture;
 	private _smoothing: boolean = Bitmap.defaultSmoothing;
 	private _fillMode: BitmapFillMode = BitmapFillMode.SCALE;
-	private _scale9Grid: Rectangle | undefined = undefined;
+	private _scale9Grid?: Rectangle;
 	private _pixelHitTest = false;
 	private _explicitBitmapWidth = NaN;
 	private _explicitBitmapHeight = NaN;
 
 	// Cached texture region data (updated when texture changes)
-	/** @internal */ bitmapData: BitmapData | undefined = undefined;
-	/** @internal */ bitmapX = 0;
-	/** @internal */ bitmapY = 0;
-	/** @internal */ bitmapWidth = 0;
-	/** @internal */ bitmapHeight = 0;
-	/** @internal */ bitmapOffsetX = 0;
-	/** @internal */ bitmapOffsetY = 0;
-	/** @internal */ textureWidth = 0;
-	/** @internal */ textureHeight = 0;
-	/** @internal */ sourceWidth = 0;
-	/** @internal */ sourceHeight = 0;
+	bitmapData?: BitmapData;
+	bitmapX = 0;
+	bitmapY = 0;
+	bitmapWidth = 0;
+	bitmapHeight = 0;
+	bitmapOffsetX = 0;
+	bitmapOffsetY = 0;
+	textureWidth = 0;
+	textureHeight = 0;
+	sourceWidth = 0;
+	sourceHeight = 0;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
 	public constructor(value?: Texture) {
 		super();
 		this.renderObjectType = RenderObjectType.BITMAP;
-		if (value) this.setTexture(value);
+		if (value) {
+			this.setTexture(value);
+		}
 	}
 
 	// ── Getters / Setters ─────────────────────────────────────────────────────
@@ -61,7 +63,9 @@ export class Bitmap extends DisplayObject {
 		return this._smoothing;
 	}
 	public set smoothing(value: boolean) {
-		if (value === this._smoothing) return;
+		if (value === this._smoothing) {
+			return;
+		}
 		this._smoothing = value;
 		this.markDirty();
 	}
@@ -70,7 +74,9 @@ export class Bitmap extends DisplayObject {
 		return this._fillMode;
 	}
 	public set fillMode(value: BitmapFillMode) {
-		if (value === this._fillMode) return;
+		if (value === this._fillMode) {
+			return;
+		}
 		this._fillMode = value;
 		this.renderDirty = true;
 		this.markDirty();
@@ -96,7 +102,9 @@ export class Bitmap extends DisplayObject {
 		return isNaN(this._explicitBitmapWidth) ? this.getContentBounds().width : this._explicitBitmapWidth;
 	}
 	public override set width(value: number) {
-		if (value < 0 || value === this._explicitBitmapWidth) return;
+		if (value < 0 || value === this._explicitBitmapWidth) {
+			return;
+		}
 		this._explicitBitmapWidth = value;
 		this.renderDirty = true;
 		this.markDirty();
@@ -106,7 +114,9 @@ export class Bitmap extends DisplayObject {
 		return isNaN(this._explicitBitmapHeight) ? this.getContentBounds().height : this._explicitBitmapHeight;
 	}
 	public override set height(value: number) {
-		if (value < 0 || value === this._explicitBitmapHeight) return;
+		if (value < 0 || value === this._explicitBitmapHeight) {
+			return;
+		}
 		this._explicitBitmapHeight = value;
 		this.renderDirty = true;
 		this.markDirty();
@@ -136,7 +146,9 @@ export class Bitmap extends DisplayObject {
 
 	override hitTest(stageX: number, stageY: number): DisplayObject | undefined {
 		const target = super.hitTest(stageX, stageY);
-		if (!target || !this._pixelHitTest) return target;
+		if (!target || !this._pixelHitTest) {
+			return target;
+		}
 		const m = this.getInvertedConcatenatedMatrix();
 		const localX = m.a * stageX + m.c * stageY + m.tx;
 		const localY = m.b * stageX + m.d * stageY + m.ty;
@@ -147,13 +159,17 @@ export class Bitmap extends DisplayObject {
 
 	private setTexture(value: Texture | undefined): void {
 		const old = this._texture;
-		if (value === old) return;
+		if (value === old) {
+			return;
+		}
 		this._texture = value;
 
 		if (value) {
 			this.refreshImageData();
 		} else {
-			if (old?.bitmapData) BitmapData.removeDisplayObject(this, old.bitmapData);
+			if (old?.bitmapData) {
+				BitmapData.removeDisplayObject(this, old.bitmapData);
+			}
 			this.clearImageData();
 		}
 
@@ -163,7 +179,9 @@ export class Bitmap extends DisplayObject {
 
 	private refreshImageData(): void {
 		const t = this._texture;
-		if (!t) return;
+		if (!t) {
+			return;
+		}
 		this.bitmapData = t.bitmapData;
 		this.bitmapX = t.bitmapX;
 		this.bitmapY = t.bitmapY;

@@ -14,7 +14,7 @@ export class Stage extends DisplayObjectContainer {
 	private _orientation: OrientationMode = OrientationMode.AUTO;
 	private _maxTouches = 99;
 	private _textureScaleFactor = 1;
-	private _screenAdapter: ScreenAdapter | undefined = undefined;
+	private _screenAdapter?: ScreenAdapter;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
@@ -44,7 +44,9 @@ export class Stage extends DisplayObjectContainer {
 		return this._scaleMode;
 	}
 	public set scaleMode(value: StageScaleMode) {
-		if (this._scaleMode === value) return;
+		if (this._scaleMode === value) {
+			return;
+		}
 		this._scaleMode = value;
 		this.onScreenSizeChanged();
 	}
@@ -53,7 +55,9 @@ export class Stage extends DisplayObjectContainer {
 		return this._orientation;
 	}
 	public set orientation(value: OrientationMode) {
-		if (this._orientation === value) return;
+		if (this._orientation === value) {
+			return;
+		}
 		this._orientation = value;
 		this.onScreenSizeChanged();
 	}
@@ -62,7 +66,9 @@ export class Stage extends DisplayObjectContainer {
 		return this._maxTouches;
 	}
 	public set maxTouches(value: number) {
-		if (this._maxTouches === value) return;
+		if (this._maxTouches === value) {
+			return;
+		}
 		this._maxTouches = value;
 		this.onMaxTouchesChanged();
 	}

@@ -14,7 +14,9 @@ export function setGraphicsHitTest(fn: (graphics: Graphics, localX: number, loca
 
 function clampAngle(value: number): number {
 	value %= Math.PI * 2;
-	if (value < 0) value += Math.PI * 2;
+	if (value < 0) {
+		value += Math.PI * 2;
+	}
 	return value;
 }
 
@@ -47,28 +49,16 @@ function createBezierPoints(data: number[], count: number): Point[] {
 export class Graphics extends HashObject {
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	/** @internal The display object this Graphics is attached to. */
-	targetDisplay: DisplayObject | undefined = undefined;
+	targetDisplay?: DisplayObject;
 
-	/** @internal Ordered list of drawing commands — consumed by the renderer. */
 	readonly commands: GraphicsCommand[] = [];
 
-	/**
-	 * @internal
-	 * Set to true whenever commands change. CanvasRenderer uses this to decide
-	 * whether to re-execute commands or reuse the cached offscreen canvas.
-	 * Reset to false after the renderer consumes it.
-	 */
 	canvasCacheDirty = true;
 
-	/** @internal Offscreen canvas used by CanvasRenderer to cache rasterized output. */
-	_offscreenCanvas: HTMLCanvasElement | undefined = undefined;
-	/** @internal 2D context for the offscreen canvas. */
-	_offscreenCtx: CanvasRenderingContext2D | undefined = undefined;
-	/** @internal X origin of the offscreen canvas in local space. */
-	_offscreenBoundsX = 0;
-	/** @internal Y origin of the offscreen canvas in local space. */
-	_offscreenBoundsY = 0;
+	offscreenCanvas?: HTMLCanvasElement;
+	offscreenCtx?: CanvasRenderingContext2D;
+	offscreenBoundsX = 0;
+	offscreenBoundsY = 0;
 
 	private _lastX = 0;
 	private _lastY = 0;
@@ -79,12 +69,6 @@ export class Graphics extends HashObject {
 	private _topLeftStrokeWidth = 0;
 	private _bottomRightStrokeWidth = 0;
 	private _includeLastPosition = true;
-
-	// ── Constructor ───────────────────────────────────────────────────────────
-
-	public constructor() {
-		super();
-	}
 
 	// ── Public methods ────────────────────────────────────────────────────────
 
@@ -254,7 +238,9 @@ export class Graphics extends HashObject {
 		endAngle: number,
 		anticlockwise = false,
 	): void {
-		if (radius < 0 || startAngle === endAngle) return;
+		if (radius < 0 || startAngle === endAngle) {
+			return;
+		}
 		x = +x || 0;
 		y = +y || 0;
 		radius = +radius || 0;
@@ -269,8 +255,11 @@ export class Graphics extends HashObject {
 			end: endAngle,
 			ccw: anticlockwise,
 		});
-		if (anticlockwise) this.arcBounds(x, y, radius, endAngle, startAngle);
-		else this.arcBounds(x, y, radius, startAngle, endAngle);
+		if (anticlockwise) {
+			this.arcBounds(x, y, radius, endAngle, startAngle);
+		} else {
+			this.arcBounds(x, y, radius, startAngle, endAngle);
+		}
 		this.updatePosition(x + Math.cos(endAngle) * radius, y + Math.sin(endAngle) * radius);
 		this.dirty();
 	}
@@ -283,10 +272,9 @@ export class Graphics extends HashObject {
 		this._minY = Infinity;
 		this._maxX = -Infinity;
 		this._maxY = -Infinity;
-		// Invalidate offscreen canvas cache
-		if (this._offscreenCanvas) {
-			this._offscreenCanvas.width = 0;
-			this._offscreenCanvas.height = 0;
+		if (this.offscreenCanvas) {
+			this.offscreenCanvas.width = 0;
+			this.offscreenCanvas.height = 0;
 		}
 		this.canvasCacheDirty = true;
 		this.dirty();
@@ -302,9 +290,10 @@ export class Graphics extends HashObject {
 		}
 	}
 
-	/** @internal Pixel-perfect hit test at the given local coordinates. */
 	hitTest(localX: number, localY: number): boolean {
-		if (!graphicsHitTest || this.commands.length === 0) return false;
+		if (!graphicsHitTest || this.commands.length === 0) {
+			return false;
+		}
 		return graphicsHitTest(this, localX, localY);
 	}
 
@@ -330,7 +319,9 @@ export class Graphics extends HashObject {
 
 	private dirty(): void {
 		this.canvasCacheDirty = true;
-		if (!this.targetDisplay) return;
+		if (!this.targetDisplay) {
+			return;
+		}
 		this.targetDisplay.cacheDirty = true;
 		this.targetDisplay.renderDirty = true;
 		this.targetDisplay.markDirty();
@@ -360,7 +351,9 @@ export class Graphics extends HashObject {
 			this.extendBoundsByPoint(x + radius, y + radius);
 			return;
 		}
-		if (startAngle > endAngle) endAngle += PI * 2;
+		if (startAngle > endAngle) {
+			endAngle += PI * 2;
+		}
 		let xMin = Math.min(Math.cos(startAngle), Math.cos(endAngle)) * radius;
 		let xMax = Math.max(Math.cos(startAngle), Math.cos(endAngle)) * radius;
 		let yMin = Math.min(Math.sin(startAngle), Math.sin(endAngle)) * radius;

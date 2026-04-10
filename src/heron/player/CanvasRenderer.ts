@@ -474,7 +474,7 @@ export class CanvasRenderer {
 
 		// ── Offscreen cache (skip for hit-test or when caller manages its own cache) ──
 		if (!forHitTest && !skipCache) {
-			if (graphics.canvasCacheDirty || !graphics._offscreenCanvas) {
+			if (graphics.canvasCacheDirty || !graphics.offscreenCanvas) {
 				// Measure bounds to size the offscreen canvas
 				const bounds = new Rectangle();
 				graphics.measureContentBounds(bounds);
@@ -482,18 +482,18 @@ export class CanvasRenderer {
 				const ch = Math.ceil(bounds.height) || 1;
 
 				// Create or resize offscreen canvas
-				if (!graphics._offscreenCanvas) {
-					graphics._offscreenCanvas = document.createElement('canvas');
-					graphics._offscreenCtx = graphics._offscreenCanvas.getContext('2d')!;
+				if (!graphics.offscreenCanvas) {
+					graphics.offscreenCanvas = document.createElement('canvas');
+					graphics.offscreenCtx = graphics.offscreenCanvas.getContext('2d')!;
 				}
-				const oc = graphics._offscreenCanvas;
+				const oc = graphics.offscreenCanvas;
 				if (oc.width !== cw || oc.height !== ch) {
 					oc.width = cw;
 					oc.height = ch;
 				} else {
-					graphics._offscreenCtx!.clearRect(0, 0, cw, ch);
+					graphics.offscreenCtx!.clearRect(0, 0, cw, ch);
 				}
-				const oc2d = graphics._offscreenCtx!;
+				const oc2d = graphics.offscreenCtx!;
 				oc2d.save();
 				oc2d.translate(-bounds.x, -bounds.y);
 				this._hasFill = false;
@@ -505,16 +505,16 @@ export class CanvasRenderer {
 				this.flushOpenPath(oc2d);
 				oc2d.restore();
 
-				graphics._offscreenBoundsX = bounds.x;
-				graphics._offscreenBoundsY = bounds.y;
+				graphics.offscreenBoundsX = bounds.x;
+				graphics.offscreenBoundsY = bounds.y;
 				graphics.canvasCacheDirty = false;
 			}
 
 			// Draw cached offscreen canvas
 			ctx.drawImage(
-				graphics._offscreenCanvas!,
-				offsetX + graphics._offscreenBoundsX!,
-				offsetY + graphics._offscreenBoundsY!,
+				graphics.offscreenCanvas!,
+				offsetX + graphics.offscreenBoundsX!,
+				offsetY + graphics.offscreenBoundsY!,
 			);
 			return 1;
 		}

@@ -63,7 +63,9 @@ export class DisplayObjectContainer extends DisplayObject {
 	public contains(child: DisplayObject): boolean {
 		let current: DisplayObject | undefined = child;
 		while (current) {
-			if (current === this) return true;
+			if (current === this) {
+				return true;
+			}
 			current = current.internalParent;
 		}
 		return false;
@@ -90,7 +92,9 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	public removeChildAt(index: number): DisplayObject | undefined {
 		index = +index | 0;
-		if (index >= 0 && index < this.children!.length) return this.doRemoveChild(index);
+		if (index >= 0 && index < this.children!.length) {
+			return this.doRemoveChild(index);
+		}
 		return undefined;
 	}
 
@@ -103,14 +107,18 @@ export class DisplayObjectContainer extends DisplayObject {
 	public setChildIndex(child: DisplayObject, index: number): void {
 		index = +index | 0;
 		const len = this.children!.length;
-		if (index < 0 || index >= len) index = len - 1;
+		if (index < 0 || index >= len) {
+			index = len - 1;
+		}
 		this.doSetChildIndex(child, index);
 	}
 
 	public swapChildren(child1: DisplayObject, child2: DisplayObject): void {
 		const i1 = this.children!.indexOf(child1);
 		const i2 = this.children!.indexOf(child2);
-		if (i1 !== -1 && i2 !== -1) this.doSwapChildrenAt(i1, i2);
+		if (i1 !== -1 && i2 !== -1) {
+			this.doSwapChildrenAt(i1, i2);
+		}
 	}
 
 	public swapChildrenAt(index1: number, index2: number): void {
@@ -129,7 +137,9 @@ export class DisplayObjectContainer extends DisplayObject {
 		let sortRequired = false;
 		for (let i = 0; i < children.length; i++) {
 			children[i].lastSortedIndex = i;
-			if (!sortRequired && children[i].zIndex !== 0) sortRequired = true;
+			if (!sortRequired && children[i].zIndex !== 0) {
+				sortRequired = true;
+			}
 		}
 		if (sortRequired && children.length > 1) {
 			children.sort(this.sortChildrenFunc);
@@ -144,7 +154,9 @@ export class DisplayObjectContainer extends DisplayObject {
 		super.onAddToStage(stage, nestLevel);
 		for (const child of this.children!) {
 			child.onAddToStage(stage, nestLevel + 1);
-			if (child.maskedObject) child.maskedObject.updateRenderMode();
+			if (child.maskedObject) {
+				child.maskedObject.updateRenderMode();
+			}
 		}
 	}
 
@@ -172,7 +184,9 @@ export class DisplayObjectContainer extends DisplayObject {
 				children[i].getMatrix().transformBounds(sharedRectangle);
 				childBounds = sharedRectangle;
 			}
-			if (childBounds.isEmpty()) continue;
+			if (childBounds.isEmpty()) {
+				continue;
+			}
 			if (found) {
 				xMin = Math.min(xMin, childBounds.x);
 				xMax = Math.max(xMax, childBounds.x + childBounds.width);
@@ -190,13 +204,19 @@ export class DisplayObjectContainer extends DisplayObject {
 	}
 
 	override hitTest(stageX: number, stageY: number): DisplayObject | undefined {
-		if (!this.internalVisible) return undefined;
+		if (!this.internalVisible) {
+			return undefined;
+		}
 		const m = this.getInvertedConcatenatedMatrix();
 		const localX = m.a * stageX + m.c * stageY + m.tx;
 		const localY = m.b * stageX + m.d * stageY + m.ty;
 		const rect = this.internalScrollRect ?? this.internalMaskRect;
-		if (rect && !rect.contains(localX, localY)) return undefined;
-		if (this.internalMask && !this.internalMask.hitTest(stageX, stageY)) return undefined;
+		if (rect && !rect.contains(localX, localY)) {
+			return undefined;
+		}
+		if (this.internalMask && !this.internalMask.hitTest(stageX, stageY)) {
+			return undefined;
+		}
 
 		const children = this.children!;
 		let found = false;
@@ -211,8 +231,12 @@ export class DisplayObjectContainer extends DisplayObject {
 				target = undefined;
 			}
 		}
-		if (target) return this._touchChildren ? target : this;
-		if (found) return this;
+		if (target) {
+			return this._touchChildren ? target : this;
+		}
+		if (found) {
+			return this;
+		}
 		return super.hitTest(stageX, stageY);
 	}
 
@@ -227,7 +251,9 @@ export class DisplayObjectContainer extends DisplayObject {
 			this.doSetChildIndex(child, index);
 			return child;
 		}
-		if (host) host.removeChild(child);
+		if (host) {
+			host.removeChild(child);
+		}
 
 		this.children!.splice(index, 0, child);
 		child.setParent(this);
@@ -242,11 +268,15 @@ export class DisplayObjectContainer extends DisplayObject {
 			const list = DisplayObjectContainer.eventAddToStageList;
 			while (list.length) {
 				const added = list.shift()!;
-				if (added.internalStage) added.dispatchEventWith(Event.ADDED_TO_STAGE);
+				if (added.internalStage) {
+					added.dispatchEventWith(Event.ADDED_TO_STAGE);
+				}
 			}
 		}
 
-		if (child.maskedObject) child.maskedObject.updateRenderMode();
+		if (child.maskedObject) {
+			child.maskedObject.updateRenderMode();
+		}
 		this.markDirtyInternal();
 		this.childAdded(child, index);
 		return child;
@@ -272,7 +302,9 @@ export class DisplayObjectContainer extends DisplayObject {
 
 		child.setParent(undefined);
 		const indexNow = children.indexOf(child);
-		if (indexNow !== -1) children.splice(indexNow, 1);
+		if (indexNow !== -1) {
+			children.splice(indexNow, 1);
+		}
 
 		if (child.maskedObject) child.maskedObject.updateRenderMode();
 		this.markDirtyInternal();
@@ -281,7 +313,9 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	private doSetChildIndex(child: DisplayObject, index: number): void {
 		const lastIndex = this.children!.indexOf(child);
-		if (lastIndex < 0 || lastIndex === index) return;
+		if (lastIndex < 0 || lastIndex === index) {
+			return;
+		}
 		this.childRemoved(child, lastIndex);
 		this.children!.splice(lastIndex, 1);
 		this.children!.splice(index, 0, child);
@@ -295,7 +329,9 @@ export class DisplayObjectContainer extends DisplayObject {
 			index1 = index2;
 			index2 = t;
 		}
-		if (index1 === index2) return;
+		if (index1 === index2) {
+			return;
+		}
 		const list = this.children!;
 		const child1 = list[index1];
 		const child2 = list[index2];
@@ -344,7 +380,9 @@ export class DisplayObjectContainer extends DisplayObject {
 	}
 
 	private sortChildrenFunc(a: DisplayObject, b: DisplayObject): number {
-		if (a.zIndex === b.zIndex) return a.lastSortedIndex - b.lastSortedIndex;
+		if (a.zIndex === b.zIndex) {
+			return a.lastSortedIndex - b.lastSortedIndex;
+		}
 		return a.zIndex - b.zIndex;
 	}
 }

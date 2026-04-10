@@ -7,27 +7,20 @@ export let textureScaleFactor = 1;
 export class Texture extends HashObject {
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	public disposeBitmapData = true;
-
-	/** @internal */ bitmapX = 0;
-	/** @internal */ bitmapY = 0;
-	/** @internal */ bitmapWidth = 0;
-	/** @internal */ bitmapHeight = 0;
-	/** @internal */ offsetX = 0;
-	/** @internal */ offsetY = 0;
-	/** @internal */ sourceWidth = 0;
-	/** @internal */ sourceHeight = 0;
-	/** @internal */ rotated = false;
-	/** @internal */ bitmapData: BitmapData | undefined = undefined;
+	bitmapX = 0;
+	bitmapY = 0;
+	bitmapWidth = 0;
+	bitmapHeight = 0;
+	offsetX = 0;
+	offsetY = 0;
+	sourceWidth = 0;
+	sourceHeight = 0;
+	rotated = false;
+	bitmapData?: BitmapData;
+	disposeBitmapData = true;
 
 	private _textureWidth = 0;
 	private _textureHeight = 0;
-
-	// ── Constructor ───────────────────────────────────────────────────────────
-
-	public constructor() {
-		super();
-	}
 
 	// ── Getters / Setters ─────────────────────────────────────────────────────
 
@@ -57,7 +50,9 @@ export class Texture extends HashObject {
 
 	public dispose(): void {
 		if (this.bitmapData) {
-			if (this.disposeBitmapData) this.bitmapData.dispose();
+			if (this.disposeBitmapData) {
+				this.bitmapData.dispose();
+			}
 			this.bitmapData = undefined;
 		}
 	}

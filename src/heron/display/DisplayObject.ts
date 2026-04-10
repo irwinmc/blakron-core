@@ -13,8 +13,11 @@ import type { Graphics } from './Graphics.js';
 
 function clampRotation(value: number): number {
 	value %= 360;
-	if (value > 180) value -= 360;
-	else if (value < -180) value += 360;
+	if (value > 180) {
+		value -= 360;
+	} else if (value < -180) {
+		value += 360;
+	}
 	return value;
 }
 
@@ -104,54 +107,62 @@ export class DisplayObject extends EventDispatcher {
 
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	/** @internal */ hasAddToStage = false;
-	/** @internal */ children: DisplayObject[] | undefined = undefined;
-	/** @internal */ internalStage: Stage | undefined = undefined;
-	/** @internal */ nestLevel = 0;
-	/** @internal */ useTranslate = false;
-	/** @internal */ cacheDirty = false;
-	/** @internal */ renderDirty = false;
-	/** @internal */ renderMode: RenderMode | undefined = undefined;
-	/** @internal */ maskedObject: DisplayObject | undefined = undefined;
-	/** @internal */ sortDirty = false;
-	/** @internal */ lastSortedIndex = 0;
-	/** @internal */ tintRGB = 0;
-	/** @internal */ internalParent: DisplayObjectContainer | undefined = undefined;
-	/** @internal */ internalX = 0;
-	/** @internal */ internalY = 0;
-	/** @internal */ explicitWidth: number = NaN;
-	/** @internal */ explicitHeight: number = NaN;
-	/** @internal */ internalAnchorOffsetX = 0;
-	/** @internal */ internalAnchorOffsetY = 0;
-	/** @internal */ internalVisible = true;
-	/** @internal */ internalAlpha = 1;
-	/** @internal */ internalTouchEnabled: boolean = DisplayObject.defaultTouchEnabled;
-	/** @internal */ internalScrollRect: Rectangle | undefined = undefined;
-	/** @internal */ internalBlendMode = 0;
-	/** @internal */ internalMask: DisplayObject | undefined = undefined;
-	/** @internal */ internalMaskRect: Rectangle | undefined = undefined;
-	/** @internal */ internalCacheAsBitmap = false;
-	/** @internal */ internalFilters: Filter[] = [];
-	/** @internal */ displayList: DisplayList | undefined = undefined;
-	/**
-	 * @internal Cached world (concatenated) alpha — product of this object's
-	 * alpha and all ancestor alphas. Updated by markDirty() so that
-	 * _refreshLeafTransform can read it in O(1) instead of walking the parent chain.
-	 */
-	/** @internal */ worldAlpha = 1;
-	/**
-	 * @internal Cached world tint — the nearest ancestor tint that overrides
-	 * the default 0xffffff. Updated by markDirty().
-	 */
-	/** @internal */ worldTint = 0xffffff;
-	/** @internal Concrete renderable type — set by subclasses to avoid instanceof in hot paths. */
-	/** @internal */ renderObjectType: RenderObjectType = RenderObjectType.NONE;
+	// 场景图
+	hasAddToStage = false;
+	children?: DisplayObject[];
+	internalParent?: DisplayObjectContainer;
+	internalStage?: Stage;
+	nestLevel = 0;
 
+	// 变换
+	internalX = 0;
+	internalY = 0;
+	internalAnchorOffsetX = 0;
+	internalAnchorOffsetY = 0;
+	explicitWidth: number = NaN;
+	explicitHeight: number = NaN;
+	useTranslate = false;
+
+	// 外观
+	internalVisible = true;
+	internalAlpha = 1;
+	internalBlendMode = 0;
+	internalFilters: Filter[] = [];
+	internalCacheAsBitmap = false;
+	internalTouchEnabled: boolean = DisplayObject.defaultTouchEnabled;
+
+	// 遮罩
+	internalMask?: DisplayObject;
+	internalMaskRect?: Rectangle;
+	internalScrollRect?: Rectangle;
+	maskedObject?: DisplayObject;
+
+	// 渲染状态
+	renderMode?: RenderMode;
+	renderObjectType: RenderObjectType = RenderObjectType.NONE;
+	renderDirty = false;
+	cacheDirty = false;
+	displayList?: DisplayList;
+
+	// 世界缓存（markDirty 更新，O(1) 读取）
+	worldAlpha = 1;
+	worldTint = 0xffffff;
+	tintRGB = 0;
+
+	// 排序
+	sortDirty = false;
+	lastSortedIndex = 0;
+
+	// bounds 缓存
+	_boundsDirty = true;
+	private readonly _cachedBounds = new Rectangle();
+
+	// 私有
 	private _name = '';
 	private _matrix: Matrix = new Matrix();
 	private _matrixDirty = false;
-	private _concatenatedMatrix: Matrix | undefined = undefined;
-	private _invertedConcatenatedMatrix: Matrix | undefined = undefined;
+	private _concatenatedMatrix?: Matrix;
+	private _invertedConcatenatedMatrix?: Matrix;
 	private _scaleX = 1;
 	private _scaleY = 1;
 	private _rotation = 0;
@@ -163,15 +174,7 @@ export class DisplayObject extends EventDispatcher {
 	private _zIndex = 0;
 	private _sortableChildren = false;
 
-	/** @internal Bounds cache — avoids recomputing bounds every frame. */
-	/** @internal */ _boundsDirty = true;
-	private readonly _cachedBounds = new Rectangle();
-
-	/**
-	 * The Graphics object attached to this display object, if any.
-	 * Assigned by Shape and Sprite; undefined on all other types.
-	 */
-	protected _graphics: Graphics | undefined = undefined;
+	protected _graphics?: Graphics;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
@@ -341,7 +344,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 	public set blendMode(value: string) {
 		const mode = blendModeToNumber(value);
-		if (this.internalBlendMode === mode) return;
+		if (this.internalBlendMode === mode) {
+			return;
+		}
 		this.internalBlendMode = mode;
 		this.updateRenderMode();
 		this.markDirty();
@@ -368,7 +373,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 	public set zIndex(value: number) {
 		this._zIndex = value;
-		if (this.parent) this.parent.sortDirty = true;
+		if (this.parent) {
+			this.parent.sortDirty = true;
+		}
 	}
 
 	public get sortableChildren(): boolean {
@@ -383,8 +390,12 @@ export class DisplayObject extends EventDispatcher {
 	public getBounds(resultRect?: Rectangle, calculateAnchor = true): Rectangle {
 		resultRect = this.getTransformedBoundsInternal(this, resultRect);
 		if (calculateAnchor) {
-			if (this.internalAnchorOffsetX !== 0) resultRect.x -= this.internalAnchorOffsetX;
-			if (this.internalAnchorOffsetY !== 0) resultRect.y -= this.internalAnchorOffsetY;
+			if (this.internalAnchorOffsetX !== 0) {
+				resultRect.x -= this.internalAnchorOffsetX;
+			}
+			if (this.internalAnchorOffsetY !== 0) {
+				resultRect.y -= this.internalAnchorOffsetY;
+			}
 		}
 		return resultRect;
 	}
@@ -402,15 +413,23 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public hitTestPoint(x: number, y: number, shapeFlag?: boolean): boolean {
-		if (this._scaleX === 0 || this._scaleY === 0) return false;
+		if (this._scaleX === 0 || this._scaleY === 0) {
+			return false;
+		}
 		const m = this.getInvertedConcatenatedMatrix();
 		const bounds = this.getBounds(undefined, false);
 		const localX = m.a * x + m.c * y + m.tx;
 		const localY = m.b * x + m.d * y + m.ty;
-		if (!bounds.contains(localX, localY)) return false;
+		if (!bounds.contains(localX, localY)) {
+			return false;
+		}
 		const rect = this.internalScrollRect ?? this.internalMaskRect;
-		if (rect && !rect.contains(localX, localY)) return false;
-		if (!shapeFlag) return true;
+		if (rect && !rect.contains(localX, localY)) {
+			return false;
+		}
+		if (!shapeFlag) {
+			return true;
+		}
 		// Pixel-perfect: delegate to hitTest which Shape/Sprite override
 		return this.hitTest(x, y) !== undefined;
 	}
@@ -420,7 +439,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public override dispatchEvent(event: Event): boolean {
-		if (!event.bubbles) return super.dispatchEvent(event);
+		if (!event.bubbles) {
+			return super.dispatchEvent(event);
+		}
 		const list = this.getPropagationList(this);
 		const targetIndex = list.length * 0.5;
 		event.setDispatchContext(this, EventPhase.AT_TARGET);
@@ -431,7 +452,9 @@ export class DisplayObject extends EventDispatcher {
 	public override willTrigger(type: string): boolean {
 		let node: DisplayObject | undefined = this;
 		while (node) {
-			if (node.hasEventListener(type)) return true;
+			if (node.hasEventListener(type)) {
+				return true;
+			}
 			node = node.internalParent;
 		}
 		return false;
@@ -447,7 +470,9 @@ export class DisplayObject extends EventDispatcher {
 		if (type === Event.ENTER_FRAME || type === Event.RENDER) {
 			const list =
 				type === Event.ENTER_FRAME ? DisplayObject.enterFrameCallBackList : DisplayObject.renderCallBackList;
-			if (!list.includes(this)) list.push(this);
+			if (!list.includes(this)) {
+				list.push(this);
+			}
 		}
 	}
 
@@ -457,7 +482,9 @@ export class DisplayObject extends EventDispatcher {
 			const list =
 				type === Event.ENTER_FRAME ? DisplayObject.enterFrameCallBackList : DisplayObject.renderCallBackList;
 			const index = list.indexOf(this);
-			if (index !== -1) list.splice(index, 1);
+			if (index !== -1) {
+				list.splice(index, 1);
+			}
 		}
 	}
 
@@ -511,7 +538,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	getConcatenatedMatrix(): Matrix {
-		if (!this._concatenatedMatrix) this._concatenatedMatrix = new Matrix();
+		if (!this._concatenatedMatrix) {
+			this._concatenatedMatrix = new Matrix();
+		}
 		const matrix = this._concatenatedMatrix;
 		if (this.internalParent) {
 			this.internalParent.getConcatenatedMatrix().preMultiplyInto(this.getMatrix(), matrix);
@@ -530,27 +559,35 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	getInvertedConcatenatedMatrix(): Matrix {
-		if (!this._invertedConcatenatedMatrix) this._invertedConcatenatedMatrix = new Matrix();
+		if (!this._invertedConcatenatedMatrix) {
+			this._invertedConcatenatedMatrix = new Matrix();
+		}
 		this.getConcatenatedMatrix().invertInto(this._invertedConcatenatedMatrix);
 		return this._invertedConcatenatedMatrix;
 	}
 
 	setX(value: number): boolean {
-		if (this.internalX === value) return false;
+		if (this.internalX === value) {
+			return false;
+		}
 		this.internalX = value;
 		this.markDirty();
 		return true;
 	}
 
 	setY(value: number): boolean {
-		if (this.internalY === value) return false;
+		if (this.internalY === value) {
+			return false;
+		}
 		this.internalY = value;
 		this.markDirty();
 		return true;
 	}
 
 	setScaleX(value: number): void {
-		if (this._scaleX === value) return;
+		if (this._scaleX === value) {
+			return;
+		}
 		this._scaleX = value;
 		this._matrixDirty = true;
 		this.updateUseTransform();
@@ -558,7 +595,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	setScaleY(value: number): void {
-		if (this._scaleY === value) return;
+		if (this._scaleY === value) {
+			return;
+		}
 		this._scaleY = value;
 		this._matrixDirty = true;
 		this.updateUseTransform();
@@ -567,7 +606,9 @@ export class DisplayObject extends EventDispatcher {
 
 	setRotation(value: number): void {
 		value = clampRotation(value);
-		if (value === this._rotation) return;
+		if (value === this._rotation) {
+			return;
+		}
 		const delta = ((value - this._rotation) / 180) * Math.PI;
 		this._skewX += delta;
 		this._skewY += delta;
@@ -578,7 +619,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	setSkewX(value: number): void {
-		if (value === this._skewXdeg) return;
+		if (value === this._skewXdeg) {
+			return;
+		}
 		this._skewXdeg = value;
 		this._skewX = (clampRotation(value) / 180) * Math.PI;
 		this._matrixDirty = true;
@@ -587,7 +630,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	setSkewY(value: number): void {
-		if (value === this._skewYdeg) return;
+		if (value === this._skewYdeg) {
+			return;
+		}
 		this._skewYdeg = value;
 		this._skewY = ((clampRotation(value) + this._rotation) / 180) * Math.PI;
 		this._matrixDirty = true;
@@ -596,35 +641,47 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	setAnchorOffsetX(value: number): void {
-		if (this.internalAnchorOffsetX === value) return;
+		if (this.internalAnchorOffsetX === value) {
+			return;
+		}
 		this.internalAnchorOffsetX = value;
 		this.markDirty();
 	}
 
 	setAnchorOffsetY(value: number): void {
-		if (this.internalAnchorOffsetY === value) return;
+		if (this.internalAnchorOffsetY === value) {
+			return;
+		}
 		this.internalAnchorOffsetY = value;
 		this.markDirty();
 	}
 
 	setVisible(value: boolean): void {
-		if (this.internalVisible === value) return;
+		if (this.internalVisible === value) {
+			return;
+		}
 		this.internalVisible = value;
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
 	setAlpha(value: number): void {
-		if (this.internalAlpha === value) return;
+		if (this.internalAlpha === value) {
+			return;
+		}
 		this.internalAlpha = value;
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
 	setScrollRect(value: Rectangle | undefined): void {
-		if (!value && !this.internalScrollRect) return;
+		if (!value && !this.internalScrollRect) {
+			return;
+		}
 		if (value) {
-			if (!this.internalScrollRect) this.internalScrollRect = new Rectangle();
+			if (!this.internalScrollRect) {
+				this.internalScrollRect = new Rectangle();
+			}
 			this.internalScrollRect.copyFrom(value);
 		} else {
 			this.internalScrollRect = undefined;
@@ -695,7 +752,9 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	getOriginalBounds(): Rectangle {
-		if (!this._boundsDirty) return this._cachedBounds;
+		if (!this._boundsDirty) {
+			return this._cachedBounds;
+		}
 		const bounds = this.getContentBounds();
 		this.measureChildBounds(bounds);
 		this._cachedBounds.copyFrom(bounds);
@@ -813,15 +872,23 @@ export class DisplayObject extends EventDispatcher {
 	// ── Private methods ───────────────────────────────────────────────────────
 
 	private setMask(value: DisplayObject | Rectangle | undefined): void {
-		if (value === this) return;
+		if (value === this) {
+			return;
+		}
 		if (value instanceof DisplayObject) {
-			if (value === this.internalMask) return;
-			if (value.maskedObject) value.maskedObject.mask = undefined;
+			if (value === this.internalMask) {
+				return;
+			}
+			if (value.maskedObject) {
+				value.maskedObject.mask = undefined;
+			}
 			value.maskedObject = this;
 			this.internalMask = value;
 			this.internalMaskRect = undefined;
 		} else if (value instanceof Rectangle) {
-			if (!this.internalMaskRect) this.internalMaskRect = new Rectangle();
+			if (!this.internalMaskRect) {
+				this.internalMaskRect = new Rectangle();
+			}
 			this.internalMaskRect.copyFrom(value);
 			if (this.internalMask) {
 				this.internalMask.maskedObject = undefined;
@@ -849,7 +916,9 @@ export class DisplayObject extends EventDispatcher {
 		let p = this.internalParent;
 		while (p) {
 			alpha *= p.internalAlpha;
-			if (p.tintRGB !== 0xffffff) tint = p.tintRGB;
+			if (p.tintRGB !== 0xffffff) {
+				tint = p.tintRGB;
+			}
 			p = p.internalParent;
 		}
 		this.worldAlpha = alpha;

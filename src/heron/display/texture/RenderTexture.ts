@@ -3,64 +3,44 @@ import { BitmapData } from './BitmapData.js';
 import { Texture, textureScaleFactor } from './Texture.js';
 import type { DisplayObject } from '../DisplayObject.js';
 
-/**
- * RenderTexture is a dynamic texture that renders a DisplayObject tree into a texture.
- * The actual rendering is delegated to the renderer layer via the `renderer` callback.
- * Set `RenderTexture.renderer` before calling `drawToTexture()`.
- */
+type RenderFunction = (
+	displayObject: DisplayObject,
+	width: number,
+	height: number,
+	offsetX: number,
+	offsetY: number,
+) => HTMLCanvasElement;
+
 export class RenderTexture extends Texture {
 	// ── Static fields ─────────────────────────────────────────────────────────
 
-	/**
-	 * Renderer integration point.
-	 * Set by createPlayer() to wire up the CanvasRenderer.
-	 */
-	public static renderer:
-		| ((
-				displayObject: DisplayObject,
-				width: number,
-				height: number,
-				offsetX: number,
-				offsetY: number,
-		  ) => HTMLCanvasElement)
-		| undefined = undefined;
+	static renderer?: RenderFunction;
 
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	/** @internal The offscreen canvas used as the render target. */
-	private _canvas: HTMLCanvasElement | undefined = undefined;
-
-	// ── Constructor ───────────────────────────────────────────────────────────
-
-	public constructor() {
-		super();
-	}
+	private _canvas?: HTMLCanvasElement;
 
 	// ── Public methods ────────────────────────────────────────────────────────
 
-	/**
-	 * Draws the specified display object into this texture.
-	 * Requires `RenderTexture.renderer` to be set by the renderer layer.
-	 * @param displayObject The display object to draw.
-	 * @param clipBounds Optional clip rectangle.
-	 * @param scale Scale factor.
-	 * @returns true if drawing succeeded.
-	 */
 	public drawToTexture(displayObject: DisplayObject, clipBounds?: Rectangle, scale = 1): boolean {
-		if (clipBounds && (clipBounds.width === 0 || clipBounds.height === 0)) return false;
+		if (clipBounds && (clipBounds.width === 0 || clipBounds.height === 0)) {
+			return false;
+		}
 
 		const bounds = clipBounds ?? displayObject.getOriginalBounds();
-		if (bounds.width === 0 || bounds.height === 0) return false;
+		if (bounds.width === 0 || bounds.height === 0) {
+			return false;
+		}
+
+		if (!RenderTexture.renderer) {
+			return false;
+		}
 
 		const s = scale / textureScaleFactor;
 		const width = clipBounds ? bounds.width * s : (bounds.x + bounds.width) * s;
 		const height = clipBounds ? bounds.height * s : (bounds.y + bounds.height) * s;
 		const offsetX = clipBounds ? -clipBounds.x : 0;
 		const offsetY = clipBounds ? -clipBounds.y : 0;
-
-		if (!RenderTexture.renderer) {
-			return false;
-		}
 
 		this._canvas = RenderTexture.renderer(displayObject, width, height, offsetX * s, offsetY * s);
 		const bitmapData = new BitmapData(this._canvas);
@@ -73,10 +53,14 @@ export class RenderTexture extends Texture {
 	}
 
 	public override getPixel32(x: number, y: number): number[] {
-		if (!this._canvas) return [];
+		if (!this._canvas) {
+			return [];
+		}
 		const scale = textureScaleFactor;
 		const ctx = this._canvas.getContext('2d');
-		if (!ctx) return [];
+		if (!ctx) {
+			return [];
+		}
 		const data = ctx.getImageData(Math.round(x / scale), Math.round(y / scale), 1, 1).data;
 		return [data[0], data[1], data[2], data[3]];
 	}

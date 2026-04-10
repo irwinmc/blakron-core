@@ -2,14 +2,13 @@ import { HashObject } from '../../utils/HashObject.js';
 import { Base64Util } from '../../utils/Base64Util.js';
 import type { DisplayObject } from '../DisplayObject.js';
 
-/** Compressed texture data for a single mip level and face. */
 export class CompressedTextureData {
-	public glInternalFormat = 0;
-	public width = 0;
-	public height = 0;
-	public byteArray: Uint8Array = new Uint8Array(0);
-	public face = 0;
-	public level = 0;
+	glInternalFormat = 0;
+	width = 0;
+	height = 0;
+	byteArray: Uint8Array = new Uint8Array(0);
+	face = 0;
+	level = 0;
 }
 
 export class BitmapData extends HashObject {
@@ -32,8 +31,11 @@ export class BitmapData extends HashObject {
 	): BitmapData {
 		const base64 = type === 'arraybuffer' ? Base64Util.encode(data as ArrayBuffer) : (data as string);
 		let imageType = 'image/png';
-		if (base64.charAt(0) === '/') imageType = 'image/jpeg';
-		else if (base64.charAt(0) === 'R') imageType = 'image/gif';
+		if (base64.charAt(0) === '/') {
+			imageType = 'image/jpeg';
+		} else if (base64.charAt(0) === 'R') {
+			imageType = 'image/gif';
+		}
 
 		const img = new Image();
 		img.src = `data:${imageType};base64,${base64}`;
@@ -50,29 +52,45 @@ export class BitmapData extends HashObject {
 	}
 
 	static addDisplayObject(displayObject: DisplayObject, bitmapData: BitmapData | undefined): void {
-		if (!bitmapData) return;
+		if (!bitmapData) {
+			return;
+		}
 		const { hashCode } = bitmapData;
-		if (!hashCode) return;
+		if (!hashCode) {
+			return;
+		}
 		const list = BitmapData._displayList.get(hashCode);
 		if (!list) {
 			BitmapData._displayList.set(hashCode, [displayObject]);
 			return;
 		}
-		if (!list.includes(displayObject)) list.push(displayObject);
+		if (!list.includes(displayObject)) {
+			list.push(displayObject);
+		}
 	}
 
 	static removeDisplayObject(displayObject: DisplayObject, bitmapData: BitmapData | undefined): void {
-		if (!bitmapData) return;
+		if (!bitmapData) {
+			return;
+		}
 		const list = BitmapData._displayList.get(bitmapData.hashCode);
-		if (!list) return;
+		if (!list) {
+			return;
+		}
 		const i = list.indexOf(displayObject);
-		if (i >= 0) list.splice(i, 1);
+		if (i >= 0) {
+			list.splice(i, 1);
+		}
 	}
 
 	static invalidate(bitmapData: BitmapData | undefined): void {
-		if (!bitmapData) return;
+		if (!bitmapData) {
+			return;
+		}
 		const list = BitmapData._displayList.get(bitmapData.hashCode);
-		if (!list) return;
+		if (!list) {
+			return;
+		}
 		for (const node of list) {
 			node.renderDirty = true;
 			node.markDirty();
@@ -80,9 +98,13 @@ export class BitmapData extends HashObject {
 	}
 
 	static dispose(bitmapData: BitmapData | undefined): void {
-		if (!bitmapData) return;
+		if (!bitmapData) {
+			return;
+		}
 		const list = BitmapData._displayList.get(bitmapData.hashCode);
-		if (!list) return;
+		if (!list) {
+			return;
+		}
 		for (const node of list) {
 			node.renderDirty = true;
 			node.markDirty();
@@ -92,19 +114,16 @@ export class BitmapData extends HashObject {
 
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	public width = 0;
-	public height = 0;
-	public format = 'image';
-	public deleteSource = true;
-	public readonly compressedTextureData: CompressedTextureData[][] = [];
-	public debugCompressedTextureURL = '';
-	public etcAlphaMask: BitmapData | undefined = undefined;
+	width = 0;
+	height = 0;
+	format = 'image';
+	deleteSource = true;
+	readonly compressedTextureData: CompressedTextureData[][] = [];
+	debugCompressedTextureURL = '';
+	etcAlphaMask?: BitmapData;
+	webGLTexture?: WebGLTexture;
 
-	/** @internal Cached WebGL texture, set by WebGLRenderContext. */
-	public webGLTexture: WebGLTexture | undefined = undefined;
-
-	/** The underlying image/canvas/video source. */
-	private _source: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | ArrayBuffer | undefined;
+	private _source?: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | ArrayBuffer;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
@@ -112,9 +131,7 @@ export class BitmapData extends HashObject {
 		super();
 		if (source) {
 			this._source = source;
-			if (source instanceof ArrayBuffer) {
-				// compressed texture — width/height set later
-			} else {
+			if (!(source instanceof ArrayBuffer)) {
 				this.width = (source as HTMLImageElement).width ?? 0;
 				this.height = (source as HTMLImageElement).height ?? 0;
 			}
