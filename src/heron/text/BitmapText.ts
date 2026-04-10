@@ -1,6 +1,7 @@
-import { DisplayObject } from '../display/index.js';
-import { Rectangle } from '../geom/index.js';
-import { HorizontalAlign, VerticalAlign } from './enums/index.js';
+import { DisplayObject } from '../display/DisplayObject.js';
+import { Rectangle } from '../geom/Rectangle.js';
+import { HorizontalAlign } from './enums/HorizontalAlign.js';
+import { VerticalAlign } from './enums/VerticalAlign.js';
 import type { BitmapFont } from './BitmapFont.js';
 
 /**

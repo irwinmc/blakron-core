@@ -1,5 +1,5 @@
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
-import type { Filter } from '../../filters/index.js';
+import type { Filter } from '../../filters/Filter.js';
 import type { MultiTextureDrawCmd } from './MultiTextureBatcher.js';
 
 // ── DrawCmdType ───────────────────────────────────────────────────────────────

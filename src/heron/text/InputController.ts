@@ -1,4 +1,6 @@
-import { Event, FocusEvent, TouchEvent } from '../events/index.js';
+import { Event } from '../events/Event.js';
+import { FocusEvent } from '../events/FocusEvent.js';
+import { TouchEvent } from '../events/TouchEvent.js';
 import { TextField } from './TextField.js';
 import { StageText } from './StageText.js';
 

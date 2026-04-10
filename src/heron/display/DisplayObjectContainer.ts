@@ -1,6 +1,5 @@
 import { Event } from '../events/Event.js';
-import { Rectangle } from '../geom/Rectangle.js';
-import { sharedRectangle } from '../geom/index.js';
+import { Rectangle, sharedRectangle } from '../geom/Rectangle.js';
 import { DisplayObject } from './DisplayObject.js';
 import type { Stage } from './Stage.js';
 

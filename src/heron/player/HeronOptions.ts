@@ -1,4 +1,5 @@
-import type { StageScaleMode, OrientationMode } from '../display/index.js';
+import type { StageScaleMode } from '../display/enums/StageScaleMode.js';
+import type { OrientationMode } from '../display/enums/OrientationMode.js';
 
 /**
  * Configuration options for initializing the Heron engine.

@@ -1,4 +1,5 @@
-import { SpriteSheet, type Texture } from '../display/index.js';
+import { SpriteSheet } from '../display/texture/SpriteSheet.js';
+import type { Texture } from '../display/texture/Texture.js';
 
 interface CharConfig {
 	x: number;

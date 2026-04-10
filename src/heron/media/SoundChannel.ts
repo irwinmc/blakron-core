@@ -1,5 +1,5 @@
-import { EventDispatcher } from '../events/EventDispatcher.js';
 import { Event } from '../events/Event.js';
+import { EventDispatcher } from '../events/EventDispatcher.js';
 
 /**
  * SoundChannel controls a single playback of a Sound.

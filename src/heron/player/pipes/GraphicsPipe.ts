@@ -5,7 +5,7 @@ import type { Instruction } from '../InstructionSet.js';
 import type { InstructionSet } from '../InstructionSet.js';
 import type { RenderPipe } from '../RenderPipe.js';
 import type { CanvasRenderer } from '../CanvasRenderer.js';
-import { Rectangle } from '../../geom/index.js';
+import { Rectangle } from '../../geom/Rectangle.js';
 import { RenderBuffer } from '../RenderBuffer.js';
 
 // Shared scratch rectangle — avoids per-execute allocation.

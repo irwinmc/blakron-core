@@ -1,9 +1,15 @@
-import { DisplayObject, type Stage } from '../display/index.js';
-import { Rectangle } from '../geom/index.js';
-import { Event, TouchEvent, TextEvent } from '../events/index.js';
+import { DisplayObject } from '../display/DisplayObject.js';
+import type { Stage } from '../display/Stage.js';
+import { Rectangle } from '../geom/Rectangle.js';
+import { Event } from '../events/Event.js';
+import { TouchEvent } from '../events/TouchEvent.js';
+import { TextEvent } from '../events/TextEvent.js';
 import { measureText, getFontString } from './TextMeasurer.js';
-import type { ITextElement, ILineElement, IWTextElement } from './types/index.js';
-import { HorizontalAlign, VerticalAlign, TextFieldType, TextFieldInputType } from './enums/index.js';
+import type { ITextElement, ILineElement, IWTextElement } from './types/ITextElement.js';
+import { HorizontalAlign } from './enums/HorizontalAlign.js';
+import { VerticalAlign } from './enums/VerticalAlign.js';
+import { TextFieldType } from './enums/TextFieldType.js';
+import { TextFieldInputType } from './enums/TextFieldInputType.js';
 import { InputController } from './InputController.js';
 import { getWordWrapRegex } from './WordWrap.js';
 

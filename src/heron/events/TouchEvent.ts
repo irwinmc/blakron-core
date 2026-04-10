@@ -1,6 +1,6 @@
 import { Event } from './Event.js';
 import type { IEventDispatcher } from './IEventDispatcher.js';
-import type { Point } from '../geom/index.js';
+import type { Point } from '../geom/Point.js';
 import { setRequestRenderingFlag } from '../player/SystemTicker.js';
 
 export class TouchEvent extends Event {

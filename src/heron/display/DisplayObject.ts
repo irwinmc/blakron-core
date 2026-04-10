@@ -1,13 +1,15 @@
 import { EventDispatcher } from '../events/EventDispatcher.js';
 import { Event } from '../events/Event.js';
 import { EventPhase } from '../events/EventPhase.js';
-import { Matrix, Point, Rectangle, sharedMatrix, sharedRectangle } from '../geom/index.js';
-import { blendModeToNumber, numberToBlendMode } from './enums/index.js';
-import type { Filter } from '../filters/index.js';
+import { Matrix, sharedMatrix } from '../geom/Matrix.js';
+import { Point } from '../geom/Point.js';
+import { Rectangle, sharedRectangle } from '../geom/Rectangle.js';
+import { DisplayList } from '../player/DisplayList.js';
+import type { Filter } from '../filters/Filter.js';
+import { blendModeToNumber, numberToBlendMode } from './enums/BlendMode.js';
 import type { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import type { Stage } from './Stage.js';
 import type { Graphics } from './Graphics.js';
-import { DisplayList } from '../player/DisplayList.js';
 
 function clampRotation(value: number): number {
 	value %= 360;

@@ -1,7 +1,11 @@
-import { DisplayObject, RenderMode, Bitmap, Shape, Sprite, Mesh } from '../../display/index.js';
-import { RenderObjectType } from '../../display/DisplayObject.js';
+import { DisplayObject, RenderMode, RenderObjectType } from '../../display/DisplayObject.js';
 import { DisplayObjectContainer } from '../../display/DisplayObjectContainer.js';
-import { Matrix, Rectangle } from '../../geom/index.js';
+import { Bitmap } from '../../display/Bitmap.js';
+import { Shape } from '../../display/Shape.js';
+import { Sprite } from '../../display/Sprite.js';
+import { Mesh } from '../../display/Mesh.js';
+import { Matrix } from '../../geom/Matrix.js';
+import { Rectangle } from '../../geom/Rectangle.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { CanvasRenderer } from '../CanvasRenderer.js';
 import { InstructionSet } from '../InstructionSet.js';

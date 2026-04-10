@@ -7,6 +7,7 @@ for (let i = 0; i < 360; i++) {
 	sinMap[i] = Math.sin(i * DEG_TO_RAD);
 	cosMap[i] = Math.cos(i * DEG_TO_RAD);
 }
+
 // Fix floating-point imprecision for cardinal angles
 sinMap[90] = 1;
 cosMap[90] = 0;

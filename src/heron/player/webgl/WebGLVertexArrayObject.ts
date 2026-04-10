@@ -1,4 +1,4 @@
-import { premultiplyTint, SYM_PREMULTIPLIED } from './WebGLUtils.js';
+import { premultiplyTint } from './WebGLUtils.js';
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 
 // ── Single-texture vertex layout ──────────────────────────────────────────────

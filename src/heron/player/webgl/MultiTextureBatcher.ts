@@ -1,4 +1,4 @@
-import type { Filter } from '../../filters/index.js';
+import type { Filter } from '../../filters/Filter.js';
 
 // ── MultiTextureDrawCmd ───────────────────────────────────────────────────────
 

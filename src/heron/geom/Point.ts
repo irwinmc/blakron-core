@@ -1,4 +1,5 @@
-import { HashObject, NumberUtils } from '../utils/index.js';
+import { HashObject } from '../utils/HashObject.js';
+import { NumberUtils } from '../utils/NumberUtils.js';
 
 const pointPool: Point[] = [];
 

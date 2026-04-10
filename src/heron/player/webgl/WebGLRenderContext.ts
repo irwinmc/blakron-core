@@ -5,9 +5,12 @@ import { ShaderLib } from './ShaderLib.js';
 import { SYM_GL_CONTEXT, SYM_PREMULTIPLIED, SYM_DEFAULT_EMPTY, SYM_SMOOTHING } from './WebGLUtils.js';
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { BitmapData } from '../../display/texture/BitmapData.js';
-import type { Filter } from '../../filters/index.js';
-import { ColorMatrixFilter, BlurFilter, GlowFilter, DropShadowFilter } from '../../filters/index.js';
-import { Rectangle } from '../../geom/index.js';
+import type { Filter } from '../../filters/Filter.js';
+import { ColorMatrixFilter } from '../../filters/ColorMatrixFilter.js';
+import { BlurFilter } from '../../filters/BlurFilter.js';
+import { GlowFilter } from '../../filters/GlowFilter.js';
+import { DropShadowFilter } from '../../filters/DropShadowFilter.js';
+import { Rectangle } from '../../geom/Rectangle.js';
 import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './MultiTextureBatcher.js';
 
 export class WebGLRenderContext {

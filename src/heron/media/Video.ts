@@ -1,7 +1,8 @@
-import { DisplayObject, BitmapData } from '../display/index.js';
+import { DisplayObject } from '../display/DisplayObject.js';
+import { BitmapData } from '../display/texture/BitmapData.js';
 import { Event } from '../events/Event.js';
 import { IOErrorEvent } from '../events/IOErrorEvent.js';
-import { Rectangle } from '../geom/index.js';
+import { Rectangle } from '../geom/Rectangle.js';
 import { ImageLoader } from '../net/ImageLoader.js';
 
 export class Video extends DisplayObject {

@@ -1,5 +1,8 @@
-export { HorizontalAlign, VerticalAlign, TextFieldType, TextFieldInputType } from './enums/index.js';
-export type { ITextStyle, ITextElement, IWTextElement, ILineElement, IHitTextElement } from './types/index.js';
+export { HorizontalAlign } from './enums/HorizontalAlign.js';
+export { VerticalAlign } from './enums/VerticalAlign.js';
+export { TextFieldType } from './enums/TextFieldType.js';
+export { TextFieldInputType } from './enums/TextFieldInputType.js';
+export type { ITextStyle, ITextElement, IWTextElement, ILineElement, IHitTextElement } from './types/ITextElement.js';
 export { HtmlTextParser } from './HtmlTextParser.js';
 export { BitmapFont } from './BitmapFont.js';
 export { BitmapText } from './BitmapText.js';

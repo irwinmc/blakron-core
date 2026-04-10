@@ -1,4 +1,5 @@
-import { Matrix, Rectangle } from '../../geom/index.js';
+import { Matrix } from '../../geom/Matrix.js';
+import { Rectangle } from '../../geom/Rectangle.js';
 import { WebGLRenderTarget } from './WebGLRenderTarget.js';
 import { WebGLRenderContext } from './WebGLRenderContext.js';
 

@@ -1,6 +1,9 @@
-import { Stage, StageScaleMode, OrientationMode, DisplayObject } from '../display/index.js';
+import { Stage } from '../display/Stage.js';
+import { StageScaleMode } from '../display/enums/StageScaleMode.js';
+import { OrientationMode } from '../display/enums/OrientationMode.js';
+import { DisplayObject } from '../display/DisplayObject.js';
 import { RenderTexture } from '../display/texture/RenderTexture.js';
-import { Matrix } from '../geom/index.js';
+import { Matrix } from '../geom/Matrix.js';
 import { Player } from './Player.js';
 import { TouchHandler } from './TouchHandler.js';
 import { ScreenAdapter } from './ScreenAdapter.js';
