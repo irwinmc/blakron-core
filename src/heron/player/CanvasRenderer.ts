@@ -7,11 +7,11 @@ import { Graphics, setGraphicsHitTest } from '../display/Graphics.js';
 import { PathCommandType, type GraphicsCommand } from '../display/GraphicsPath.js';
 import { Matrix } from '../geom/Matrix.js';
 import { Rectangle } from '../geom/Rectangle.js';
-import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 import { BlurFilter } from '../filters/BlurFilter.js';
 import { ColorMatrixFilter } from '../filters/ColorMatrixFilter.js';
 import { GlowFilter } from '../filters/GlowFilter.js';
 import { DropShadowFilter } from '../filters/DropShadowFilter.js';
+import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 
 const CAPS_MAP: Record<string, CanvasLineCap> = { none: 'butt', square: 'square', round: 'round' };
 

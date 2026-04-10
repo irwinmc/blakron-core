@@ -1,6 +1,6 @@
 import { BitmapData } from '../display/texture/BitmapData.js';
-import { RenderBuffer } from './RenderBuffer.js';
 import type { DisplayObject } from '../display/DisplayObject.js';
+import { RenderBuffer } from './RenderBuffer.js';
 
 /**
  * DisplayList provides per-object offscreen caching for DisplayObjects with

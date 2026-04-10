@@ -1,9 +1,9 @@
 import type { DisplayObject } from '../../display/DisplayObject.js';
+import { Matrix } from '../../geom/Matrix.js';
 import type { WebGLRenderBuffer } from '../webgl/WebGLRenderBuffer.js';
 import type { Instruction } from '../InstructionSet.js';
 import type { InstructionSet } from '../InstructionSet.js';
 import type { RenderPipe } from '../RenderPipe.js';
-import { Matrix } from '../../geom/Matrix.js';
 import { WebGLRenderBuffer as WGLBuf } from '../webgl/WebGLRenderBuffer.js';
 
 // ── Instructions ──────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import { Event } from '../events/Event.js';
+import { ticker, setInvalidateRenderFlag } from '../player/SystemTicker.js';
+import type { ScreenAdapter } from '../player/ScreenAdapter.js';
 import { DisplayObjectContainer } from './DisplayObjectContainer.js';
 import { OrientationMode } from './enums/OrientationMode.js';
 import { StageScaleMode } from './enums/StageScaleMode.js';
-import { ticker, setInvalidateRenderFlag } from '../player/SystemTicker.js';
-import type { ScreenAdapter } from '../player/ScreenAdapter.js';
 
 export class Stage extends DisplayObjectContainer {
 	// ── Instance fields ───────────────────────────────────────────────────────
