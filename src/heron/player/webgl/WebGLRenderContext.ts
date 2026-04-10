@@ -442,7 +442,7 @@ export class WebGLRenderContext {
 			rotated,
 		);
 
-		const count = meshIndices ? (meshIndices.length / 3) * 2 : 2;
+		const count = meshIndices ? meshIndices.length / 3 : 2;
 		this.drawCmdManager.pushDrawTexture(
 			texture,
 			count,
@@ -717,7 +717,11 @@ export class WebGLRenderContext {
 				vao.isMesh() ? vao.getMeshIndices() : vao.getIndices(),
 				gl.STATIC_DRAW,
 			);
-			this._bindIndices = true;
+			// Quad indices are static — cache after first upload.
+			// Mesh indices vary per frame — never cache.
+			if (!vao.isMesh()) {
+				this._bindIndices = true;
+			}
 		}
 
 		let indexOffset = 0;

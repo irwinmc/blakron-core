@@ -440,6 +440,11 @@
 				animMode = mode;
 				baseVertices = [...mesh.vertices];
 				animT = 0;
+				// Disable deform sliders during animation
+				deformIds.forEach(id => {
+					document.getElementById(id).disabled = true;
+				});
+				document.getElementById('btn-reset-deform').disabled = true;
 			}
 
 			document.getElementById('btn-wave').onclick = () => {
@@ -457,6 +462,11 @@
 			document.getElementById('btn-stop-anim').onclick = () => {
 				animMode = null;
 				setGrid(8, 8);
+				// Re-enable deform sliders
+				deformIds.forEach(id => {
+					document.getElementById(id).disabled = false;
+				});
+				document.getElementById('btn-reset-deform').disabled = false;
 			};
 
 			document.getElementById('anim-speed').addEventListener('input', e => {
@@ -515,7 +525,7 @@
 				'mesh-alpha-val',
 				v => v.toFixed(2),
 				v => {
-					mesh.alpha = v;
+					mesh.alpha = isNaN(v) ? 1 : v;
 				},
 			);
 			bindSlider(

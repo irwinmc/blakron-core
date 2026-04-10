@@ -35,12 +35,13 @@ export function deleteWebGLTexture(gl: WebGLRenderingContext | undefined, textur
 
 /** Premultiply tint color with alpha, packing into a uint32. */
 export function premultiplyTint(tint: number, alpha: number): number {
-	if (alpha === 1.0) return ((alpha * 255) << 24) + tint;
+	if (alpha === 1.0) return (0xff000000 | tint) >>> 0;
 	if (alpha === 0.0) return 0;
+	const A = Math.round(alpha * 255);
 	const R = Math.round(((tint >> 16) & 0xff) * alpha);
 	const G = Math.round(((tint >> 8) & 0xff) * alpha);
 	const B = Math.round((tint & 0xff) * alpha);
-	return ((alpha * 255) << 24) + (R << 16) + (G << 8) + B;
+	return ((A << 24) | (R << 16) | (G << 8) | B) >>> 0;
 }
 
 export function checkWebGLSupport(): boolean {

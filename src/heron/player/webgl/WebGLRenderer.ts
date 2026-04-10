@@ -154,6 +154,8 @@ export class WebGLRenderer {
 		if (set.structureDirty) {
 			this._releaseInstructions(set);
 			set.reset();
+			buffer.globalAlpha = 1;
+			buffer.globalTintColor = 0xffffff;
 			this._buildInstructions(displayObject, set, buffer, matrix.tx, matrix.ty, true);
 			set.structureDirty = false;
 		} else {

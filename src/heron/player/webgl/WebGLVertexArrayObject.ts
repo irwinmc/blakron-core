@@ -75,7 +75,7 @@ export class WebGLVertexArrayObject {
 	}
 
 	public getMeshIndices(): Uint16Array {
-		return this._indicesForMesh;
+		return this._indicesForMesh.subarray(0, this._indexIndex);
 	}
 
 	public changeToMeshIndices(): void {
