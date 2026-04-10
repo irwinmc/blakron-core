@@ -1,6 +1,6 @@
 {
 	"name": "@heron/core",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"description": "Modern rewrite of the Egret game engine — WebGL multi-texture batching, instruction-driven render pipeline, strict TypeScript, Egret-compatible API",
 	"author": "",
 	"license": "MIT",
