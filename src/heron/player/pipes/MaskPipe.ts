@@ -212,6 +212,7 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 		// Deactivate the offscreen buffer, restoring the main buffer as active.
 		displayBuffer.context.popBuffer();
 
+		const prevBlend = buffer.context.currentBlendMode;
 		if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
 		if (scrollRect) {
 			buffer.context.pushMask(
@@ -237,7 +238,7 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 		Matrix.release(savedMatrix);
 
 		if (scrollRect) buffer.context.popMask();
-		if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
+		if (hasBlend) buffer.context.setGlobalCompositeOperation(prevBlend);
 
 		WGLBuf.release(displayBuffer);
 	}

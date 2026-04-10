@@ -39,6 +39,9 @@ export class WebGLRenderContext {
 	/** Active filter applied to the next draw call. Set by FilterPipe. */
 	public activeFilter: Filter | undefined = undefined;
 
+	/** Tracks the last blend mode set via setGlobalCompositeOperation(). */
+	public currentBlendMode = 'source-over';
+
 	// ── Private fields ────────────────────────────────────────────────────────
 
 	private readonly _vao: WebGLVertexArrayObject;
@@ -51,6 +54,16 @@ export class WebGLRenderContext {
 	private _defaultEmptyTexture: WebGLTexture | undefined;
 	/** Max texture units available; capped at MultiTextureBatcher.MAX_TEXTURES. */
 	private _maxTextureUnits = MultiTextureBatcher.MAX_TEXTURES;
+
+	/** Callbacks invoked after WebGL context is restored. */
+	private readonly _contextRestoredCallbacks: Array<() => void> = [];
+
+	/**
+	 * BitmapData instances that have been assigned a WebGLTexture via getWebGLTexture().
+	 * Tracked so we can invalidate them on context loss.
+	 * Uses a Set of WeakRefs to avoid preventing garbage collection.
+	 */
+	private readonly _trackedBitmapDatas: Set<WeakRef<BitmapData>> = new Set();
 
 	private constructor(canvas: HTMLCanvasElement) {
 		this.surface = canvas;
@@ -91,6 +104,18 @@ export class WebGLRenderContext {
 	}
 
 	// ── Getter ────────────────────────────────────────────────────────────────
+
+	/**
+	 * Register a callback to be invoked after the WebGL context is restored.
+	 * Returns an unregister function.
+	 */
+	public addContextRestoredListener(fn: () => void): () => void {
+		this._contextRestoredCallbacks.push(fn);
+		return () => {
+			const i = this._contextRestoredCallbacks.indexOf(fn);
+			if (i >= 0) this._contextRestoredCallbacks.splice(i, 1);
+		};
+	}
 
 	public get activatedBuffer(): WebGLRenderBuffer | undefined {
 		return this._currentBuffer;
@@ -204,6 +229,7 @@ export class WebGLRenderContext {
 	// ── Blend mode ────────────────────────────────────────────────────────────
 
 	public setGlobalCompositeOperation(value: string): void {
+		this.currentBlendMode = value;
 		this.drawCmdManager.pushSetBlend(value);
 	}
 
@@ -237,6 +263,7 @@ export class WebGLRenderContext {
 			const tex = this.createTexture(bitmapData.source as HTMLImageElement);
 			bitmapData.webGLTexture = tex;
 			(tex as Record<string, unknown>)[SYM_SMOOTHING] = true;
+			this._trackedBitmapDatas.add(new WeakRef(bitmapData));
 		}
 		return bitmapData.webGLTexture;
 	}
@@ -648,8 +675,28 @@ export class WebGLRenderContext {
 		this.drawCmdManager.clear();
 		this._vao.clear();
 
+		// The default empty texture is also lost.
+		this._defaultEmptyTexture = undefined;
+
+		// Invalidate all cached WebGL textures on BitmapData instances.
+		// After context loss every WebGLTexture handle is invalid; clearing the
+		// reference lets getWebGLTexture() lazily re-upload from the source.
+		for (const ref of this._trackedBitmapDatas) {
+			const bd = ref.deref();
+			if (bd) {
+				bd.webGLTexture = undefined;
+			} else {
+				// BitmapData was garbage collected — remove the dead WeakRef.
+				this._trackedBitmapDatas.delete(ref);
+			}
+		}
+
 		// Restore projection.
 		this.onResize();
+
+		// Notify listeners (e.g. WebGLRenderer) so they can rebuild instructions
+		// and invalidate texture references.
+		for (const fn of this._contextRestoredCallbacks) fn();
 	}
 
 	private _flush(): void {

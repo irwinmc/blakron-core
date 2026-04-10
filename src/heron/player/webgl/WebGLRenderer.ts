@@ -101,6 +101,8 @@ export class WebGLRenderer {
 	 * Entries are created on first encounter and reused across frames.
 	 */
 	private readonly _renderGroupSets = new WeakMap<DisplayObjectContainer, InstructionSet>();
+	/** Iterable list of all live RenderGroup sets (mirrors the WeakMap keys). */
+	private readonly _renderGroupSetList: Array<WeakRef<DisplayObjectContainer>> = [];
 
 	// ── Nesting (for recursive offscreen renders, e.g. cacheAsBitmap) ────────
 	private _nestLevel = 0;
@@ -377,6 +379,7 @@ export class WebGLRenderer {
 		if (!groupSet) {
 			groupSet = new InstructionSet();
 			this._renderGroupSets.set(obj, groupSet);
+			this._renderGroupSetList.push(new WeakRef(obj));
 		}
 
 		if (groupSet.structureDirty) {
@@ -692,7 +695,12 @@ export class WebGLRenderer {
 				break;
 			}
 			case RenderObjectType.BITMAP: {
-				const inst: BitmapInstruction = { renderPipeId: 'bitmap', renderable: obj as Bitmap, offsetX: 0, offsetY: 0 };
+				const inst: BitmapInstruction = {
+					renderPipeId: 'bitmap',
+					renderable: obj as Bitmap,
+					offsetX: 0,
+					offsetY: 0,
+				};
 				this._bitmapPipe.execute(inst, buffer);
 				drawCalls++;
 				break;
@@ -790,6 +798,21 @@ export class WebGLRenderer {
 			}
 		}
 		this._instructionSet.structureDirty = true;
+
+		// When no specific owner is given (e.g. context restored), mark ALL
+		// RenderGroup sets dirty so they also rebuild with fresh texture refs.
+		if (!owner) {
+			for (let i = this._renderGroupSetList.length - 1; i >= 0; i--) {
+				const container = this._renderGroupSetList[i].deref();
+				if (!container) {
+					// GC'd — remove dead entry.
+					this._renderGroupSetList.splice(i, 1);
+					continue;
+				}
+				const groupSet = this._renderGroupSets.get(container);
+				if (groupSet) groupSet.structureDirty = true;
+			}
+		}
 	}
 
 	/**

@@ -1,15 +1,11 @@
-import { DisplayObject } from '../display/DisplayObject.js';
-import type { Stage } from '../display/Stage.js';
+import { DisplayObject, type Stage } from '../display/index.js';
 import { Rectangle } from '../geom/index.js';
+import { Event, TouchEvent, TextEvent } from '../events/index.js';
 import { measureText, getFontString } from './TextMeasurer.js';
-import type { ITextElement, ILineElement, IWTextElement } from './types/ITextElement.js';
-import { HorizontalAlign } from './enums/HorizontalAlign.js';
-import { VerticalAlign } from './enums/VerticalAlign.js';
-import { TextFieldType } from './enums/TextFieldType.js';
-import { TextFieldInputType } from './enums/TextFieldInputType.js';
+import type { ITextElement, ILineElement, IWTextElement } from './types/index.js';
+import { HorizontalAlign, VerticalAlign, TextFieldType, TextFieldInputType } from './enums/index.js';
 import { InputController } from './InputController.js';
 import { getWordWrapRegex } from './WordWrap.js';
-import { HeronEvent, HeronTouchEvent, HeronTextEvent } from '../events/index.js';
 
 /**
  * TextField displays text content. Supports single-line, multi-line, word wrap,
@@ -469,7 +465,7 @@ export class TextField extends DisplayObject {
 		if (this._type === TextFieldType.INPUT && this._inputController) {
 			this._inputController.addStageText();
 		}
-		this.addEventListener(HeronTouchEvent.TOUCH_TAP, this.onTapHandler as (e: HeronEvent) => void);
+		this.addEventListener(TouchEvent.TOUCH_TAP, this.onTapHandler as (e: Event) => void);
 	}
 
 	override onRemoveFromStage(): void {
@@ -477,7 +473,7 @@ export class TextField extends DisplayObject {
 		if (this._inputController) {
 			this._inputController.removeStageText();
 		}
-		this.removeEventListener(HeronTouchEvent.TOUCH_TAP, this.onTapHandler as (e: HeronEvent) => void);
+		this.removeEventListener(TouchEvent.TOUCH_TAP, this.onTapHandler as (e: Event) => void);
 	}
 
 	override measureContentBounds(bounds: Rectangle): void {
@@ -666,14 +662,14 @@ export class TextField extends DisplayObject {
 		return this._text;
 	}
 
-	private onTapHandler = (e: HeronEvent): void => {
+	private onTapHandler = (e: Event): void => {
 		if (this._type === TextFieldType.INPUT) return;
-		const te = e as HeronTouchEvent;
+		const te = e as TouchEvent;
 		const element = this.getTextElementAt(te.localX, te.localY);
 		if (!element?.style?.href) return;
 		const href = element.style.href;
 		if (href.startsWith('event:')) {
-			HeronTextEvent.dispatchTextEvent(this, HeronTextEvent.LINK, href.substring('event:'.length));
+			TextEvent.dispatchTextEvent(this, TextEvent.LINK, href.substring('event:'.length));
 		} else {
 			open(href, element.style.target ?? '_blank');
 		}

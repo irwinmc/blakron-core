@@ -1,4 +1,4 @@
-import { EventDispatcher } from '../events/EventDispatcher.js';
+import { EventDispatcher } from '../events/index.js';
 import type { TextField } from './TextField.js';
 
 /**

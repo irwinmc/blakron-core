@@ -16,6 +16,11 @@ export interface FilterPushInstruction extends Instruction {
 	filters: Filter[];
 	offsetX: number;
 	offsetY: number;
+	/**
+	 * The blend mode that was active before this filter changed it.
+	 * Set during executePush() so executePop() can restore it.
+	 */
+	savedBlendMode: string;
 }
 
 /** Marks the end of a filtered subtree — composites the offscreen result. */
@@ -65,7 +70,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		offsetX: number,
 		offsetY: number,
 	): FilterPushInstruction {
-		return { renderPipeId: 'filterPush', renderable, filters, offsetX, offsetY };
+		return { renderPipeId: 'filterPush', renderable, filters, offsetX, offsetY, savedBlendMode: 'source-over' };
 	}
 
 	public static makePop(renderable: DisplayObject, push: FilterPushInstruction): FilterPopInstruction {
@@ -98,6 +103,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		if (!inst.renderable.internalMask && filters.length === 1 && filters[0] instanceof ColorMatrixFilter) {
 			const hasBlend = inst.renderable.internalBlendMode !== 0;
 			if (hasBlend) {
+				inst.savedBlendMode = buffer.context.currentBlendMode;
 				buffer.context.setGlobalCompositeOperation(
 					BLEND_MODES[inst.renderable.internalBlendMode] ?? 'source-over',
 				);
@@ -109,7 +115,10 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		// Offscreen path: redirect all subsequent draw calls into this buffer.
 		// Expand the buffer by the union of all filters' padding so blur/glow
 		// has room to bleed outside the content bounds.
-		let padL = 0, padR = 0, padT = 0, padB = 0;
+		let padL = 0,
+			padR = 0,
+			padT = 0,
+			padB = 0;
 		for (const f of filters) {
 			const p = f.getPadding();
 			if (p.left > padL) padL = p.left;
@@ -145,7 +154,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		// Inline ColorMatrix path — just clear the filter flag.
 		if (!offscreen) {
 			buffer.context.activeFilter = undefined;
-			if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
+			if (hasBlend) buffer.context.setGlobalCompositeOperation(push.savedBlendMode);
 			return;
 		}
 
@@ -156,6 +165,9 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		const bx = bounds.x;
 		const by = bounds.y;
 
+		// Save the current blend mode before applying the filter's blend mode,
+		// so we can restore it after compositing.
+		const prevBlend = buffer.context.currentBlendMode;
 		if (hasBlend) buffer.context.setGlobalCompositeOperation(blendOp);
 
 		// Position the offscreen result.
@@ -170,7 +182,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		buffer.context.compositeFilterResult(filters, offscreen);
 		buffer.restoreTransform();
 
-		if (hasBlend) buffer.context.setGlobalCompositeOperation('source-over');
+		if (hasBlend) buffer.context.setGlobalCompositeOperation(prevBlend);
 
 		WGLBuf.release(offscreen);
 	}

@@ -52,6 +52,10 @@ export class Player implements Renderable {
 						renderer.markStructureDirty(owner),
 					),
 					DisplayObject.addRenderableDirtyListener(obj => renderer.markRenderableDirty(obj)),
+					// After context loss + restore, all WebGL textures are invalid and
+					// the instruction set contains stale texture references. Force a
+					// full rebuild so the next render re-uploads everything.
+					this._webglContext.addContextRestoredListener(() => renderer.markStructureDirty()),
 				);
 
 				return;
@@ -159,7 +163,9 @@ export class Player implements Renderable {
 			this.perf.fps = fps;
 			if (fps < this.perf.minFps) this.perf.minFps = fps;
 			if (fps > this.perf.maxFps) this.perf.maxFps = fps;
-			this.perf.avgFps = this.perf.frameCount / (this.perf.totalRenderTimeMs / 1000 + (now - this._fpsLastTime + elapsed) / 1000) || fps;
+			this.perf.avgFps =
+				this.perf.frameCount /
+					(this.perf.totalRenderTimeMs / 1000 + (now - this._fpsLastTime + elapsed) / 1000) || fps;
 			this._fpsFrames = 0;
 			this._fpsLastTime = now;
 		}
