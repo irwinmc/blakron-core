@@ -1,6 +1,6 @@
 # Heron Core V2 架构文档
 
-> 版本：0.2.0 | 更新日期：2026-04-10
+> 版本：0.2.1 | 更新日期：2026-04-10
 >
 > 本文档是 Heron Core 的完整技术文档，整合了翻新计划、Egret 对比分析、
 > 渲染重构设计与实现、性能分析等所有已完成工作的记录。
@@ -76,7 +76,7 @@ packages/core/src/heron/
 ├── text/             # 文本渲染（TextField, BitmapText, BitmapFont）
 ├── net/              # 网络加载（HttpRequest, ImageLoader）
 ├── media/            # 媒体（Sound, SoundChannel, Video）
-├── utils/            # 工具类（HashObject, ByteArray, Timer, Logger）
+├── utils/            # 工具类（HashObject, ByteArray, Timer, Logger, FontManager, DebugLog）
 ├── localStorage/     # 本地存储
 └── external/         # 外部接口
 ```
@@ -265,52 +265,93 @@ Canvas 2D 渲染器保持直接遍历模式，作为 WebGL 不可用时的降级
 
 ---
 
-## 六、与 Egret 的 API 一致性
+## 六、与 Egret 的 API 对比
 
 ### 6.1 显示对象 API
 
-| Egret API                                                                | 状态                                    |
-| ------------------------------------------------------------------------ | --------------------------------------- |
-| `x/y/scaleX/scaleY/rotation/alpha/visible/touchEnabled`                  | ✅ 完全一致                             |
-| `width/height/anchorOffsetX/Y`                                           | ✅ 完全一致                             |
-| `mask` (DisplayObject/Rectangle) / `scrollRect`                          | ✅ 完全一致                             |
-| `cacheAsBitmap` / `filters`                                              | ✅ 完全一致                             |
-| `getBounds()` / `globalToLocal()` / `localToGlobal()` / `hitTestPoint()` | ✅ 完全一致                             |
-| `addChild/removeChild/getChildAt/swapChildren/setChildIndex`             | ✅ 完全一致                             |
-| `bitmap.texture/smoothing/fillMode/scale9Grid/pixelHitTest`              | ✅ 完全一致                             |
-| `mesh.vertices/indices/uvs`                                              | ✅ 完全一致                             |
-| `graphics.bindFill/lineStyle/drawRect/drawCircle/...`                    | ✅ 完全一致                             |
-| `stage.stageWidth/stageHeight/frameRate/scaleMode/orientation`           | ✅ 完全一致                             |
-| `blendMode`                                                              | ⚠️ 值从 `"normal"` 改为 `"source-over"` |
+| Egret API                                                                | 状态                                           |
+| ------------------------------------------------------------------------ | ---------------------------------------------- |
+| `x/y/scaleX/scaleY/rotation/alpha/visible/touchEnabled`                  | ✅ 完全一致                                    |
+| `anchorOffsetX/Y`                                                        | ✅ 完全一致                                    |
+| `width/height`                                                           | ⚠️ 行为变更：使用 explicitWidth/Height 模式    |
+| `mask` (DisplayObject/Rectangle) / `scrollRect`                          | ✅ 完全一致                                    |
+| `cacheAsBitmap` / `filters`                                              | ✅ 完全一致                                    |
+| `getBounds()` / `globalToLocal()` / `localToGlobal()` / `hitTestPoint()` | ✅ 完全一致                                    |
+| `addChild/removeChild/swapChildren/setChildIndex`                        | ✅ 完全一致                                    |
+| `getChildAt`                                                             | ⚠️ 越界返回 `undefined`（Egret 可能抛异常）   |
+| `removeChildAt`                                                          | ⚠️ 越界返回 `undefined`（Egret 可能抛异常）   |
+| `removeChildren`                                                         | ⚠️ 返回 `void`（Egret 返回数组）              |
+| `bitmap.texture/smoothing/fillMode/scale9Grid/pixelHitTest`              | ✅ 完全一致                                    |
+| `bitmap.width/height`                                                    | ⚠️ 使用 explicitBitmapWidth/Height 模式        |
+| `mesh.vertices/indices/uvs`                                              | ✅ 完全一致（Mesh extends Bitmap，非 Egret 原生类） |
+| `graphics.beginFill/lineStyle/drawRect/drawCircle/...`                   | ✅ 完全一致                                    |
+| `stage.stageWidth/stageHeight/frameRate/scaleMode/orientation`           | ✅ 完全一致                                    |
+| `blendMode`                                                              | ⚠️ 值从 `"normal"` 改为 `"source-over"`       |
+| `matrix` getter                                                          | ⚠️ 返回 clone（Egret 返回引用）               |
 
-### 6.2 新增属性（Egret 无对应）
+### 6.2 新增 API（Egret 无对应）
 
-| 属性                                        | 说明                        |
-| ------------------------------------------- | --------------------------- |
-| `displayObject.tint`                        | 着色（0xRRGGBB），Pixi 风格 |
-| `displayObject.zIndex` / `sortableChildren` | 排序                        |
-| `displayObject.skewX/skewY`                 | 斜切变换                    |
-| `container.isRenderGroup`                   | 独立渲染组标记              |
+| 属性/方法                                        | 说明                              |
+| ------------------------------------------------ | --------------------------------- |
+| `displayObject.tint`                             | 着色（0xRRGGBB），Pixi 风格      |
+| `displayObject.zIndex` / `sortableChildren`      | 排序                              |
+| `displayObject.skewX/skewY`                      | 斜切变换                          |
+| `displayObject.measuredWidth/measuredHeight`      | 内容测量尺寸（只读）              |
+| `container.isRenderGroup`                        | 独立渲染组标记                    |
+| `container.sortChildren()`                       | 按 zIndex 排序                    |
+| `graphics.drawArc()`                             | 原生弧线绘制                      |
+| `graphics.lineStyle(..., lineDash?)`             | 虚线参数                          |
+| `CustomFilter`                                   | 自定义 WebGL 着色器滤镜          |
+| `EventDispatcher.once()`                         | 一级公开方法（Egret 仅为内部）    |
+| `Player.perf`                                    | 性能指标对象（fps/drawCalls 等）  |
+| `createPlayer(options)` → `HeronApp`             | 统一创建入口                      |
+| `SoundType` 枚举                                 | `'music'` / `'effect'`            |
+| `FontManager` (registerFontMapping/cacheFontResource) | 字体注册与缓存              |
+| `DebugLog`                                       | 帧级调试日志                      |
+| `WordWrap` 模块                                  | 多语言自动换行                    |
+| `TextMeasurer` (measureText/getFontString)       | 文本测量工具                      |
 
 ### 6.3 事件系统
 
-13 个事件类完整保留：Event, TouchEvent, TimerEvent, ProgressEvent, IOErrorEvent,
-HTTPStatusEvent, FocusEvent, TextEvent, StageOrientationEvent 等。
+12 个事件类完整保留，导出名称与 Egret 一致，通过 ES Module 包名隔离：
+
+```typescript
+import { Event, TouchEvent } from '@heron/core';  // 直接用原名
+import * as H from '@heron/core';                   // 需要隔离时用命名空间
+```
+
+| 类名                  | 差异                       |
+| --------------------- | -------------------------- |
+| `Event`               | 新增 `Event.dispatch()`    |
+| `TouchEvent`          | 无差异                     |
+| `TimerEvent`          | 无差异                     |
+| `ProgressEvent`       | 无差异                     |
+| `IOErrorEvent`        | 无差异                     |
+| `HTTPStatusEvent`     | 无差异                     |
+| `FocusEvent`          | ⚠️ 缺少 `relatedObject`    |
+| `TextEvent`           | 无差异                     |
+| `StageOrientationEvent` | 无差异                  |
+| `EventDispatcher`     | 新增 `once()` 一级方法     |
+| `IEventDispatcher`    | 新增 `once()` 接口方法     |
+| `EventPhase`          | 改为 `const enum`          |
 
 内部优化：存储改为 `Map`，对象池改为 `WeakMap`，移除 `thisObject` 参数。
 
-### 6.4 其他模块一致性
+### 6.4 其他模块对比
 
-| 模块                                              | 状态                        |
-| ------------------------------------------------- | --------------------------- |
-| geom (Matrix/Point/Rectangle)                     | ✅ API 完全一致，保留对象池 |
-| filters (Blur/Glow/DropShadow/ColorMatrix/Custom) | ✅ API 完全一致             |
-| net (HttpRequest/ImageLoader)                     | ✅ API 完全一致             |
-| media (Sound/SoundChannel/Video)                  | ✅ API 完全一致             |
-| text (TextField/BitmapText/BitmapFont)            | ✅ API 完全一致             |
-| localStorage                                      | ✅ API 完全一致             |
-| ExternalInterface                                 | ✅ API 完全一致             |
-| utils (ByteArray/Timer/HashObject)                | ✅ API 完全一致             |
+| 模块                                              | 状态                                    | 差异说明                                     |
+| ------------------------------------------------- | --------------------------------------- | -------------------------------------------- |
+| geom (Matrix/Point/Rectangle)                     | ✅ API 兼容                             | 对象池 `create()/release()`，严格等号 `===`  |
+| filters (Blur/Glow/DropShadow/ColorMatrix)        | ✅ API 兼容                             |                                              |
+| filters (CustomFilter)                            | 🆕 全新                                 | 自定义 WebGL 着色器滤镜                     |
+| net (HttpRequest/ImageLoader)                     | ✅ API 兼容                             | 新增 `HttpMethod`/`HttpResponseType` 常量    |
+| media (Sound/SoundChannel/Video)                  | ✅ API 兼容                             | 新增 `SoundType`，串行解码队列               |
+| text (TextField/BitmapText/BitmapFont)            | ✅ API 兼容                             | `BitmapText` 新增 `letterSpacing/smoothing`  |
+| text (HtmlTextParser)                             | ✅ API 兼容                             | 新增 `parse()` 替代废弃的 `parser()`         |
+| localStorage                                      | ✅ API 兼容                             | 导出为 `localStorage` 命名空间               |
+| ExternalInterface                                 | ✅ API 兼容                             | 使用 `window.__heronCallback` 调度           |
+| utils (ByteArray/Timer/HashObject)                | ✅ API 兼容                             | ByteArray 用 DataView 替代手动 ArrayBuffer    |
+| utils (Base64Util)                                | ⚠️ 签名变更                             | `encode(ArrayBuffer)` 替代 `encode(string)`  |
 
 ---
 
@@ -358,14 +399,21 @@ typescript-plus 魔改编译器、resourcemanager 黑盒插件管道等。
 
 ## 八、Breaking Changes
 
-| 变更                     | 影响                           | 迁移方式           |
-| ------------------------ | ------------------------------ | ------------------ |
-| `thisObject` 参数移除    | 所有事件监听代码               | 使用箭头函数       |
-| `BlendMode` 值变化       | `"normal"` → `"source-over"`   | 使用常量           |
-| `Point.polar()` 参数单位 | 弧度 → 角度                    | 检查调用方         |
-| `stopPropagation()` 行为 | 非冒泡事件也可停止             | 测试非冒泡事件逻辑 |
-| hitTest 返回值           | `null` → `undefined`           | 检查 `=== null`    |
-| 命名空间                 | `egret.xxx` → ES Module import | 全量替换           |
+| 变更                        | 影响                           | 迁移方式                                          |
+| --------------------------- | ------------------------------ | ------------------------------------------------- |
+| `thisObject` 参数移除       | 所有事件监听代码               | 使用箭头函数                                      |
+| `BlendMode` 值变化          | `"normal"` → `"source-over"`   | 使用常量                                          |
+| `Point.polar()` 参数单位    | 弧度 → 角度                    | 检查调用方                                        |
+| `width/height` 行为变更     | Egret 通过 scaleX/scaleY 模拟  | 使用 explicitWidth/Height 或直接设 scaleX/scaleY  |
+| `matrix` getter 返回 clone  | 依赖引用修改 matrix 的代码     | 改用 `setMatrix()` 或解构赋值                     |
+| `removeChildren()` 返回值   | `DisplayObject[]` → `void`     | 不依赖返回值                                      |
+| `getChildAt()` 越界         | 可能抛异常 → 返回 `undefined`  | 检查返回值                                        |
+| `stopPropagation()` 行为    | 非冒泡事件也可停止             | 测试非冒泡事件逻辑                                |
+| hitTest 返回值              | `null` → `undefined`           | 检查 `=== null`                                   |
+| 命名空间                    | `egret.xxx` → ES Module import | 全量替换                                          |
+| `FocusEvent.relatedObject`  | 属性不存在                     | 自行追踪焦点相关对象                              |
+| `Texture.getPixel32/getPixels/toDataURL` | 已废弃，调用抛异常 | 仅 `RenderTexture.getPixel32` 可用                |
+| `Base64Util.encode` 签名    | `string` → `ArrayBuffer`       | `encode(new TextEncoder().encode(str))`           |
 
 ---
 
@@ -390,7 +438,7 @@ typescript-plus 魔改编译器、resourcemanager 黑盒插件管道等。
 - Canvas 2D 滤镜 CPU 像素操作 → CSS filter 快速路径
 - WebGL Context Lost 无恢复 → 已实现恢复逻辑
 
-已修复的渲染 bug（0.2.0 → 当前）：
+已修复的渲染 bug（0.2.0 → 0.2.1）：
 
 - `glDrawElements` index offset 计算错误（`indexOffset * 2` → `* 6`），导致多 draw call 时顶点偏移
 - multi-texture 命令合并时 `cmd.count` 未同步更新，导致后续 draw 的 index offset 错误
@@ -404,23 +452,88 @@ typescript-plus 魔改编译器、resourcemanager 黑盒插件管道等。
 
 ---
 
+## 九.五、快速启动 API
+
+### `createPlayer(options)`
+
+统一入口，一行代码完成 Player + Stage + TouchHandler + ScreenAdapter 的创建和绑定：
+
+```typescript
+import { createPlayer, Event } from '@heron/core';
+
+const app = createPlayer({
+    canvas: document.getElementById('game-canvas') as HTMLCanvasElement,
+    frameRate: 60,
+    scaleMode: 'showAll',
+    contentWidth: 640,
+    contentHeight: 1136,
+});
+
+app.stage.addEventListener(Event.ENTER_FRAME, onEnterFrame);
+app.start(root);
+```
+
+### `HeronOptions` 接口
+
+| 属性            | 类型              | 默认值      | 说明                 |
+| --------------- | ----------------- | ----------- | -------------------- |
+| `canvas`        | `HTMLCanvasElement` | （必填）  | 渲染画布             |
+| `frameRate`     | `number`          | `60`        | 目标帧率             |
+| `scaleMode`     | `StageScaleMode`  | `'showAll'` | 屏幕适配模式         |
+| `contentWidth`  | `number`          | `canvas.width` | 逻辑内容宽度     |
+| `contentHeight` | `number`          | `canvas.height` | 逻辑内容高度    |
+| `orientation`   | `OrientationMode` | `'auto'`    | 屏幕方向             |
+| `maxTouches`    | `number`          | `99`        | 最大触点数           |
+| `background`    | `string`          | —           | CSS 背景色           |
+
+### `HeronApp` 返回值
+
+| 属性            | 类型              | 说明           |
+| --------------- | ----------------- | -------------- |
+| `player`        | `Player`          | 渲染播放器     |
+| `stage`         | `Stage`           | 舞台根节点     |
+| `touchHandler`  | `TouchHandler`    | 触摸/鼠标处理  |
+| `screenAdapter` | `ScreenAdapter`   | 屏幕适配器     |
+| `start(root?)`  | `() => void`      | 启动游戏循环   |
+| `stop()`        | `() => void`      | 停止游戏循环   |
+
+### `Player.perf` 性能指标
+
+| 属性              | 类型     | 说明                   |
+| ----------------- | -------- | ---------------------- |
+| `fps`             | `number` | 当前帧率（每秒采样）   |
+| `avgFps`          | `number` | 平均帧率               |
+| `minFps`          | `number` | 最低帧率               |
+| `maxFps`          | `number` | 最高帧率               |
+| `drawCalls`       | `number` | 当前帧 draw call 数    |
+| `avgDrawCalls`    | `number` | 平均 draw call 数      |
+| `renderTimeMs`    | `number` | 当前帧渲染耗时（ms）   |
+| `avgRenderTimeMs` | `number` | 平均渲染耗时           |
+| `maxRenderTimeMs` | `number` | 最大渲染耗时           |
+| `totalRenderTimeMs` | `number` | 累计渲染耗时         |
+| `frameCount`      | `number` | 总帧数                 |
+
+---
+
 ## 十、移植完成度
 
 ### 已完成
 
-| 模块                         | 文件数                 | 状态 |
-| ---------------------------- | ---------------------- | ---- |
-| events/                      | 13                     | ✅   |
-| geom/                        | 3                      | ✅   |
-| utils/                       | 8 + FontManager 新增   | ✅   |
-| display/ + enums/ + texture/ | 20 + GraphicsPath 新增 | ✅   |
-| net/                         | 4                      | ✅   |
-| filters/                     | 6                      | ✅   |
-| localStorage/                | 1                      | ✅   |
-| external/                    | 1                      | ✅   |
-| media/                       | 3                      | ✅   |
-| player/ + pipes/ + webgl/    | 20+                    | ✅   |
-| text/                        | 8 + WordWrap 新增      | ✅   |
+| 模块                         | 文件数                  | 测试覆盖 | 状态 |
+| ---------------------------- | ----------------------- | -------- | ---- |
+| events/                      | 13                      | ✅ 3 文件 | ✅   |
+| geom/                        | 3                       | ✅ 3 文件 | ✅   |
+| utils/                       | 10 (含 FontManager 新增) | ✅ 4 文件 | ✅   |
+| display/ + enums/ + texture/ | 20 + GraphicsPath 新增  | ✅ 3 文件 | ✅   |
+| net/                         | 4                       | —        | ✅   |
+| filters/                     | 6 (含 CustomFilter 新增) | ✅ 1 文件 | ✅   |
+| localStorage/                | 1                       | —        | ✅   |
+| external/                    | 1                       | —        | ✅   |
+| media/                       | 3                       | —        | ✅   |
+| player/ + pipes/ + webgl/    | 20+                     | ✅ 1 文件 | ✅   |
+| text/                        | 8 + WordWrap 新增       | —        | ✅   |
+
+**测试总计：14 个测试文件，225 个测试用例，全部通过。**
 
 ### 搁置项
 
@@ -437,13 +550,6 @@ typescript-plus 魔改编译器、resourcemanager 黑盒插件管道等。
 ## 十一、优化空间
 
 以下按优先级排列，所有优化均不影响对外 API 一致性。
-
-### P0: 单元测试覆盖
-
-- 已完成基础覆盖：Event/EventDispatcher、Matrix/Point/Rectangle、ByteArray、
-  Graphics、DisplayObject/Container、filters（Blur/Glow/DropShadow/ColorMatrix）
-- 14 个测试文件，225 个测试用例
-- 待补充：InstructionSet、WebGLRenderer 集成测试
 
 ### P1: TextField WebGL 渲染优化
 
@@ -465,6 +571,11 @@ typescript-plus 魔改编译器、resourcemanager 黑盒插件管道等。
 
 - 当前每帧 `gl.bufferData(STREAM_DRAW)` 全量上传
 - 可用 `gl.bufferSubData()` 局部更新或双缓冲 VBO
+
+### P2: 单元测试补充
+
+- 已有：14 文件 225 用例（geom/events/utils/display/filters/player）
+- 待补充：net（HttpRequest/ImageLoader）、media（Sound/Video）、text（TextField/BitmapText）、WebGL 集成
 
 ### P3: 压缩纹理支持（KTX/ASTC/ETC2）
 
