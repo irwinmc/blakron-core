@@ -1,6 +1,6 @@
 # Heron Core 架构文档
 
-> 版本：0.2.1 | 更新日期：2026-04-10
+> 版本：0.2.3 | 更新日期：2026-04-11
 
 ---
 
@@ -73,6 +73,7 @@ packages/core/src/heron/
 ├── text/             # 文本渲染（TextField, BitmapText, BitmapFont）
 ├── net/              # 网络加载（HttpRequest, ImageLoader）
 ├── media/            # 媒体（Sound, SoundChannel, Video）
+├── benchmark/        # 性能基准（MetricsCollector, BenchmarkRunner, SceneRegistry, PerfPanel, ReportExporter）
 ├── utils/            # 工具类（HashObject, ByteArray, Timer, Logger, FontManager, DebugLog）
 ├── localStorage/     # 本地存储
 └── external/         # 外部接口
@@ -375,15 +376,17 @@ app.start(root);
 
 ## 十、测试覆盖
 
-14 个测试文件，225 个测试用例，全部通过。
+18 个测试文件，310 个测试用例，全部通过。
 
-| 模块     | 测试文件数 |
-| -------- | ---------- |
-| events/  | 3          |
-| geom/    | 3          |
-| utils/   | 4          |
-| display/ | 3          |
-| filters/ | 1          |
+| 模块       | 测试文件数 |
+| ---------- | ---------- |
+| events/    | 3          |
+| geom/      | 3          |
+| utils/     | 4          |
+| display/   | 3          |
+| filters/   | 1          |
+| media/     | 3          |
+| benchmark/ | 1          |
 
 ---
 
@@ -417,3 +420,57 @@ export default defineConfig({
 | 配置文件  | egretProperties.json + index.html data-\* | heron.config.ts           |
 | EXML 编译 | 内嵌在 tools/lib/eui/                     | 独立包 @heron/exml-parser |
 | 模块系统  | CommonJS                                  | ESM                       |
+
+---
+
+## 十二、变更日志
+
+### 0.2.3（2026-04-11）
+
+**WebGL Context Lost 恢复完善**
+
+- `WebGLRenderContext` 通过 `_trackedBitmapDatas` 追踪所有 BitmapData，context restored 时清除 `webGLTexture` 引用，下次 `getWebGLTexture()` 自动重建
+- `Player` 注册 context restored 回调，调用 `markStructureDirty()` 触发全量重建（含所有 RenderGroup）
+
+**FilterPipe / MaskPipe blend mode 恢复**
+
+- `WebGLRenderContext` 新增 `currentBlendMode` 追踪当前 blend 状态
+- `FilterPipe.executePush()` 保存当前 blend mode 到 `savedBlendMode`，`executePop()` 恢复
+- `MaskPipe.executeClipPop()` 同步修复
+
+**Bounds 计算缓存**
+
+- `DisplayObject` 新增 `_boundsDirty` + `_cachedBounds`，`getOriginalBounds()` 命中缓存时直接返回
+- `markDirty()` 标脏自身，`cacheDirtyUp()` 向上传播标脏父级 bounds
+
+**FilterPipe / MaskPipe 指令对象池**
+
+- `FilterPipe` 新增 `_pushPool` / `_popPool`，`makePush()` / `makePop()` 优先从池中复用
+- `MaskPipe` 同步实现
+- `WebGLRenderer._releaseInstructions()` 在 `set.reset()` 前回收指令到池中
+
+**Video 帧渲染修复**
+
+- `WebGLRenderContext.getWebGLTexture()` 检测 `HTMLVideoElement` source 时每帧重新 `texImage2D` 上传，修复视频黑屏问题
+- `updateTexture()` 参数类型扩展支持 `HTMLVideoElement`
+
+**Benchmark 模块**
+
+- 新增 `benchmark/` 模块：`MetricsCollector`、`BenchmarkRunner`、`PerfPanel`、`ReportExporter`、`SceneRegistry`
+- 5 种压测场景：Sprite Batch / Mixed Texture / Filter Heavy / Dynamic Transform / Deep Container
+- 支持 JSON 导出、Markdown 复制、warmup/measuring/paused 三阶段状态机
+
+**测试页面**
+
+- 新增 7 个交互式测试页面（`examples/`）：Visual Test、Bitmap Test、Mesh Test、Sound Test、Video Test、Net Test、Benchmark
+- 统一 glassmorphism UI 设计：左侧 sidebar + 右侧 canvas + 底部 log panel
+- 通过 `pnpm benchmark` 启动 Vite dev server 访问
+
+**测试补充**
+
+- 新增 media（Sound / SoundChannel / Video）和 benchmark 测试文件
+- 测试文件从 14 个增至 18 个
+
+### 0.2.1（2026-04-10）
+
+- 初始架构文档版本
