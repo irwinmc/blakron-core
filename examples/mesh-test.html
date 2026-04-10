@@ -501,7 +501,8 @@
 						const dx = bx - cx,
 							dy = by - cy;
 						const dist = Math.sqrt(dx * dx + dy * dy);
-						const angle = (dist / W) * animT * 2;
+						// angle proportional to distance from center, oscillates with time
+						const angle = (dist / (W / 2)) * Math.sin(animT) * (amp / 20);
 						verts[i] = cx + dx * Math.cos(angle) - dy * Math.sin(angle);
 						verts[i + 1] = cy + dx * Math.sin(angle) + dy * Math.cos(angle);
 					}
