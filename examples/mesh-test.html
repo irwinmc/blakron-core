@@ -1,0 +1,547 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Mesh Test</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: #111;
+				color: #ddd;
+				font-family: monospace;
+				font-size: 13px;
+				display: flex;
+				flex-direction: column;
+				height: 100vh;
+			}
+			h1 {
+				margin: 0;
+				padding: 12px 16px;
+				font-size: 15px;
+				background: #1a1a2e;
+				border-bottom: 1px solid #333;
+				color: #8cf;
+			}
+			#main {
+				display: flex;
+				flex: 1;
+				overflow: hidden;
+			}
+			#controls {
+				width: 320px;
+				flex-shrink: 0;
+				padding: 12px;
+				border-right: 1px solid #333;
+				overflow-y: auto;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+			}
+			.card {
+				background: #1c1c2e;
+				border: 1px solid #333;
+				border-radius: 6px;
+				padding: 10px 12px;
+			}
+			.card h3 {
+				margin: 0 0 8px 0;
+				font-size: 12px;
+				color: #8cf;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+			.row {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-bottom: 6px;
+			}
+			.row label {
+				width: 100px;
+				color: #aaa;
+				flex-shrink: 0;
+			}
+			input[type='range'] {
+				flex: 1;
+			}
+			input[type='number'],
+			input[type='text'] {
+				flex: 1;
+				background: #111;
+				border: 1px solid #444;
+				color: #eee;
+				padding: 4px 6px;
+				border-radius: 3px;
+				font-family: monospace;
+				font-size: 12px;
+			}
+			button {
+				background: #2a2a4a;
+				border: 1px solid #555;
+				color: #ddd;
+				padding: 5px 10px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-family: monospace;
+				font-size: 12px;
+				white-space: nowrap;
+			}
+			button:hover {
+				background: #3a3a6a;
+				border-color: #8cf;
+			}
+			button.active {
+				background: #2a4a2a;
+				border-color: #4f8;
+				color: #4f8;
+			}
+			.val-display {
+				color: #8cf;
+				font-size: 11px;
+				width: 40px;
+				text-align: right;
+				flex-shrink: 0;
+			}
+			/* canvas */
+			#canvas-wrap {
+				flex: 1;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background: #0a0a0a;
+			}
+			canvas {
+				border: 1px solid #333;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>🔷 Mesh Test</h1>
+		<div id="main">
+			<div id="controls">
+				<!-- Preset shapes -->
+				<div class="card">
+					<h3>1. Preset Shapes</h3>
+					<div class="row" style="flex-wrap: wrap; gap: 6px">
+						<button id="btn-quad" class="active">Quad</button>
+						<button id="btn-fan">Fan (8)</button>
+						<button id="btn-grid">Grid 4×4</button>
+					</div>
+				</div>
+
+				<!-- Deform -->
+				<div class="card">
+					<h3>2. Vertex Deform</h3>
+					<div class="row">
+						<label>Top-left X</label>
+						<input type="range" id="tl-x" min="-100" max="100" value="0" />
+						<span class="val-display" id="tl-x-val">0</span>
+					</div>
+					<div class="row">
+						<label>Top-left Y</label>
+						<input type="range" id="tl-y" min="-100" max="100" value="0" />
+						<span class="val-display" id="tl-y-val">0</span>
+					</div>
+					<div class="row">
+						<label>Top-right X</label>
+						<input type="range" id="tr-x" min="-100" max="100" value="0" />
+						<span class="val-display" id="tr-x-val">0</span>
+					</div>
+					<div class="row">
+						<label>Top-right Y</label>
+						<input type="range" id="tr-y" min="-100" max="100" value="0" />
+						<span class="val-display" id="tr-y-val">0</span>
+					</div>
+					<div class="row">
+						<label>Bot-right X</label>
+						<input type="range" id="br-x" min="-100" max="100" value="0" />
+						<span class="val-display" id="br-x-val">0</span>
+					</div>
+					<div class="row">
+						<label>Bot-right Y</label>
+						<input type="range" id="br-y" min="-100" max="100" value="0" />
+						<span class="val-display" id="br-y-val">0</span>
+					</div>
+					<div class="row">
+						<label>Bot-left X</label>
+						<input type="range" id="bl-x" min="-100" max="100" value="0" />
+						<span class="val-display" id="bl-x-val">0</span>
+					</div>
+					<div class="row">
+						<label>Bot-left Y</label>
+						<input type="range" id="bl-y" min="-100" max="100" value="0" />
+						<span class="val-display" id="bl-y-val">0</span>
+					</div>
+					<div class="row">
+						<button id="btn-reset-deform">Reset</button>
+					</div>
+				</div>
+
+				<!-- Animation -->
+				<div class="card">
+					<h3>3. Animation</h3>
+					<div class="row" style="flex-wrap: wrap; gap: 6px">
+						<button id="btn-wave">Wave</button>
+						<button id="btn-ripple">Ripple</button>
+						<button id="btn-twist">Twist</button>
+						<button id="btn-stop-anim">Stop</button>
+					</div>
+					<div class="row">
+						<label>Speed</label>
+						<input type="range" id="anim-speed" min="0.5" max="5" step="0.1" value="1" />
+						<span class="val-display" id="anim-speed-val">1.0</span>
+					</div>
+					<div class="row">
+						<label>Amplitude</label>
+						<input type="range" id="anim-amp" min="5" max="60" step="1" value="20" />
+						<span class="val-display" id="anim-amp-val">20</span>
+					</div>
+				</div>
+
+				<!-- Transform -->
+				<div class="card">
+					<h3>4. Transform</h3>
+					<div class="row">
+						<label>Alpha</label>
+						<input type="range" id="mesh-alpha" min="0" max="1" step="0.01" value="1" />
+						<span class="val-display" id="mesh-alpha-val">1.00</span>
+					</div>
+					<div class="row">
+						<label>Scale X</label>
+						<input type="range" id="mesh-sx" min="0.1" max="3" step="0.05" value="1" />
+						<span class="val-display" id="mesh-sx-val">1.00</span>
+					</div>
+					<div class="row">
+						<label>Scale Y</label>
+						<input type="range" id="mesh-sy" min="0.1" max="3" step="0.05" value="1" />
+						<span class="val-display" id="mesh-sy-val">1.00</span>
+					</div>
+					<div class="row">
+						<label>Rotation</label>
+						<input type="range" id="mesh-rot" min="-180" max="180" step="1" value="0" />
+						<span class="val-display" id="mesh-rot-val">0°</span>
+					</div>
+				</div>
+			</div>
+
+			<div id="canvas-wrap">
+				<canvas id="gameCanvas" width="640" height="480"></canvas>
+			</div>
+		</div>
+
+		<script type="module">
+			import { createPlayer, Sprite, Mesh, Texture, BitmapData, Event } from '../src/index.js';
+
+			// ── Player ────────────────────────────────────────────────────────
+			const canvas = document.getElementById('gameCanvas');
+			const app = createPlayer({
+				canvas,
+				contentWidth: 640,
+				contentHeight: 480,
+				scaleMode: 'showAll',
+				frameRate: 60,
+			});
+			const root = new Sprite();
+			app.start(root);
+
+			// ── Texture: checkerboard ─────────────────────────────────────────
+			function makeCheckerTexture(size = 256, cells = 8) {
+				const c = document.createElement('canvas');
+				c.width = c.height = size;
+				const ctx = c.getContext('2d');
+				const cell = size / cells;
+				for (let row = 0; row < cells; row++) {
+					for (let col = 0; col < cells; col++) {
+						ctx.fillStyle = (row + col) % 2 === 0 ? '#ff6644' : '#4466ff';
+						ctx.fillRect(col * cell, row * cell, cell, cell);
+					}
+				}
+				// Grid lines
+				ctx.strokeStyle = '#fff4';
+				ctx.lineWidth = 1;
+				for (let i = 0; i <= cells; i++) {
+					ctx.beginPath();
+					ctx.moveTo(i * cell, 0);
+					ctx.lineTo(i * cell, size);
+					ctx.stroke();
+					ctx.beginPath();
+					ctx.moveTo(0, i * cell);
+					ctx.lineTo(size, i * cell);
+					ctx.stroke();
+				}
+				const bd = new BitmapData(c);
+				const tex = new Texture();
+				tex.setBitmapData(bd);
+				return tex;
+			}
+
+			const tex = makeCheckerTexture();
+
+			// ── Mesh ──────────────────────────────────────────────────────────
+			let mesh = new Mesh(tex);
+			mesh.x = 320;
+			mesh.y = 240;
+			mesh.anchorOffsetX = 128;
+			mesh.anchorOffsetY = 128;
+			root.addChild(mesh);
+
+			// ── Preset builders ───────────────────────────────────────────────
+			const W = 256,
+				H = 256;
+
+			// Declared here so preset builders can call resetDeformSliders()
+			const deformIds = ['tl-x', 'tl-y', 'tr-x', 'tr-y', 'br-x', 'br-y', 'bl-x', 'bl-y'];
+
+			function resetDeformSliders() {
+				deformIds.forEach(id => {
+					document.getElementById(id).value = 0;
+					document.getElementById(id + '-val').textContent = '0';
+				});
+			}
+
+			function setQuad() {
+				mesh.vertices = [0, 0, W, 0, W, H, 0, H];
+				mesh.indices = [0, 1, 2, 0, 2, 3];
+				mesh.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
+				mesh.updateVertices();
+				resetDeformSliders();
+			}
+
+			function setTriangle() {
+				mesh.vertices = [W / 2, 0, W, H, 0, H];
+				mesh.indices = [0, 1, 2];
+				mesh.uvs = [0.5, 0, 1, 1, 0, 1];
+				mesh.updateVertices();
+				resetDeformSliders();
+			}
+
+			function setFan(n = 8) {
+				const cx = W / 2,
+					cy = H / 2,
+					r = W / 2;
+				const verts = [cx, cy];
+				const uvs = [0.5, 0.5];
+				const idx = [];
+				for (let i = 0; i <= n; i++) {
+					const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+					verts.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+					uvs.push(0.5 + Math.cos(a) * 0.5, 0.5 + Math.sin(a) * 0.5);
+					if (i < n) idx.push(0, i + 1, i + 2);
+				}
+				mesh.vertices = verts;
+				mesh.uvs = uvs;
+				mesh.indices = idx;
+				mesh.updateVertices();
+				resetDeformSliders();
+			}
+
+			function setGrid(cols = 4, rows = 4) {
+				const verts = [],
+					uvs = [],
+					idx = [];
+				for (let r = 0; r <= rows; r++) {
+					for (let c = 0; c <= cols; c++) {
+						verts.push((c / cols) * W, (r / rows) * H);
+						uvs.push(c / cols, r / rows);
+					}
+				}
+				for (let r = 0; r < rows; r++) {
+					for (let c = 0; c < cols; c++) {
+						const i = r * (cols + 1) + c;
+						idx.push(i, i + 1, i + cols + 2, i, i + cols + 2, i + cols + 1);
+					}
+				}
+				mesh.vertices = verts;
+				mesh.uvs = uvs;
+				mesh.indices = idx;
+				mesh.updateVertices();
+				resetDeformSliders();
+			}
+
+			function setStrip(segs = 8) {
+				const verts = [],
+					uvs = [],
+					idx = [];
+				for (let i = 0; i <= segs; i++) {
+					const x = (i / segs) * W;
+					const u = i / segs;
+					verts.push(x, 0, x, H);
+					uvs.push(u, 0, u, 1);
+					if (i < segs) {
+						const b = i * 2;
+						idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+					}
+				}
+				mesh.vertices = verts;
+				mesh.uvs = uvs;
+				mesh.indices = idx;
+				mesh.updateVertices();
+				resetDeformSliders();
+			}
+
+			// ── Preset buttons ────────────────────────────────────────────────
+			const presetBtns = ['btn-quad', 'btn-fan', 'btn-grid'];
+			function setActivePreset(id) {
+				presetBtns.forEach(b => document.getElementById(b).classList.remove('active'));
+				document.getElementById(id).classList.add('active');
+			}
+
+			document.getElementById('btn-quad').onclick = () => {
+				setQuad();
+				setActivePreset('btn-quad');
+			};
+			document.getElementById('btn-fan').onclick = () => {
+				setFan(8);
+				setActivePreset('btn-fan');
+			};
+			document.getElementById('btn-grid').onclick = () => {
+				setGrid(4, 4);
+				setActivePreset('btn-grid');
+			};
+
+			setQuad(); // default
+
+			// ── Quad deform (only meaningful for quad preset) ─────────────────
+			// Base quad corners: TL(0,0) TR(W,0) BR(W,H) BL(0,H)
+			const deformOffsets = () => deformIds.map(id => parseFloat(document.getElementById(id).value));
+
+			function applyDeform() {
+				const [tlx, tly, trx, try_, brx, bry, blx, bly] = deformOffsets();
+				mesh.vertices = [0 + tlx, 0 + tly, W + trx, 0 + try_, W + brx, H + bry, 0 + blx, H + bly];
+				mesh.indices = [0, 1, 2, 0, 2, 3];
+				mesh.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
+				mesh.updateVertices();
+			}
+
+			deformIds.forEach(id => {
+				const el = document.getElementById(id);
+				const valEl = document.getElementById(id + '-val');
+				el.addEventListener('input', () => {
+					valEl.textContent = el.value;
+					applyDeform();
+				});
+			});
+
+			document.getElementById('btn-reset-deform').onclick = () => {
+				resetDeformSliders();
+				setQuad();
+				setActivePreset('btn-quad');
+			};
+
+			// ── Animation ─────────────────────────────────────────────────────
+			let animMode = null;
+			let animT = 0;
+			let baseVertices = [];
+
+			function startAnim(mode) {
+				animMode = mode;
+				baseVertices = [...mesh.vertices];
+				animT = 0;
+			}
+
+			document.getElementById('btn-wave').onclick = () => {
+				setGrid(8, 8);
+				startAnim('wave');
+			};
+			document.getElementById('btn-ripple').onclick = () => {
+				setGrid(8, 8);
+				startAnim('ripple');
+			};
+			document.getElementById('btn-twist').onclick = () => {
+				setGrid(8, 8);
+				startAnim('twist');
+			};
+			document.getElementById('btn-stop-anim').onclick = () => {
+				animMode = null;
+				setGrid(8, 8);
+			};
+
+			document.getElementById('anim-speed').addEventListener('input', e => {
+				document.getElementById('anim-speed-val').textContent = parseFloat(e.target.value).toFixed(1);
+			});
+			document.getElementById('anim-amp').addEventListener('input', e => {
+				document.getElementById('anim-amp-val').textContent = e.target.value;
+			});
+
+			root.addEventListener(Event.ENTER_FRAME, () => {
+				if (!animMode) return;
+				const speed = parseFloat(document.getElementById('anim-speed').value);
+				const amp = parseFloat(document.getElementById('anim-amp').value);
+				animT += 0.05 * speed;
+
+				const verts = [...baseVertices];
+				for (let i = 0; i < verts.length; i += 2) {
+					const bx = verts[i],
+						by = verts[i + 1];
+					if (animMode === 'wave') {
+						verts[i + 1] = by + Math.sin((bx / W) * Math.PI * 2 + animT) * amp;
+					} else if (animMode === 'ripple') {
+						const dx = bx - W / 2,
+							dy = by - H / 2;
+						const dist = Math.sqrt(dx * dx + dy * dy);
+						const offset = Math.sin(dist / 20 - animT * 2) * amp * (1 - dist / (W * 0.8));
+						verts[i] = bx + (dx / (dist || 1)) * offset;
+						verts[i + 1] = by + (dy / (dist || 1)) * offset;
+					} else if (animMode === 'twist') {
+						const cx = W / 2,
+							cy = H / 2;
+						const dx = bx - cx,
+							dy = by - cy;
+						const dist = Math.sqrt(dx * dx + dy * dy);
+						const angle = (dist / W) * animT * 2;
+						verts[i] = cx + dx * Math.cos(angle) - dy * Math.sin(angle);
+						verts[i + 1] = cy + dx * Math.sin(angle) + dy * Math.cos(angle);
+					}
+				}
+				mesh.vertices = verts;
+				mesh.updateVertices();
+			});
+
+			// ── Transform sliders ─────────────────────────────────────────────
+			function bindSlider(id, valId, fmt, apply) {
+				const el = document.getElementById(id);
+				const valEl = document.getElementById(valId);
+				el.addEventListener('input', () => {
+					valEl.textContent = fmt(parseFloat(el.value));
+					apply(parseFloat(el.value));
+				});
+			}
+
+			bindSlider(
+				'mesh-alpha',
+				'mesh-alpha-val',
+				v => v.toFixed(2),
+				v => {
+					mesh.alpha = v;
+				},
+			);
+			bindSlider(
+				'mesh-sx',
+				'mesh-sx-val',
+				v => v.toFixed(2),
+				v => {
+					mesh.scaleX = v;
+				},
+			);
+			bindSlider(
+				'mesh-sy',
+				'mesh-sy-val',
+				v => v.toFixed(2),
+				v => {
+					mesh.scaleY = v;
+				},
+			);
+			bindSlider(
+				'mesh-rot',
+				'mesh-rot-val',
+				v => v + '°',
+				v => {
+					mesh.rotation = v;
+				},
+			);
+		</script>
+	</body>
+</html>
