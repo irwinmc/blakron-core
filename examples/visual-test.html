@@ -2,142 +2,338 @@
 <html>
 	<head>
 		<meta charset="utf-8" />
-		<title>Heron Visual Test</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Visual Test</title>
 		<style>
+			:root {
+				--bg: #0a0b14;
+				--bg-deep: #060710;
+				--glass: rgba(255, 255, 255, 0.035);
+				--glass-border: rgba(255, 255, 255, 0.07);
+				--glass-hover: rgba(255, 255, 255, 0.06);
+				--accent: #6c9cff;
+				--success: #4ade80;
+				--warning: #fbbf24;
+				--error: #f87171;
+				--text: #e0e0e8;
+				--text-muted: #8888a0;
+				--text-dim: #55556a;
+				--sidebar-w: 240px;
+				--log-h: 360px;
+			}
 			* {
 				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
 			}
 			body {
-				margin: 0;
-				background: #111;
-				color: #ddd;
-				font-family: monospace;
-				font-size: 13px;
+				background: var(--bg);
+				color: var(--text);
+				font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+				font-size: 12px;
 				display: flex;
 				flex-direction: column;
 				height: 100vh;
+				overflow: hidden;
 			}
-			h1 {
-				margin: 0;
-				padding: 12px 16px;
-				font-size: 15px;
-				background: #1a1a2e;
-				border-bottom: 1px solid #333;
-				color: #8cf;
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				background:
+					radial-gradient(ellipse 600px 400px at 15% 80%, rgba(108, 156, 255, 0.06) 0%, transparent 70%),
+					radial-gradient(ellipse 500px 500px at 85% 20%, rgba(167, 139, 250, 0.04) 0%, transparent 70%);
+				pointer-events: none;
+				z-index: 0;
+			}
+			.header {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				padding: 0 20px;
+				height: 48px;
+				border-bottom: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.85);
+				backdrop-filter: blur(20px);
 				flex-shrink: 0;
+				position: relative;
+				z-index: 10;
+			}
+			.back-link {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				color: var(--text-muted);
+				text-decoration: none;
+				font-size: 12px;
+				padding: 4px 10px;
+				border-radius: 6px;
+				border: 1px solid transparent;
+				transition: all 0.2s;
+			}
+			.back-link:hover {
+				color: var(--accent);
+				border-color: var(--glass-border);
+				background: var(--glass);
+			}
+			.page-title {
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--text);
+			}
+			.header-right {
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 14px;
+			}
+			.fps-badge {
+				font-size: 11px;
+				font-weight: 600;
+				padding: 3px 10px;
+				border-radius: 6px;
+				background: rgba(74, 222, 128, 0.1);
+				border: 1px solid rgba(74, 222, 128, 0.2);
+				color: var(--success);
+				font-variant-numeric: tabular-nums;
+				min-width: 68px;
+				text-align: center;
+				transition: all 0.3s;
+			}
+			.fps-badge.warn {
+				background: rgba(251, 191, 36, 0.1);
+				border-color: rgba(251, 191, 36, 0.2);
+				color: var(--warning);
+			}
+			.fps-badge.bad {
+				background: rgba(248, 113, 113, 0.1);
+				border-color: rgba(248, 113, 113, 0.2);
+				color: var(--error);
+			}
+
+			.main {
+				display: flex;
+				flex: 1;
+				overflow: hidden;
+				position: relative;
+				z-index: 1;
+			}
+
+			.sidebar {
+				width: var(--sidebar-w);
+				flex-shrink: 0;
+				border-right: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.5);
+				backdrop-filter: blur(12px);
+				overflow-y: auto;
+				padding: 14px;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+			}
+			.sidebar::-webkit-scrollbar {
+				width: 4px;
+			}
+			.sidebar::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			.sidebar::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.08);
+				border-radius: 4px;
+			}
+
+			.glass-card {
+				background: var(--glass);
+				border: 1px solid var(--glass-border);
+				border-radius: 10px;
+				padding: 12px 14px;
+				backdrop-filter: blur(12px);
+			}
+			.glass-card h3 {
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--text-muted);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				margin-bottom: 10px;
+			}
+			.perf-row {
+				display: flex;
+				justify-content: space-between;
+				font-size: 11px;
+				line-height: 1.8;
+			}
+			.perf-row .label {
+				color: var(--text-dim);
+			}
+			.perf-row .value {
+				font-weight: 600;
+				font-variant-numeric: tabular-nums;
+			}
+			.perf-row .good {
+				color: var(--success);
+			}
+			.perf-row .warn {
+				color: var(--warning);
+			}
+			.perf-row .bad {
+				color: var(--error);
+			}
+			#pf-graph {
+				border: none;
+				width: 100%;
+				height: 40px;
+				margin-top: 6px;
+				display: block;
+			}
+
+			.right-panel {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
 			}
 			#canvas-wrap {
 				flex: 1;
 				display: flex;
-				align-items: flex-start;
+				align-items: center;
 				justify-content: center;
-				overflow: auto;
-				background: #1a1a2e;
-				padding: 10px;
+				background: var(--bg-deep);
+				position: relative;
+				overflow: hidden;
+			}
+			#canvas-wrap::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: radial-gradient(circle at 50% 50%, rgba(108, 156, 255, 0.03) 0%, transparent 60%);
+				pointer-events: none;
 			}
 			canvas {
-				border: 1px solid #444;
+				border: 1px solid var(--glass-border);
+				border-radius: 4px;
+			}
+
+			.log-panel {
+				height: var(--log-h);
+				border-top: 1px solid var(--glass-border);
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+				background: rgba(6, 7, 16, 0.6);
+				backdrop-filter: blur(12px);
+			}
+			.log-header {
+				padding: 6px 14px;
+				border-bottom: 1px solid var(--glass-border);
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				flex-shrink: 0;
+			}
+			.log-header span {
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--text-muted);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
 			}
 			#log {
-				position: fixed;
-				bottom: 0;
-				left: 0;
-				right: 0;
-				background: #000a;
-				color: #0f0;
-				padding: 8px;
-				font-size: 12px;
-				max-height: 120px;
+				flex: 1;
 				overflow-y: auto;
-			}
-			#perf-panel {
-				position: fixed;
-				top: 48px;
-				right: 10px;
-				background: rgba(0, 0, 0, 0.85);
-				border: 1px solid #555;
-				border-radius: 6px;
-				padding: 10px 14px;
-				font-family: monospace;
-				font-size: 12px;
-				color: #eee;
+				padding: 6px 14px;
 				line-height: 1.7;
-				min-width: 220px;
-				z-index: 1000;
-				user-select: none;
+				font-size: 11px;
 			}
-			#perf-panel h4 {
-				margin: 0 0 6px 0;
-				padding-bottom: 4px;
-				border-bottom: 1px solid #555;
-				font-size: 13px;
-				color: #8cf;
+			#log::-webkit-scrollbar {
+				width: 4px;
 			}
-			#perf-panel .row {
+			#log::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			#log::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.06);
+				border-radius: 4px;
+			}
+			.log-entry {
 				display: flex;
-				justify-content: space-between;
+				gap: 10px;
+				padding: 1px 0;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.02);
 			}
-			#perf-panel .label {
-				color: #aaa;
+			.log-time {
+				color: var(--text-dim);
+				flex-shrink: 0;
+				width: 60px;
+				font-variant-numeric: tabular-nums;
 			}
-			#perf-panel .value {
-				color: #fff;
-				font-weight: bold;
+			.log-tag {
+				flex-shrink: 0;
+				width: 72px;
+				font-weight: 600;
 			}
-			#perf-panel .good {
-				color: #4f4;
+			.log-msg {
+				color: var(--text-muted);
 			}
-			#perf-panel .warn {
-				color: #ff4;
+			.tag-event {
+				color: #4ade80;
 			}
-			#perf-panel .bad {
-				color: #f44;
-			}
-			#perf-panel canvas {
-				border: none;
-				margin: 6px 0 0 0;
-				width: 100%;
-				height: 40px;
+			.tag-info {
+				color: var(--text-dim);
 			}
 		</style>
 	</head>
 	<body>
-		<h1>Visual Test</h1>
-		<div id="canvas-wrap">
-			<canvas id="gameCanvas" width="640" height="480"></canvas>
+		<div class="header">
+			<a href="index.html" class="back-link">&larr; Back</a>
+			<span class="page-title">Visual Test</span>
+			<div class="header-right">
+				<div id="fps-display" class="fps-badge">-- FPS</div>
+			</div>
 		</div>
-		<div id="perf-panel">
-			<h4>Heron Performance</h4>
-			<div class="row">
-				<span class="label">FPS</span>
-				<span class="value" id="pf-fps">--</span>
+		<div class="main">
+			<div class="sidebar">
+				<div class="glass-card">
+					<h3>Performance</h3>
+					<div class="perf-row">
+						<span class="label">FPS</span>
+						<span class="value" id="pf-fps">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Draw Calls</span>
+						<span class="value" id="pf-dc">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Render</span>
+						<span class="value" id="pf-rt">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Avg Render</span>
+						<span class="value" id="pf-art">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Max Render</span>
+						<span class="value" id="pf-mrt">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Frames</span>
+						<span class="value" id="pf-fc">--</span>
+					</div>
+					<canvas id="pf-graph" width="200" height="40"></canvas>
+				</div>
 			</div>
-			<div class="row">
-				<span class="label">Draw Calls</span>
-				<span class="value" id="pf-dc">--</span>
+			<div class="right-panel">
+				<div id="canvas-wrap">
+					<canvas id="gameCanvas" width="640" height="480"></canvas>
+				</div>
+				<div class="log-panel">
+					<div class="log-header"><span>Event Log</span></div>
+					<div id="log"></div>
+				</div>
 			</div>
-			<div class="row">
-				<span class="label">Render</span>
-				<span class="value" id="pf-rt">--</span>
-			</div>
-			<div class="row">
-				<span class="label">Avg Render</span>
-				<span class="value" id="pf-art">--</span>
-			</div>
-			<div class="row">
-				<span class="label">Max Render</span>
-				<span class="value" id="pf-mrt">--</span>
-			</div>
-			<div class="row">
-				<span class="label">Frames</span>
-				<span class="value" id="pf-fc">--</span>
-			</div>
-			<canvas id="pf-graph" width="200" height="40"></canvas>
 		</div>
-		<div id="log"></div>
 
 		<script type="module">
-			// 直接从源码导入（需要用 dev server 如 vite 跑）
 			import {
 				createPlayer,
 				Sprite,
@@ -149,12 +345,18 @@
 				Rectangle,
 			} from '../src/index.js';
 
-			const log = document.getElementById('log');
+			const logEl = document.getElementById('log');
+			const logT0 = Date.now();
 			function info(msg) {
-				const line = document.createElement('div');
-				line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-				log.appendChild(line);
-				log.scrollTop = log.scrollHeight;
+				const elapsed = ((Date.now() - logT0) / 1000).toFixed(1);
+				const entry = document.createElement('div');
+				entry.className = 'log-entry';
+				entry.innerHTML =
+					`<span class="log-time">${elapsed}s</span>` +
+					`<span class="log-tag tag-event">[TEST]</span>` +
+					`<span class="log-msg">${msg}</span>`;
+				logEl.appendChild(entry);
+				logEl.scrollTop = logEl.scrollHeight;
 				console.log(msg);
 			}
 
@@ -166,14 +368,13 @@
 				scaleMode: 'showAll',
 				frameRate: 60,
 			});
-
 			info(`Player created, WebGL: ${app.player.isWebGL}`);
 
 			const root = new Sprite();
 			app.start(root);
 			info('Player started');
 
-			// ── Test 1: Shape (Graphics) ──────────────────────────────────────────────
+			// ── Test 1: Shape rect ─────────────────────────────────────────────
 			const shape = new Shape();
 			shape.graphics.beginFill(0xff0000, 1);
 			shape.graphics.drawRect(0, 0, 80, 80);
@@ -181,9 +382,9 @@
 			shape.x = 20;
 			shape.y = 20;
 			root.addChild(shape);
-			info('Test 1: Red rectangle (Shape + Graphics.drawRect)');
+			info('1: Red rectangle');
 
-			// ── Test 2: Shape circle ──────────────────────────────────────────────────
+			// ── Test 2: Shape circle ────────────────────────────────────────────
 			const circle = new Shape();
 			circle.graphics.beginFill(0x00ff00, 1);
 			circle.graphics.drawCircle(50, 50, 40);
@@ -191,9 +392,9 @@
 			circle.x = 120;
 			circle.y = 20;
 			root.addChild(circle);
-			info('Test 2: Green circle (Graphics.drawCircle)');
+			info('2: Green circle');
 
-			// ── Test 3: Sprite with children ──────────────────────────────────────────
+			// ── Test 3: Sprite with children ────────────────────────────────────
 			const container = new Sprite();
 			container.x = 260;
 			container.y = 20;
@@ -207,9 +408,9 @@
 				container.addChild(s);
 			}
 			root.addChild(container);
-			info('Test 3: Sprite container with 5 overlapping children');
+			info('3: 5 overlapping children');
 
-			// ── Test 4: Alpha + Rotation ──────────────────────────────────────────────
+			// ── Test 4: Alpha + Rotation ────────────────────────────────────────
 			const rotated = new Shape();
 			rotated.graphics.beginFill(0xff00ff, 1);
 			rotated.graphics.drawRect(0, 0, 60, 60);
@@ -221,9 +422,9 @@
 			rotated.anchorOffsetX = 30;
 			rotated.anchorOffsetY = 30;
 			root.addChild(rotated);
-			info('Test 4: Rotated 30° + alpha 0.6 (magenta square)');
+			info('4: Rotated 30° + alpha 0.6');
 
-			// ── Test 5: Nested containers + scale ─────────────────────────────────────
+			// ── Test 5: Nested + scale ──────────────────────────────────────────
 			const outer = new Sprite();
 			outer.x = 540;
 			outer.y = 20;
@@ -235,9 +436,9 @@
 			inner.graphics.endFill();
 			outer.addChild(inner);
 			root.addChild(outer);
-			info('Test 5: Nested container, scale 1.5x (yellow rounded rect)');
+			info('5: Nested, scale 1.5x');
 
-			// ── Test 6: Line drawing ──────────────────────────────────────────────────
+			// ── Test 6: Line drawing ────────────────────────────────────────────
 			const lines = new Shape();
 			lines.graphics.lineStyle(3, 0xffffff, 1);
 			lines.graphics.moveTo(0, 0);
@@ -249,9 +450,9 @@
 			lines.x = 20;
 			lines.y = 140;
 			root.addChild(lines);
-			info('Test 6: White line rectangle (lineStyle + moveTo/lineTo)');
+			info('6: White line rect');
 
-			// ── Test 7: Gradient fill ─────────────────────────────────────────────────
+			// ── Test 7: Gradient fill ───────────────────────────────────────────
 			const gradient = new Shape();
 			const gm = new (await import('../src/heron/geom/Matrix.js')).Matrix();
 			gm.createGradientBox(100, 60, 0, 0, 0);
@@ -261,9 +462,9 @@
 			gradient.x = 140;
 			gradient.y = 140;
 			root.addChild(gradient);
-			info('Test 7: Linear gradient fill (red → blue)');
+			info('7: Gradient red→blue');
 
-			// ── Test 8: Ellipse ───────────────────────────────────────────────────────
+			// ── Test 8: Ellipse ─────────────────────────────────────────────────
 			const ellipse = new Shape();
 			ellipse.graphics.beginFill(0x00ffff, 1);
 			ellipse.graphics.drawEllipse(0, 0, 80, 40);
@@ -271,9 +472,9 @@
 			ellipse.x = 260;
 			ellipse.y = 150;
 			root.addChild(ellipse);
-			info('Test 8: Cyan ellipse');
+			info('8: Cyan ellipse');
 
-			// ── Test 9: scrollRect clipping ───────────────────────────────────────────
+			// ── Test 9: scrollRect clipping ─────────────────────────────────────
 			const clipped = new Sprite();
 			clipped.x = 370;
 			clipped.y = 140;
@@ -284,9 +485,9 @@
 			bigShape.graphics.endFill();
 			clipped.addChild(bigShape);
 			root.addChild(clipped);
-			info('Test 9: scrollRect clipping (orange 120x120 clipped to 60x60)');
+			info('9: scrollRect clipping');
 
-			// ── Test 10: BlurFilter ───────────────────────────────────────────────────
+			// ── Test 10: BlurFilter ─────────────────────────────────────────────
 			const blurred = new Shape();
 			blurred.graphics.beginFill(0xffffff, 1);
 			blurred.graphics.drawRect(0, 0, 60, 60);
@@ -295,9 +496,9 @@
 			blurred.y = 250;
 			blurred.filters = [new BlurFilter(4, 4)];
 			root.addChild(blurred);
-			info('Test 10: White square with BlurFilter(4,4)');
+			info('10: BlurFilter(4,4)');
 
-			// ── Test 11: GlowFilter ──────────────────────────────────────────────────
+			// ── Test 11: GlowFilter ─────────────────────────────────────────────
 			const glowed = new Shape();
 			glowed.graphics.beginFill(0x00ff00, 1);
 			glowed.graphics.drawCircle(30, 30, 25);
@@ -306,9 +507,9 @@
 			glowed.y = 255;
 			glowed.filters = [new GlowFilter(0x00ff00, 1, 8, 8, 2)];
 			root.addChild(glowed);
-			info('Test 11: Green circle with GlowFilter');
+			info('11: GlowFilter');
 
-			// ── Test 12: DropShadowFilter ─────────────────────────────────────────────
+			// ── Test 12: DropShadowFilter ───────────────────────────────────────
 			const shadowed = new Shape();
 			shadowed.graphics.beginFill(0x6666ff, 1);
 			shadowed.graphics.drawRect(0, 0, 60, 40);
@@ -317,21 +518,22 @@
 			shadowed.y = 260;
 			shadowed.filters = [new DropShadowFilter(4, 45, 0x000000, 0.8, 4, 4)];
 			root.addChild(shadowed);
-			info('Test 12: Blue rect with DropShadowFilter');
+			info('12: DropShadowFilter');
 
-			// ── Test 13: ColorMatrixFilter (grayscale) ────────────────────────────────
+			// ── Test 13: ColorMatrixFilter ──────────────────────────────────────
 			const grayscale = new Shape();
 			grayscale.graphics.beginFill(0xff0000, 1);
 			grayscale.graphics.drawRect(0, 0, 60, 40);
 			grayscale.graphics.endFill();
 			grayscale.x = 300;
 			grayscale.y = 260;
-			const grayMatrix = [0.3, 0.6, 0.1, 0, 0, 0.3, 0.6, 0.1, 0, 0, 0.3, 0.6, 0.1, 0, 0, 0, 0, 0, 1, 0];
-			grayscale.filters = [new ColorMatrixFilter(grayMatrix)];
+			grayscale.filters = [
+				new ColorMatrixFilter([0.3, 0.6, 0.1, 0, 0, 0.3, 0.6, 0.1, 0, 0, 0.3, 0.6, 0.1, 0, 0, 0, 0, 0, 1, 0]),
+			];
 			root.addChild(grayscale);
-			info('Test 13: Red rect with grayscale ColorMatrixFilter');
+			info('13: Grayscale ColorMatrixFilter');
 
-			// ── Test 14: Mask (DisplayObject) ─────────────────────────────────────────
+			// ── Test 14: Mask ───────────────────────────────────────────────────
 			const masked = new Sprite();
 			masked.x = 400;
 			masked.y = 250;
@@ -347,9 +549,9 @@
 			masked.addChild(maskShape);
 			masked.mask = maskShape;
 			root.addChild(masked);
-			info('Test 14: Magenta rect masked by circle');
+			info('14: Circle mask');
 
-			// ── Test 15: Tint ─────────────────────────────────────────────────────────
+			// ── Test 15: Tint ───────────────────────────────────────────────────
 			const tinted = new Shape();
 			tinted.graphics.beginFill(0xffffff, 1);
 			tinted.graphics.drawRect(0, 0, 50, 50);
@@ -358,9 +560,9 @@
 			tinted.y = 260;
 			tinted.tint = 0xff8800;
 			root.addChild(tinted);
-			info('Test 15: White rect with orange tint');
+			info('15: Orange tint');
 
-			// ── Test 16: Animation (ENTER_FRAME) ─────────────────────────────────────
+			// ── Test 16: Animation ──────────────────────────────────────────────
 			let frame = 0;
 			const animated = new Shape();
 			animated.graphics.beginFill(0x00ffff, 1);
@@ -369,15 +571,14 @@
 			animated.x = 20;
 			animated.y = 380;
 			root.addChild(animated);
-
 			const { Event: HeronEvent } = await import('../src/heron/events/Event.js');
 			animated.addEventListener(HeronEvent.ENTER_FRAME, () => {
 				frame++;
 				animated.x = 20 + Math.sin(frame * 0.05) * 100;
 			});
-			info('Test 16: Animated cyan circle (ENTER_FRAME sin wave)');
+			info('16: Animated sin wave');
 
-			// ── Test 17: RenderGroup ──────────────────────────────────────────────────
+			// ── Test 17: RenderGroup ────────────────────────────────────────────
 			const renderGroup = new Sprite();
 			renderGroup.isRenderGroup = true;
 			renderGroup.x = 200;
@@ -391,9 +592,9 @@
 				renderGroup.addChild(s);
 			}
 			root.addChild(renderGroup);
-			info('Test 17: RenderGroup container (3 small squares)');
+			info('17: RenderGroup');
 
-			// ── Test 18: Bezier curve ─────────────────────────────────────────────────
+			// ── Test 18: Bezier curve ───────────────────────────────────────────
 			const bezier = new Shape();
 			bezier.graphics.lineStyle(2, 0xffff00, 1);
 			bezier.graphics.moveTo(0, 40);
@@ -402,13 +603,11 @@
 			bezier.x = 380;
 			bezier.y = 380;
 			root.addChild(bezier);
-			info('Test 18: Yellow quadratic bezier curve');
+			info('18: Quadratic bezier');
 
-			// ── Summary ───────────────────────────────────────────────────────────────
-			info(`--- All 18 visual tests rendered. Check canvas above. ---`);
-			info(`Renderer: ${app.player.isWebGL ? 'WebGL' : 'Canvas 2D'}`);
+			info(`--- All 18 tests rendered (${app.player.isWebGL ? 'WebGL' : 'Canvas 2D'}) ---`);
 
-			// ── Performance Panel ─────────────────────────────────────────────────────
+			// ── Perf + FPS ─────────────────────────────────────────────────────
 			const $ = id => document.getElementById(id);
 			const pfFps = $('pf-fps'),
 				pfDc = $('pf-dc'),
@@ -419,7 +618,6 @@
 			const graphCanvas = $('pf-graph');
 			const graphCtx = graphCanvas.getContext('2d');
 			const fpsHistory = new Array(200).fill(0);
-			const rtHistory = new Array(200).fill(0);
 			let graphIdx = 0;
 
 			function fpsClass(fps) {
@@ -428,9 +626,24 @@
 				return 'bad';
 			}
 
+			const fpsEl = $('fps-display');
+			let fpsFrames = 0,
+				fpsLast = performance.now();
+			(function fpsLoop() {
+				fpsFrames++;
+				const now = performance.now();
+				if (now - fpsLast >= 500) {
+					const fps = Math.round((fpsFrames / (now - fpsLast)) * 1000);
+					fpsEl.textContent = fps + ' FPS';
+					fpsEl.className = 'fps-badge' + (fps > 50 ? '' : fps > 30 ? ' warn' : ' bad');
+					fpsFrames = 0;
+					fpsLast = now;
+				}
+				requestAnimationFrame(fpsLoop);
+			})();
+
 			function updatePerfPanel() {
 				const p = app.player.perf;
-
 				pfFps.textContent = p.fps.toFixed(1);
 				pfFps.className = 'value ' + fpsClass(p.fps);
 				pfDc.textContent = p.drawCalls;
@@ -440,25 +653,17 @@
 				pfMrt.textContent = p.maxRenderTimeMs.toFixed(2) + ' ms';
 				pfFc.textContent = p.frameCount;
 
-				// Update graph history
 				fpsHistory[graphIdx % 200] = p.fps;
-				rtHistory[graphIdx % 200] = p.renderTimeMs;
 				graphIdx++;
-
-				// Draw FPS graph
 				const w = graphCanvas.width,
 					h = graphCanvas.height;
 				graphCtx.fillStyle = '#111';
 				graphCtx.fillRect(0, 0, w, h);
-
-				// 60fps reference line
 				graphCtx.strokeStyle = '#333';
 				graphCtx.beginPath();
 				graphCtx.moveTo(0, h * (1 - 60 / 70));
 				graphCtx.lineTo(w, h * (1 - 60 / 70));
 				graphCtx.stroke();
-
-				// FPS line
 				graphCtx.strokeStyle = '#4f4';
 				graphCtx.beginPath();
 				for (let i = 0; i < 200; i++) {
@@ -468,7 +673,6 @@
 					i === 0 ? graphCtx.moveTo(x, y) : graphCtx.lineTo(x, y);
 				}
 				graphCtx.stroke();
-
 				requestAnimationFrame(updatePerfPanel);
 			}
 			requestAnimationFrame(updatePerfPanel);

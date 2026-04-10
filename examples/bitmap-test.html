@@ -2,125 +2,335 @@
 <html>
 	<head>
 		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Bitmap Test</title>
 		<style>
+			:root {
+				--bg: #0a0b14;
+				--bg-deep: #060710;
+				--glass: rgba(255, 255, 255, 0.035);
+				--glass-border: rgba(255, 255, 255, 0.07);
+				--glass-hover: rgba(255, 255, 255, 0.06);
+				--accent: #6c9cff;
+				--success: #4ade80;
+				--warning: #fbbf24;
+				--error: #f87171;
+				--text: #e0e0e8;
+				--text-muted: #8888a0;
+				--text-dim: #55556a;
+				--sidebar-w: 240px;
+				--log-h: 320px;
+			}
 			* {
 				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
 			}
 			body {
-				margin: 0;
-				background: #111;
-				color: #ddd;
-				font-family: monospace;
-				font-size: 13px;
+				background: var(--bg);
+				color: var(--text);
+				font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+				font-size: 12px;
 				display: flex;
 				flex-direction: column;
 				height: 100vh;
+				overflow: hidden;
 			}
-			h1 {
-				margin: 0;
-				padding: 12px 16px;
-				font-size: 15px;
-				background: #1a1a2e;
-				border-bottom: 1px solid #333;
-				color: #8cf;
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				background:
+					radial-gradient(ellipse 600px 400px at 15% 80%, rgba(108, 156, 255, 0.06) 0%, transparent 70%),
+					radial-gradient(ellipse 500px 500px at 85% 20%, rgba(167, 139, 250, 0.04) 0%, transparent 70%);
+				pointer-events: none;
+				z-index: 0;
+			}
+			.header {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				padding: 0 20px;
+				height: 48px;
+				border-bottom: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.85);
+				backdrop-filter: blur(20px);
 				flex-shrink: 0;
+				position: relative;
+				z-index: 10;
+			}
+			.back-link {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				color: var(--text-muted);
+				text-decoration: none;
+				font-size: 12px;
+				padding: 4px 10px;
+				border-radius: 6px;
+				border: 1px solid transparent;
+				transition: all 0.2s;
+			}
+			.back-link:hover {
+				color: var(--accent);
+				border-color: var(--glass-border);
+				background: var(--glass);
+			}
+			.page-title {
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--text);
+			}
+			.header-right {
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 14px;
+			}
+			.fps-badge {
+				font-size: 11px;
+				font-weight: 600;
+				padding: 3px 10px;
+				border-radius: 6px;
+				background: rgba(74, 222, 128, 0.1);
+				border: 1px solid rgba(74, 222, 128, 0.2);
+				color: var(--success);
+				font-variant-numeric: tabular-nums;
+				min-width: 68px;
+				text-align: center;
+				transition: all 0.3s;
+			}
+			.fps-badge.warn {
+				background: rgba(251, 191, 36, 0.1);
+				border-color: rgba(251, 191, 36, 0.2);
+				color: var(--warning);
+			}
+			.fps-badge.bad {
+				background: rgba(248, 113, 113, 0.1);
+				border-color: rgba(248, 113, 113, 0.2);
+				color: var(--error);
+			}
+
+			.main {
+				display: flex;
+				flex: 1;
+				overflow: hidden;
+				position: relative;
+				z-index: 1;
+			}
+
+			.sidebar {
+				width: var(--sidebar-w);
+				flex-shrink: 0;
+				border-right: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.5);
+				backdrop-filter: blur(12px);
+				overflow-y: auto;
+				padding: 14px;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+			}
+			.sidebar::-webkit-scrollbar {
+				width: 4px;
+			}
+			.sidebar::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			.sidebar::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.08);
+				border-radius: 4px;
+			}
+
+			.glass-card {
+				background: var(--glass);
+				border: 1px solid var(--glass-border);
+				border-radius: 10px;
+				padding: 12px 14px;
+				backdrop-filter: blur(12px);
+			}
+			.glass-card h3 {
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--text-muted);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				margin-bottom: 10px;
+			}
+			.perf-row {
+				display: flex;
+				justify-content: space-between;
+				font-size: 11px;
+				line-height: 1.8;
+			}
+			.perf-row .label {
+				color: var(--text-dim);
+			}
+			.perf-row .value {
+				font-weight: 600;
+				font-variant-numeric: tabular-nums;
+			}
+			.perf-row .good {
+				color: var(--success);
+			}
+			.perf-row .warn {
+				color: var(--warning);
+			}
+			.perf-row .bad {
+				color: var(--error);
+			}
+			#pf-graph {
+				border: none;
+				width: 100%;
+				height: 40px;
+				margin-top: 6px;
+				display: block;
+			}
+
+			.right-panel {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
 			}
 			#canvas-wrap {
 				flex: 1;
 				display: flex;
-				align-items: flex-start;
+				align-items: center;
 				justify-content: center;
-				overflow: auto;
-				background: #1a1a2e;
-				padding: 10px;
+				background: var(--bg-deep);
+				position: relative;
+				overflow: hidden;
+			}
+			#canvas-wrap::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: radial-gradient(circle at 50% 50%, rgba(108, 156, 255, 0.03) 0%, transparent 60%);
+				pointer-events: none;
 			}
 			canvas {
-				border: 1px solid #444;
+				border: 1px solid var(--glass-border);
+				border-radius: 4px;
 			}
-			#perf-panel {
-				position: fixed;
-				top: 48px;
-				right: 10px;
-				background: rgba(0, 0, 0, 0.85);
-				border: 1px solid #555;
-				border-radius: 6px;
-				padding: 10px 14px;
-				font-family: monospace;
-				font-size: 12px;
-				color: #eee;
-				line-height: 1.7;
-				min-width: 220px;
-				z-index: 1000;
-				user-select: none;
-			}
-			#perf-panel h4 {
-				margin: 0 0 6px 0;
-				padding-bottom: 4px;
-				border-bottom: 1px solid #555;
-				font-size: 13px;
-				color: #8cf;
-			}
-			#perf-panel .row {
+
+			.log-panel {
+				height: var(--log-h);
+				border-top: 1px solid var(--glass-border);
 				display: flex;
-				justify-content: space-between;
+				flex-direction: column;
+				overflow: hidden;
+				background: rgba(6, 7, 16, 0.6);
+				backdrop-filter: blur(12px);
 			}
-			#perf-panel .label {
-				color: #aaa;
+			.log-header {
+				padding: 6px 14px;
+				border-bottom: 1px solid var(--glass-border);
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				flex-shrink: 0;
 			}
-			#perf-panel .value {
-				color: #fff;
-				font-weight: bold;
+			.log-header span {
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--text-muted);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
 			}
-			#perf-panel .good {
-				color: #4f4;
+			#log {
+				flex: 1;
+				overflow-y: auto;
+				padding: 6px 14px;
+				line-height: 1.7;
+				font-size: 11px;
 			}
-			#perf-panel .warn {
-				color: #ff4;
+			#log::-webkit-scrollbar {
+				width: 4px;
 			}
-			#perf-panel .bad {
-				color: #f44;
+			#log::-webkit-scrollbar-track {
+				background: transparent;
 			}
-			#perf-panel canvas {
-				border: none;
-				margin: 6px 0 0 0;
-				width: 100%;
-				height: 40px;
+			#log::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.06);
+				border-radius: 4px;
+			}
+			.log-entry {
+				display: flex;
+				gap: 10px;
+				padding: 1px 0;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+			}
+			.log-time {
+				color: var(--text-dim);
+				flex-shrink: 0;
+				width: 60px;
+				font-variant-numeric: tabular-nums;
+			}
+			.log-tag {
+				flex-shrink: 0;
+				width: 72px;
+				font-weight: 600;
+			}
+			.log-msg {
+				color: var(--text-muted);
+			}
+			.tag-event {
+				color: #4ade80;
+			}
+			.tag-info {
+				color: var(--text-dim);
 			}
 		</style>
 	</head>
 	<body>
-		<h1>Bitmap Test</h1>
-		<div id="canvas-wrap">
-			<canvas id="gameCanvas" width="800" height="600"></canvas>
+		<div class="header">
+			<a href="index.html" class="back-link">&larr; Back</a>
+			<span class="page-title">Bitmap Test</span>
+			<div class="header-right">
+				<div id="fps-display" class="fps-badge">-- FPS</div>
+			</div>
 		</div>
-		<div id="perf-panel">
-			<h4>Heron Performance</h4>
-			<div class="row">
-				<span class="label">FPS</span>
-				<span class="value" id="pf-fps">--</span>
+		<div class="main">
+			<div class="sidebar">
+				<div class="glass-card">
+					<h3>Performance</h3>
+					<div class="perf-row">
+						<span class="label">FPS</span>
+						<span class="value" id="pf-fps">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Draw Calls</span>
+						<span class="value" id="pf-dc">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Render</span>
+						<span class="value" id="pf-rt">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Avg Render</span>
+						<span class="value" id="pf-art">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Max Render</span>
+						<span class="value" id="pf-mrt">--</span>
+					</div>
+					<div class="perf-row">
+						<span class="label">Frames</span>
+						<span class="value" id="pf-fc">--</span>
+					</div>
+					<canvas id="pf-graph" width="200" height="40"></canvas>
+				</div>
 			</div>
-			<div class="row">
-				<span class="label">Draw Calls</span>
-				<span class="value" id="pf-dc">--</span>
+			<div class="right-panel">
+				<div id="canvas-wrap">
+					<canvas id="gameCanvas" width="800" height="600"></canvas>
+				</div>
+				<div class="log-panel">
+					<div class="log-header"><span>Event Log</span></div>
+					<div id="log"></div>
+				</div>
 			</div>
-			<div class="row">
-				<span class="label">Render</span>
-				<span class="value" id="pf-rt">--</span>
-			</div>
-			<div class="row">
-				<span class="label">Avg Render</span>
-				<span class="value" id="pf-art">--</span>
-			</div>
-			<div class="row">
-				<span class="label">Max Render</span>
-				<span class="value" id="pf-mrt">--</span>
-			</div>
-			<div class="row">
-				<span class="label">Frames</span>
-				<span class="value" id="pf-fc">--</span>
-			</div>
-			<canvas id="pf-graph" width="200" height="40"></canvas>
 		</div>
 
 		<script type="module">
@@ -136,6 +346,21 @@
 				Rectangle,
 			} from '../src/index.js';
 
+			const logEl = document.getElementById('log');
+			const logT0 = Date.now();
+			function info(msg) {
+				const elapsed = ((Date.now() - logT0) / 1000).toFixed(1);
+				const entry = document.createElement('div');
+				entry.className = 'log-entry';
+				entry.innerHTML =
+					`<span class="log-time">${elapsed}s</span>` +
+					`<span class="log-tag tag-event">[TEST]</span>` +
+					`<span class="log-msg">${msg}</span>`;
+				logEl.appendChild(entry);
+				logEl.scrollTop = logEl.scrollHeight;
+				console.log(msg);
+			}
+
 			const canvas = document.getElementById('gameCanvas');
 			const app = createPlayer({
 				canvas,
@@ -144,21 +369,18 @@
 				scaleMode: 'showAll',
 				frameRate: 60,
 			});
-
 			const root = new Sprite();
 			app.start(root);
+			info('Player started 800x600');
 
-			// ── Helper: create a test image on a canvas ────────────────────────
+			// ── Helpers ────────────────────────────────────────────────────────
 			function makeTestImage(w, h, drawFn) {
 				const c = document.createElement('canvas');
 				c.width = w;
 				c.height = h;
-				const ctx = c.getContext('2d');
-				drawFn(ctx, w, h);
+				drawFn(c.getContext('2d'), w, h);
 				return c;
 			}
-
-			// ── Helper: canvas → BitmapData → Texture → Bitmap ─────────────────
 			function canvasToBitmap(canvasEl, x, y, w, h) {
 				const bd = new BitmapData(canvasEl);
 				const tex = new Texture();
@@ -171,50 +393,68 @@
 				return bmp;
 			}
 
-			// ── Test 1: Simple image ────────────────────────────────────────────
-			const img1 = makeTestImage(80, 80, (ctx, w, h) => {
-				const g = ctx.createLinearGradient(0, 0, w, h);
-				g.addColorStop(0, '#ff4444');
-				g.addColorStop(1, '#4444ff');
-				ctx.fillStyle = g;
-				ctx.fillRect(0, 0, w, h);
-				ctx.fillStyle = '#fff';
-				ctx.font = 'bold 14px monospace';
-				ctx.textAlign = 'center';
-				ctx.fillText('Test 1', w / 2, h / 2 + 5);
-			});
-			root.addChild(canvasToBitmap(img1, 20, 20));
+			// ── Test 1: Simple image ───────────────────────────────────────────
+			root.addChild(
+				canvasToBitmap(
+					makeTestImage(80, 80, (ctx, w, h) => {
+						const g = ctx.createLinearGradient(0, 0, w, h);
+						g.addColorStop(0, '#ff4444');
+						g.addColorStop(1, '#4444ff');
+						ctx.fillStyle = g;
+						ctx.fillRect(0, 0, w, h);
+						ctx.fillStyle = '#fff';
+						ctx.font = 'bold 14px monospace';
+						ctx.textAlign = 'center';
+						ctx.fillText('Test 1', w / 2, h / 2 + 5);
+					}),
+					20,
+					20,
+				),
+			);
+			info('1: Gradient image');
 
-			// ── Test 2: Scaled image ────────────────────────────────────────────
-			const img2 = makeTestImage(40, 40, (ctx, w, h) => {
-				ctx.fillStyle = '#44ff44';
-				ctx.beginPath();
-				ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.fillStyle = '#000';
-				ctx.font = '10px monospace';
-				ctx.textAlign = 'center';
-				ctx.fillText('2x', w / 2, h / 2 + 3);
-			});
-			root.addChild(canvasToBitmap(img2, 120, 20, 80, 80));
+			// ── Test 2: Scaled image ───────────────────────────────────────────
+			root.addChild(
+				canvasToBitmap(
+					makeTestImage(40, 40, (ctx, w, h) => {
+						ctx.fillStyle = '#44ff44';
+						ctx.beginPath();
+						ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2);
+						ctx.fill();
+						ctx.fillStyle = '#000';
+						ctx.font = '10px monospace';
+						ctx.textAlign = 'center';
+						ctx.fillText('2x', w / 2, h / 2 + 3);
+					}),
+					120,
+					20,
+					80,
+					80,
+				),
+			);
+			info('2: Scaled circle 2x');
 
-			// ── Test 3: Rotation + Alpha ────────────────────────────────────────
-			const img3 = makeTestImage(60, 60, (ctx, w, h) => {
-				ctx.fillStyle = '#ffff00';
-				ctx.fillRect(0, 0, w, h);
-				ctx.fillStyle = '#000';
-				ctx.font = '10px monospace';
-				ctx.textAlign = 'center';
-				ctx.fillText('rotate', w / 2, h / 2 + 3);
-			});
-			const bmp3 = canvasToBitmap(img3, 280, 50);
+			// ── Test 3: Rotation + Alpha ───────────────────────────────────────
+			const bmp3 = canvasToBitmap(
+				makeTestImage(60, 60, (ctx, w, h) => {
+					ctx.fillStyle = '#ffff00';
+					ctx.fillRect(0, 0, w, h);
+					ctx.fillStyle = '#000';
+					ctx.font = '10px monospace';
+					ctx.textAlign = 'center';
+					ctx.fillText('rotate', w / 2, h / 2 + 3);
+				}),
+				280,
+				50,
+			);
 			bmp3.rotation = 30;
 			bmp3.alpha = 0.7;
 			bmp3.anchorOffsetX = 30;
 			bmp3.anchorOffsetY = 30;
 			root.addChild(bmp3);
+			info('3: Rotation 30 + alpha 0.7');
 
-			// ── Test 4: SpriteSheet sub-textures ────────────────────────────────
+			// ── Test 4: SpriteSheet ────────────────────────────────────────────
 			const sheetCanvas = makeTestImage(128, 32, ctx => {
 				const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
 				for (let i = 0; i < 4; i++) {
@@ -237,21 +477,26 @@
 				bmp.y = 20;
 				root.addChild(bmp);
 			}
+			info('4: SpriteSheet 4 sub-textures');
 
-			// ── Test 5: Bitmap with filter ─────────────────────────────────────
-			const img5 = makeTestImage(60, 60, (ctx, w, h) => {
-				ctx.fillStyle = '#ff00ff';
-				ctx.fillRect(0, 0, w, h);
-				ctx.fillStyle = '#fff';
-				ctx.font = 'bold 10px monospace';
-				ctx.textAlign = 'center';
-				ctx.fillText('blur', w / 2, h / 2 + 3);
-			});
-			const bmp5 = canvasToBitmap(img5, 20, 130);
+			// ── Test 5: Bitmap + BlurFilter ────────────────────────────────────
+			const bmp5 = canvasToBitmap(
+				makeTestImage(60, 60, (ctx, w, h) => {
+					ctx.fillStyle = '#ff00ff';
+					ctx.fillRect(0, 0, w, h);
+					ctx.fillStyle = '#fff';
+					ctx.font = 'bold 10px monospace';
+					ctx.textAlign = 'center';
+					ctx.fillText('blur', w / 2, h / 2 + 3);
+				}),
+				20,
+				130,
+			);
 			bmp5.filters = [new BlurFilter(6, 6)];
 			root.addChild(bmp5);
+			info('5: Bitmap + BlurFilter(6,6)');
 
-			// ── Test 6: Multiple bitmaps (batch test) ──────────────────────────
+			// ── Test 6: Batch (50 bitmaps) ─────────────────────────────────────
 			const batchImg = makeTestImage(20, 20, (ctx, w, h) => {
 				ctx.fillStyle = '#00ffff';
 				ctx.fillRect(0, 0, w, h);
@@ -267,55 +512,61 @@
 					root.addChild(bmp);
 				}
 			}
+			info('6: 50 bitmaps batch (5x10)');
 
 			// ── Test 7: scale9Grid ─────────────────────────────────────────────
-			const s9Canvas = makeTestImage(60, 60, (ctx, w, h) => {
-				ctx.fillStyle = '#ffcc00';
-				ctx.fillRect(0, 0, w, h);
-				ctx.strokeStyle = '#ff8800';
-				ctx.lineWidth = 3;
-				ctx.strokeRect(1.5, 1.5, 57, 57);
-				ctx.strokeStyle = '#ff4400';
-				ctx.lineWidth = 2;
-				ctx.strokeRect(14, 14, 32, 32);
-				ctx.fillStyle = '#ff0000';
-				ctx.fillRect(4, 4, 8, 8);
-				ctx.fillRect(48, 4, 8, 8);
-				ctx.fillRect(4, 48, 8, 8);
-				ctx.fillRect(48, 48, 8, 8);
-			});
-			const bmp7 = canvasToBitmap(s9Canvas, 20, 280);
+			const bmp7 = canvasToBitmap(
+				makeTestImage(60, 60, (ctx, w, h) => {
+					ctx.fillStyle = '#ffcc00';
+					ctx.fillRect(0, 0, w, h);
+					ctx.strokeStyle = '#ff8800';
+					ctx.lineWidth = 3;
+					ctx.strokeRect(1.5, 1.5, 57, 57);
+					ctx.strokeStyle = '#ff4400';
+					ctx.lineWidth = 2;
+					ctx.strokeRect(14, 14, 32, 32);
+					ctx.fillStyle = '#ff0000';
+					ctx.fillRect(4, 4, 8, 8);
+					ctx.fillRect(48, 4, 8, 8);
+					ctx.fillRect(4, 48, 8, 8);
+					ctx.fillRect(48, 48, 8, 8);
+				}),
+				20,
+				280,
+			);
 			bmp7.width = 160;
 			bmp7.height = 120;
 			bmp7.scale9Grid = new Rectangle(15, 15, 30, 30);
 			root.addChild(bmp7);
+			info('7: scale9Grid (60 to 160x120)');
 
-			// ── Test 8: Animated bitmap (rotation) ─────────────────────────────
-			const animImg = makeTestImage(40, 40, (ctx, w, h) => {
-				ctx.fillStyle = '#ff4444';
-				ctx.fillRect(0, 0, w, h);
-				ctx.fillStyle = '#fff';
-				ctx.font = 'bold 10px monospace';
-				ctx.textAlign = 'center';
-				ctx.fillText('spin', w / 2, h / 2 + 3);
-			});
-			const animBmp = canvasToBitmap(animImg, 400, 130);
+			// ── Test 8: Animated bitmap ────────────────────────────────────────
+			const animBmp = canvasToBitmap(
+				makeTestImage(40, 40, (ctx, w, h) => {
+					ctx.fillStyle = '#ff4444';
+					ctx.fillRect(0, 0, w, h);
+					ctx.fillStyle = '#fff';
+					ctx.font = 'bold 10px monospace';
+					ctx.textAlign = 'center';
+					ctx.fillText('spin', w / 2, h / 2 + 3);
+				}),
+				400,
+				130,
+			);
 			animBmp.anchorOffsetX = 20;
 			animBmp.anchorOffsetY = 20;
 			root.addChild(animBmp);
-
 			const { Event } = await import('../src/heron/events/Event.js');
 			animBmp.addEventListener(Event.ENTER_FRAME, () => {
 				animBmp.rotation += 2;
 			});
+			info('8: Spinning bitmap');
 
-			// ── Test 9: Bitmap from URL (async) ─────────────────────────────────
+			// ── Test 9: Async bitmap ───────────────────────────────────────────
 			const urlBmp = new Bitmap();
 			urlBmp.x = 400;
 			urlBmp.y = 280;
 			root.addChild(urlBmp);
-
-			// Generate a data URL as a simulated remote image
 			const remoteCanvas = makeTestImage(80, 60, (ctx, w, h) => {
 				const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
 				g.addColorStop(0, '#ffffff');
@@ -327,8 +578,6 @@
 				ctx.textAlign = 'center';
 				ctx.fillText('async load', w / 2, h / 2 + 3);
 			});
-
-			// Simulate async loading
 			const img = new Image();
 			img.src = remoteCanvas.toDataURL();
 			img.onload = () => {
@@ -336,11 +585,12 @@
 				const tex = new Texture();
 				tex.setBitmapData(bd);
 				urlBmp.texture = tex;
+				info('9: Async bitmap loaded');
 			};
+			info('9: Async loading...');
+			info('--- All 9 bitmap tests set up ---');
 
-			console.log('--- All Bitmap tests set up ---');
-
-			// ── Performance Panel ─────────────────────────────────────────────────
+			// ── Perf + FPS ─────────────────────────────────────────────────────
 			const $ = id => document.getElementById(id);
 			const pfFps = $('pf-fps'),
 				pfDc = $('pf-dc'),
@@ -352,6 +602,22 @@
 			const graphCtx = graphCanvas.getContext('2d');
 			const fpsHistory = new Array(200).fill(0);
 			let graphIdx = 0;
+
+			const fpsEl = $('fps-display');
+			let fpsFrames = 0,
+				fpsLast = performance.now();
+			(function fpsLoop() {
+				fpsFrames++;
+				const now = performance.now();
+				if (now - fpsLast >= 500) {
+					const fps = Math.round((fpsFrames / (now - fpsLast)) * 1000);
+					fpsEl.textContent = fps + ' FPS';
+					fpsEl.className = 'fps-badge' + (fps > 50 ? '' : fps > 30 ? ' warn' : ' bad');
+					fpsFrames = 0;
+					fpsLast = now;
+				}
+				requestAnimationFrame(fpsLoop);
+			})();
 
 			function updatePerfPanel() {
 				const p = app.player.perf;
@@ -366,7 +632,6 @@
 
 				fpsHistory[graphIdx % 200] = p.fps;
 				graphIdx++;
-
 				const gw = graphCanvas.width,
 					gh = graphCanvas.height;
 				graphCtx.fillStyle = '#111';

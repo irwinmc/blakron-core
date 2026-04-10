@@ -1,92 +1,133 @@
 <!doctype html>
-<!--
-  WebGL Performance Benchmark — Heron Engine
-  前提条件：需要通过 HTTP dev server 访问（ES module 不支持 file:// 协议）
-  推荐运行方式：
-    cd packages/core
-    npx serve .   # 然后访问 http://localhost:3000/examples/benchmark.html
-  或使用 VS Code Live Server 插件打开此文件。
--->
 <html>
 	<head>
 		<meta charset="utf-8" />
-		<title>WebGL Performance Benchmark — Heron Engine</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Benchmark — Heron Engine</title>
 		<style>
+			:root {
+				--bg: #0a0b14;
+				--bg-deep: #060710;
+				--glass: rgba(255, 255, 255, 0.035);
+				--glass-border: rgba(255, 255, 255, 0.07);
+				--glass-hover: rgba(255, 255, 255, 0.06);
+				--accent: #6c9cff;
+				--success: #4ade80;
+				--warning: #fbbf24;
+				--error: #f87171;
+				--text: #e0e0e8;
+				--text-muted: #8888a0;
+				--text-dim: #55556a;
+				--sidebar-w: 300px;
+			}
 			* {
 				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
 			}
 			body {
-				margin: 0;
-				background: #1a1a2e;
-				font-family: monospace;
-				color: #eee;
-				min-height: 100vh;
-				display: flex;
-				flex-direction: column;
-			}
-			header {
-				padding: 10px 16px;
-				border-bottom: 1px solid #333;
-				font-size: 14px;
-				color: #8cf;
-				letter-spacing: 0.05em;
-			}
-			#main-layout {
-				display: flex;
-				flex-direction: row;
-				flex: 1;
-				gap: 0;
-			}
-			#canvas-area {
-				flex: 0 0 auto;
-				padding: 10px;
-				display: flex;
-				flex-direction: column;
-				align-items: flex-start;
-			}
-			#gameCanvas {
-				border: 1px solid #444;
-				display: block;
-			}
-			#webgl-error {
-				display: none;
-				width: 800px;
-				height: 600px;
-				border: 1px solid #f44;
-				background: #1a0000;
-				color: #f88;
-				font-size: 14px;
-				align-items: center;
-				justify-content: center;
-				text-align: center;
-				padding: 20px;
-			}
-			#control-panel {
-				flex: 0 0 auto;
-				min-width: 280px;
-				max-width: 340px;
-				padding: 10px 14px;
-				border-left: 1px solid #333;
-				overflow-y: auto;
-				display: flex;
-				flex-direction: column;
-				gap: 12px;
-			}
-			.panel-section {
-				background: rgba(255, 255, 255, 0.04);
-				border: 1px solid #333;
-				border-radius: 6px;
-				padding: 10px 12px;
-			}
-			.panel-section h4 {
-				margin: 0 0 8px 0;
-				padding-bottom: 5px;
-				border-bottom: 1px solid #444;
+				background: var(--bg);
+				color: var(--text);
+				font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
 				font-size: 12px;
-				color: #8cf;
+				display: flex;
+				flex-direction: column;
+				height: 100vh;
+				overflow: hidden;
+			}
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				background:
+					radial-gradient(ellipse 600px 400px at 15% 80%, rgba(108, 156, 255, 0.06) 0%, transparent 70%),
+					radial-gradient(ellipse 500px 500px at 85% 20%, rgba(167, 139, 250, 0.04) 0%, transparent 70%);
+				pointer-events: none;
+				z-index: 0;
+			}
+			.header {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				padding: 0 20px;
+				height: 48px;
+				border-bottom: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.85);
+				backdrop-filter: blur(20px);
+				flex-shrink: 0;
+				position: relative;
+				z-index: 10;
+			}
+			.back-link {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				color: var(--text-muted);
+				text-decoration: none;
+				font-size: 12px;
+				padding: 4px 10px;
+				border-radius: 6px;
+				border: 1px solid transparent;
+				transition: all 0.2s;
+			}
+			.back-link:hover {
+				color: var(--accent);
+				border-color: var(--glass-border);
+				background: var(--glass);
+			}
+			.page-title {
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--text);
+			}
+
+			.main {
+				display: flex;
+				flex: 1;
+				overflow: hidden;
+				position: relative;
+				z-index: 1;
+			}
+
+			.sidebar {
+				width: var(--sidebar-w);
+				flex-shrink: 0;
+				border-right: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.5);
+				backdrop-filter: blur(12px);
+				overflow-y: auto;
+				padding: 14px;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+			}
+			.sidebar::-webkit-scrollbar {
+				width: 4px;
+			}
+			.sidebar::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			.sidebar::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.08);
+				border-radius: 4px;
+			}
+
+			.glass-card {
+				background: var(--glass);
+				border: 1px solid var(--glass-border);
+				border-radius: 10px;
+				padding: 12px 14px;
+				backdrop-filter: blur(12px);
+			}
+			.glass-card h3 {
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--text-muted);
 				text-transform: uppercase;
 				letter-spacing: 0.08em;
+				margin-bottom: 10px;
 			}
+
 			.scene-radio-group {
 				display: flex;
 				flex-direction: column;
@@ -96,79 +137,82 @@
 				display: flex;
 				align-items: center;
 				gap: 7px;
-				font-size: 12px;
+				font-size: 11px;
 				cursor: pointer;
 				padding: 3px 5px;
-				border-radius: 3px;
+				border-radius: 4px;
 				transition: background 0.15s;
 			}
 			.scene-radio-group label:hover {
-				background: rgba(255, 255, 255, 0.06);
+				background: var(--glass-hover);
 			}
 			.scene-radio-group input[type='radio'] {
-				accent-color: #8cf;
+				accent-color: var(--accent);
 			}
+
 			.slider-row {
 				display: flex;
 				flex-direction: column;
 				gap: 5px;
-				font-size: 12px;
+				font-size: 11px;
 			}
 			.slider-row .slider-label {
 				display: flex;
 				justify-content: space-between;
-				color: #aaa;
+				color: var(--text-muted);
 			}
 			.slider-row input[type='range'] {
 				width: 100%;
-				accent-color: #8cf;
+				accent-color: var(--accent);
 			}
+
 			.metric-row {
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
-				font-size: 12px;
+				font-size: 11px;
 				line-height: 1.8;
 			}
 			.metric-row .label {
-				color: #aaa;
+				color: var(--text-dim);
 			}
 			.metric-row .value {
-				color: #fff;
-				font-weight: bold;
+				font-weight: 600;
+				font-variant-numeric: tabular-nums;
 			}
 			.metric-row .value.good {
-				color: #4caf50;
+				color: var(--success);
 			}
 			.metric-row .value.warn {
-				color: #ffeb3b;
+				color: var(--warning);
 			}
 			.metric-row .value.bad {
-				color: #f44336;
+				color: var(--error);
 			}
 			.metric-row .value.dimmed {
-				color: #555;
+				color: var(--text-dim);
 			}
+
 			#status-badge {
 				display: inline-block;
-				font-size: 11px;
+				font-size: 10px;
 				padding: 2px 8px;
-				border-radius: 10px;
-				background: #333;
-				color: #aaa;
+				border-radius: 6px;
+				font-weight: 600;
 			}
 			#status-badge.warmup {
-				background: #2a2a00;
-				color: #ffeb3b;
+				background: rgba(251, 191, 36, 0.1);
+				color: var(--warning);
 			}
 			#status-badge.measuring {
-				background: #002a00;
-				color: #4caf50;
+				background: rgba(74, 222, 128, 0.1);
+				color: var(--success);
 			}
 			#status-badge.paused {
-				background: #2a0000;
-				color: #f44336;
+				background: rgba(248, 113, 113, 0.1);
+				color: var(--error);
 			}
+
 			#fps-graph {
 				border: none;
 				margin: 6px 0 0 0;
@@ -176,43 +220,44 @@
 				height: 60px;
 				display: block;
 			}
+
 			.btn-row {
 				display: flex;
 				gap: 6px;
 				flex-wrap: wrap;
 			}
 			button {
-				background: #2a2a3e;
-				border: 1px solid #555;
-				color: #ccc;
-				font-family: monospace;
-				font-size: 12px;
-				padding: 5px 10px;
-				border-radius: 4px;
+				background: rgba(108, 156, 255, 0.08);
+				border: 1px solid rgba(108, 156, 255, 0.15);
+				color: var(--text);
+				padding: 5px 12px;
+				border-radius: 7px;
 				cursor: pointer;
-				transition:
-					background 0.15s,
-					border-color 0.15s;
+				font-family: inherit;
+				font-size: 11px;
+				white-space: nowrap;
+				transition: all 0.2s;
 			}
 			button:hover {
-				background: #3a3a5e;
-				border-color: #8cf;
-				color: #fff;
+				background: rgba(108, 156, 255, 0.15);
+				border-color: rgba(108, 156, 255, 0.3);
 			}
 			button:active {
-				background: #1a1a3e;
+				background: rgba(108, 156, 255, 0.2);
 			}
+
 			#toast {
 				position: fixed;
 				bottom: 20px;
 				left: 50%;
 				transform: translateX(-50%);
-				background: rgba(0, 0, 0, 0.85);
-				border: 1px solid #555;
-				border-radius: 6px;
+				background: rgba(6, 7, 16, 0.85);
+				border: 1px solid var(--glass-border);
+				border-radius: 8px;
 				padding: 8px 18px;
-				font-size: 13px;
-				color: #eee;
+				backdrop-filter: blur(12px);
+				font-size: 12px;
+				color: var(--text);
 				pointer-events: none;
 				opacity: 0;
 				transition: opacity 0.3s;
@@ -221,31 +266,33 @@
 			#toast.show {
 				opacity: 1;
 			}
+
 			#fallback-textarea-wrap {
 				display: none;
 				position: fixed;
 				top: 50%;
 				left: 50%;
 				transform: translate(-50%, -50%);
-				background: #1a1a2e;
-				border: 1px solid #555;
-				border-radius: 8px;
+				background: var(--bg);
+				border: 1px solid var(--glass-border);
+				border-radius: 10px;
 				padding: 16px;
+				backdrop-filter: blur(12px);
 				z-index: 9999;
 				width: 500px;
 			}
 			#fallback-textarea-wrap h5 {
 				margin: 0 0 8px 0;
-				color: #8cf;
-				font-size: 13px;
+				color: var(--accent);
+				font-size: 12px;
 			}
 			#fallback-textarea-wrap textarea {
 				width: 100%;
 				height: 120px;
-				background: #111;
-				border: 1px solid #444;
-				color: #eee;
-				font-family: monospace;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid var(--glass-border);
+				color: var(--text);
+				font-family: inherit;
 				font-size: 11px;
 				padding: 6px;
 				resize: vertical;
@@ -253,29 +300,57 @@
 			#fallback-textarea-wrap button {
 				margin-top: 8px;
 			}
+
+			.right-panel {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+			}
+			#canvas-wrap {
+				flex: 1;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background: var(--bg-deep);
+				position: relative;
+				overflow: hidden;
+			}
+			#canvas-wrap::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: radial-gradient(circle at 50% 50%, rgba(108, 156, 255, 0.03) 0%, transparent 60%);
+				pointer-events: none;
+			}
+			canvas {
+				border: 1px solid var(--glass-border);
+				border-radius: 4px;
+			}
+			#webgl-error {
+				display: none;
+				position: absolute;
+				inset: 0;
+				background: var(--bg-deep);
+				color: var(--error);
+				font-size: 14px;
+				align-items: center;
+				justify-content: center;
+				text-align: center;
+				padding: 20px;
+			}
 		</style>
 	</head>
 	<body>
-		<header>
-			<a href="index.html" style="color: #8cf; text-decoration: none; margin-right: 16px">← Examples</a>
-			WebGL Performance Benchmark — Heron Engine
-		</header>
-		<div id="main-layout">
-			<div id="canvas-area">
-				<canvas id="gameCanvas" width="800" height="600"></canvas>
-				<div id="webgl-error">
-					<div>
-						<div style="font-size: 32px; margin-bottom: 12px">⚠️</div>
-						<strong>WebGL 不可用</strong>
-						<br />
-						请使用支持 WebGL 的浏览器（Chrome、Firefox、Safari 等）。
-					</div>
-				</div>
-			</div>
-			<div id="control-panel">
-				<!-- 场景选择 -->
-				<div class="panel-section">
-					<h4>场景选择</h4>
+		<div class="header">
+			<a href="index.html" class="back-link">&larr; Back</a>
+			<span class="page-title">Benchmark</span>
+		</div>
+		<div class="main">
+			<div class="sidebar">
+				<!-- Scene select -->
+				<div class="glass-card">
+					<h3>Scene</h3>
 					<div class="scene-radio-group" id="scene-radios">
 						<label>
 							<input type="radio" name="scene" value="sprite-batch" />
@@ -299,23 +374,23 @@
 						</label>
 					</div>
 				</div>
-				<!-- 对象数量 -->
-				<div class="panel-section">
-					<h4>对象数量</h4>
+				<!-- Object count -->
+				<div class="glass-card">
+					<h3>Object Count</h3>
 					<div class="slider-row">
 						<div class="slider-label">
-							<span>数量</span>
+							<span>Count</span>
 							<span id="count-display">500</span>
 						</div>
 						<input type="range" id="count-slider" min="50" max="2000" step="10" value="500" />
 					</div>
 				</div>
-				<!-- 性能指标 -->
-				<div class="panel-section">
-					<h4>
-						性能指标
-						<span id="status-badge" class="warmup">预热中…</span>
-					</h4>
+				<!-- Metrics -->
+				<div class="glass-card">
+					<h3>
+						Metrics
+						<span id="status-badge" class="warmup">Warmup</span>
+					</h3>
 					<div class="metric-row">
 						<span class="label">FPS</span>
 						<span class="value dimmed" id="m-fps">--</span>
@@ -337,7 +412,7 @@
 						<span class="value dimmed" id="m-p95-render">--</span>
 					</div>
 					<div class="metric-row">
-						<span class="label">Batch Efficiency</span>
+						<span class="label">Batch Eff.</span>
 						<span class="value dimmed" id="m-batch">--</span>
 					</div>
 					<div class="metric-row">
@@ -346,26 +421,40 @@
 					</div>
 					<canvas id="fps-graph" width="200" height="60"></canvas>
 				</div>
-				<!-- 操作按钮 -->
-				<div class="panel-section">
-					<h4>操作</h4>
+				<!-- Actions -->
+				<div class="glass-card">
+					<h3>Actions</h3>
 					<div class="btn-row">
-						<button id="btn-reset">重置测量</button>
-						<button id="btn-pause">暂停</button>
+						<button id="btn-reset">Reset</button>
+						<button id="btn-pause">Pause</button>
 					</div>
 					<div class="btn-row" style="margin-top: 6px">
-						<button id="btn-export-json">导出 JSON</button>
-						<button id="btn-copy-md">复制 Markdown</button>
+						<button id="btn-export-json">Export JSON</button>
+						<button id="btn-copy-md">Copy Markdown</button>
+					</div>
+				</div>
+			</div>
+			<div class="right-panel">
+				<div id="canvas-wrap">
+					<canvas id="gameCanvas" width="800" height="600"></canvas>
+					<div id="webgl-error">
+						<div>
+							<div style="font-size: 32px; margin-bottom: 12px">&#x26A0;</div>
+							<strong>WebGL not available</strong>
+							<br />
+							Please use a browser with WebGL support.
+						</div>
 					</div>
 				</div>
 			</div>
 		</div>
 		<div id="toast"></div>
 		<div id="fallback-textarea-wrap">
-			<h5>复制以下 Markdown（Ctrl+A 全选后复制）</h5>
+			<h5>Copy the Markdown below (Ctrl+A then Ctrl+C)</h5>
 			<textarea id="fallback-textarea" readonly></textarea>
-			<button id="btn-close-fallback">关闭</button>
+			<button id="btn-close-fallback">Close</button>
 		</div>
+
 		<script type="module">
 			import {
 				createPlayer,
@@ -379,14 +468,11 @@
 				Event,
 			} from '../src/index.js';
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// MetricsCollector（内联自 src/heron/benchmark/MetricsCollector.ts）
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── MetricsCollector ──────────────────────────────────────────────────
 			function percentile(sortedArr, p) {
 				if (sortedArr.length === 0) return 0;
 				const idx = Math.ceil(p * sortedArr.length) - 1;
-				const clamped = Math.max(0, Math.min(idx, sortedArr.length - 1));
-				return sortedArr[clamped];
+				return sortedArr[Math.max(0, Math.min(idx, sortedArr.length - 1))];
 			}
 
 			class MetricsCollector {
@@ -396,23 +482,16 @@
 					this.writeIdx = 0;
 					this.frameCount = 0;
 				}
-
 				record(frame) {
 					this.buffer[this.writeIdx] = frame;
 					this.writeIdx = (this.writeIdx + 1) % this.windowSize;
-					if (this.frameCount < this.windowSize) {
-						this.frameCount++;
-					}
+					if (this.frameCount < this.windowSize) this.frameCount++;
 				}
-
 				reset() {
 					this.writeIdx = 0;
 					this.frameCount = 0;
-					for (let i = 0; i < this.windowSize; i++) {
-						this.buffer[i] = undefined;
-					}
+					for (let i = 0; i < this.windowSize; i++) this.buffer[i] = undefined;
 				}
-
 				isLowFps() {
 					if (this.frameCount < 10) return false;
 					for (let i = 0; i < 10; i++) {
@@ -422,7 +501,6 @@
 					}
 					return true;
 				}
-
 				getStats() {
 					if (this.frameCount === 0) {
 						return {
@@ -471,19 +549,14 @@
 							p95: percentile(sortedRender, 0.95),
 							max: sortedRender[sortedRender.length - 1] ?? 0,
 						},
-						drawCalls: {
-							current: latestFrame?.drawCalls ?? 0,
-							avg: avgDrawCalls,
-						},
+						drawCalls: { current: latestFrame?.drawCalls ?? 0, avg: avgDrawCalls },
 						batchEfficiency,
 						isLowFps: this.isLowFps(),
 					};
 				}
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// BenchmarkRunner（内联自 src/heron/benchmark/BenchmarkRunner.ts）
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── BenchmarkRunner ────────────────────────────────────────────────────
 			class BenchmarkRunner {
 				constructor(collector, onPhaseChange, getSceneDescriptor, container) {
 					this.collector = collector;
@@ -497,11 +570,8 @@
 					this.currentCount = 0;
 					this.cleanup = undefined;
 				}
-
 				switchScene(sceneId, count) {
-					console.log(`[Runner] switchScene: ${this.currentSceneId} → ${sceneId}, count=${count}`);
 					if (this.cleanup) {
-						console.log(`[Runner] calling cleanup for: ${this.currentSceneId}`);
 						this.cleanup();
 						this.cleanup = undefined;
 					}
@@ -509,9 +579,6 @@
 					if (descriptor) {
 						try {
 							this.cleanup = descriptor.build(this.container, count, factory);
-							console.log(
-								`[Runner] build done for: ${sceneId}, root.numChildren=${this.container.numChildren}`,
-							);
 						} catch (e) {
 							console.error('Scene build error:', e);
 						}
@@ -523,34 +590,27 @@
 					this.onPhaseChange(this.phase);
 					this.collector.reset();
 				}
-
 				rebuildScene(count) {
-					if (this.currentSceneId !== undefined) {
-						this.switchScene(this.currentSceneId, count);
-					}
+					if (this.currentSceneId !== undefined) this.switchScene(this.currentSceneId, count);
 				}
-
 				pause() {
 					if (this.phase === 'measuring') {
 						this.phase = 'paused';
 						this.onPhaseChange(this.phase);
 					}
 				}
-
 				resume() {
 					if (this.phase === 'paused') {
 						this.phase = 'measuring';
 						this.onPhaseChange(this.phase);
 					}
 				}
-
 				resetMeasurement() {
 					this.collector.reset();
 					this.warmupFrames = 0;
 					this.phase = 'warmup';
 					this.onPhaseChange(this.phase);
 				}
-
 				onFrame(perf) {
 					if (this.phase === 'idle' || this.phase === 'paused') return;
 					if (this.phase === 'warmup') {
@@ -570,15 +630,12 @@
 						});
 					}
 				}
-
 				getPhase() {
 					return this.phase;
 				}
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// PerfPanel（内联自 src/heron/benchmark/PerfPanel.ts）
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── PerfPanel ──────────────────────────────────────────────────────────
 			function fpsColorClass(fps) {
 				if (fps >= 55) return 'good';
 				if (fps >= 30) return 'warn';
@@ -591,13 +648,12 @@
 					this.fpsHistory = new Array(200).fill(0);
 					this.historyWriteIdx = 0;
 				}
-
 				update(stats, phase) {
 					const badge = this.els.status;
 					if (phase === 'warmup') {
-						badge.textContent = '预热中…';
+						badge.textContent = 'Warmup';
 						badge.className = 'warmup';
-						const dimEls = [
+						[
 							this.els.fps,
 							this.els.drawCalls,
 							this.els.renderCurrent,
@@ -605,15 +661,13 @@
 							this.els.renderP95,
 							this.els.batchEfficiency,
 							this.els.frameCount,
-						];
-						for (const el of dimEls) {
+						].forEach(el => {
 							el.textContent = '--';
 							el.className = 'value dimmed';
-						}
+						});
 					} else if (phase === 'measuring') {
-						badge.textContent = '测量中';
+						badge.textContent = 'Measuring';
 						badge.className = 'measuring';
-
 						this.els.fps.textContent = stats.fps.current.toFixed(1);
 						this.els.fps.className = 'value ' + fpsColorClass(stats.fps.current);
 						this.els.drawCalls.textContent = String(stats.drawCalls.current);
@@ -629,68 +683,56 @@
 						this.els.batchEfficiency.className = 'value';
 						this.els.frameCount.textContent = String(stats.frameCount);
 						this.els.frameCount.className = 'value';
-
 						this.fpsHistory[this.historyWriteIdx] = stats.fps.current;
 						this.historyWriteIdx = (this.historyWriteIdx + 1) % 200;
 					} else if (phase === 'paused') {
-						badge.textContent = '已暂停';
+						badge.textContent = 'Paused';
 						badge.className = 'paused';
 					}
-					this._drawGraph(this.fpsHistory, this.historyWriteIdx);
+					this._drawGraph();
 				}
-
-				_drawGraph(fpsHistory, writeIdx) {
+				_drawGraph() {
 					const canvas = this.els.graphCanvas;
 					const ctx = canvas.getContext('2d');
 					if (!ctx) return;
-					const width = canvas.width;
-					const height = canvas.height;
-					const maxFps = 70;
-					const refFps = 60;
-
+					const width = canvas.width,
+						height = canvas.height,
+						maxFps = 70;
 					ctx.fillStyle = '#111';
 					ctx.fillRect(0, 0, width, height);
-
-					const refY = height - (refFps / maxFps) * height;
 					ctx.strokeStyle = '#444';
 					ctx.lineWidth = 1;
 					ctx.beginPath();
-					ctx.moveTo(0, refY);
-					ctx.lineTo(width, refY);
+					ctx.moveTo(0, height - (60 / maxFps) * height);
+					ctx.lineTo(width, height - (60 / maxFps) * height);
 					ctx.stroke();
-
-					const len = fpsHistory.length;
-					ctx.lineWidth = 1;
+					const len = this.fpsHistory.length;
 					for (let i = 0; i < len; i++) {
-						const sampleIdx = (writeIdx + i) % len;
-						const fps = fpsHistory[sampleIdx];
-						const x = i;
-						const y = height - Math.min(fps / maxFps, 1) * height;
+						const sampleIdx = (this.historyWriteIdx + i) % len;
+						const fps = this.fpsHistory[sampleIdx];
+						const x = i,
+							y = height - Math.min(fps / maxFps, 1) * height;
 						const cc = fpsColorClass(fps);
-						ctx.strokeStyle = cc === 'good' ? '#4caf50' : cc === 'warn' ? '#ffeb3b' : '#f44336';
+						ctx.strokeStyle = cc === 'good' ? '#4ade80' : cc === 'warn' ? '#fbbf24' : '#f87171';
 						if (i === 0) {
 							ctx.beginPath();
 							ctx.moveTo(x, y);
 						} else {
-							const prevIdx = (writeIdx + i - 1) % len;
-							const prevCc = fpsColorClass(fpsHistory[prevIdx]);
+							const prevIdx = (this.historyWriteIdx + i - 1) % len;
+							const prevCc = fpsColorClass(this.fpsHistory[prevIdx]);
 							if (prevCc !== cc) {
 								ctx.lineTo(x, y);
 								ctx.stroke();
 								ctx.beginPath();
 								ctx.moveTo(x, y);
-							} else {
-								ctx.lineTo(x, y);
-							}
+							} else ctx.lineTo(x, y);
 						}
 						if (i === len - 1) ctx.stroke();
 					}
 				}
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// ReportExporter（内联自 src/heron/benchmark/ReportExporter.ts）
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── ReportExporter ─────────────────────────────────────────────────────
 			class ReportExporter {
 				buildReport(sceneId, objectCount, stats) {
 					return {
@@ -704,41 +746,34 @@
 						batchEfficiencyAvg: stats.batchEfficiency,
 					};
 				}
-
 				exportJSON(report) {
 					const json = JSON.stringify(report, null, 2);
 					const ts = report.timestamp.replace(/[:.]/g, '-').slice(0, 19);
-					const filename = `benchmark-${report.scene}-${ts}.json`;
 					const blob = new Blob([json], { type: 'application/json' });
 					const url = URL.createObjectURL(blob);
 					const a = document.createElement('a');
 					a.href = url;
-					a.download = filename;
+					a.download = `benchmark-${report.scene}-${ts}.json`;
 					a.click();
 					URL.revokeObjectURL(url);
 				}
-
 				formatMarkdown(report) {
 					const header =
-						'| 场景 | 对象数 | FPS avg | FPS p95 | FPS max | Render avg (ms) | Render p95 (ms) | Render max (ms) | Draw Calls avg | Batch Efficiency |';
-					const separator = '|---|---|---|---|---|---|---|---|---|---|';
+						'| Scene | Objects | FPS avg | FPS p95 | FPS max | Render avg (ms) | Render p95 (ms) | Render max (ms) | Draw Calls avg | Batch Eff. |';
+					const sep = '|---|---|---|---|---|---|---|---|---|---|';
 					const row = `| ${report.scene} | ${report.objectCount} | ${report.fps.avg.toFixed(1)} | ${report.fps.p95.toFixed(1)} | ${report.fps.max.toFixed(1)} | ${report.renderTimeMs.avg.toFixed(2)} | ${report.renderTimeMs.p95.toFixed(2)} | ${report.renderTimeMs.max.toFixed(2)} | ${report.drawCallsAvg.toFixed(1)} | ${report.batchEfficiencyAvg.toFixed(2)} |`;
-					return [header, separator, row].join('\n');
+					return [header, sep, row].join('\n');
 				}
-
 				async copyMarkdown(report, fallback) {
-					const text = this.formatMarkdown(report);
 					try {
-						await navigator.clipboard.writeText(text);
+						await navigator.clipboard.writeText(this.formatMarkdown(report));
 					} catch {
-						fallback?.(text);
+						fallback?.(this.formatMarkdown(report));
 					}
 				}
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// SceneRegistry（内联自 src/heron/benchmark/SceneRegistry.ts）
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── SceneRegistry ──────────────────────────────────────────────────────
 			const scenes = [
 				{
 					id: 'sprite-batch',
@@ -765,9 +800,9 @@
 					minCount: 50,
 					maxCount: 2000,
 					build(container, count, factory) {
-						const children = [];
-						const numTextures = 8;
-						const perTex = Math.floor(count / numTextures);
+						const children = [],
+							numTextures = 8,
+							perTex = Math.floor(count / numTextures);
 						for (let t = 0; t < numTextures; t++) {
 							for (let i = 0; i < perTex; i++) {
 								const bmp = factory.createBitmap(t);
@@ -806,12 +841,8 @@
 					maxCount: 2000,
 					build(container, count, factory) {
 						const objects = [];
-						// 用一个专用 Sprite 承载所有对象和事件监听，cleanup 时只需 removeChild 它
 						const holder = factory.createSprite();
 						factory.addChild(container, holder);
-						console.log(
-							`[DynamicTransform] build: added holder, container.numChildren=${container.numChildren}`,
-						);
 						for (let i = 0; i < count; i++) {
 							const bmp = factory.createBitmap(0);
 							bmp.x = Math.random() * 760;
@@ -825,7 +856,6 @@
 								radiusY: 80 + Math.random() * 180,
 							});
 						}
-						console.log(`[DynamicTransform] build done: holder.numChildren=${holder.numChildren}`);
 						const onFrame = () => {
 							for (const o of objects) {
 								o.phase += o.speed;
@@ -837,14 +867,8 @@
 						};
 						factory.addEventListener(holder, Event.ENTER_FRAME, onFrame);
 						return () => {
-							console.log(
-								`[DynamicTransform] cleanup: removing holder, container.numChildren before=${container.numChildren}`,
-							);
 							factory.removeEventListener(holder, Event.ENTER_FRAME, onFrame);
 							factory.removeChild(container, holder);
-							console.log(
-								`[DynamicTransform] cleanup done: container.numChildren after=${container.numChildren}`,
-							);
 						};
 					},
 				},
@@ -857,14 +881,11 @@
 					build(container, count, factory) {
 						const holder = factory.createSprite();
 						factory.addChild(container, holder);
-
-						const maxDepth = 10;
-						const branchFactor = Math.max(2, Math.ceil(Math.pow(count, 1 / maxDepth)));
-
+						const maxDepth = 10,
+							branchFactor = Math.max(2, Math.ceil(Math.pow(count, 1 / maxDepth)));
 						function buildTree(parent, depth) {
 							if (depth >= maxDepth) {
-								const bmp = factory.createBitmap(0);
-								factory.addChild(parent, bmp);
+								factory.addChild(parent, factory.createBitmap(0));
 								return;
 							}
 							for (let i = 0; i < branchFactor; i++) {
@@ -875,12 +896,8 @@
 								buildTree(child, depth + 1);
 							}
 						}
-
 						buildTree(holder, 0);
-
-						return () => {
-							factory.removeChild(container, holder);
-						};
+						return () => factory.removeChild(container, holder);
 					},
 				},
 			];
@@ -889,12 +906,9 @@
 				return scenes.find(s => s.id === id);
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// 初始化 Heron 引擎
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── Init Heron ─────────────────────────────────────────────────────────
 			const canvas = document.getElementById('gameCanvas');
 			const webglError = document.getElementById('webgl-error');
-
 			const app = createPlayer({
 				canvas,
 				contentWidth: 800,
@@ -903,28 +917,22 @@
 				frameRate: 60,
 			});
 
-			// WebGL 可用性检查
 			if (app.player && app.player.isWebGL === false) {
 				canvas.style.display = 'none';
 				webglError.style.display = 'flex';
-				console.error('[Benchmark] WebGL 不可用，请使用支持 WebGL 的浏览器。');
 				throw new Error('WebGL not available');
 			}
 
 			const root = new Sprite();
 			app.start(root);
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// 预先创建 8 种颜色纹理
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── Pre-create 8 textures ──────────────────────────────────────────────
 			const textures = [];
 			for (let i = 0; i < 8; i++) {
 				const c = document.createElement('canvas');
-				c.width = 32;
-				c.height = 32;
+				c.width = c.height = 32;
 				const ctx = c.getContext('2d');
-				const hue = (i / 8) * 360;
-				ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+				ctx.fillStyle = `hsl(${(i / 8) * 360}, 80%, 60%)`;
 				ctx.fillRect(0, 0, 32, 32);
 				const bd = new BitmapData(c);
 				const tex = new Texture();
@@ -932,9 +940,7 @@
 				textures.push(tex);
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// SceneFactory：创建真实 Heron 对象
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── SceneFactory ───────────────────────────────────────────────────────
 			const factory = {
 				createBitmap(texIndex = 0) {
 					return new Bitmap(textures[texIndex % textures.length]);
@@ -945,12 +951,7 @@
 					s.graphics.beginFill(color, 1);
 					s.graphics.drawRect(0, 0, 40, 40);
 					s.graphics.endFill();
-					// 交替添加 BlurFilter 和 GlowFilter
-					if (index % 2 === 0) {
-						s.filters = [new BlurFilter(4, 4)];
-					} else {
-						s.filters = [new GlowFilter(0xffffff, 0.8, 6, 6, 1)];
-					}
+					s.filters = index % 2 === 0 ? [new BlurFilter(4, 4)] : [new GlowFilter(0xffffff, 0.8, 6, 6, 1)];
 					return s;
 				},
 				createSprite() {
@@ -970,13 +971,9 @@
 				},
 			};
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// 实例化核心模块
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── Core instances ─────────────────────────────────────────────────────
 			const collector = new MetricsCollector(300);
 			const exporter = new ReportExporter();
-
-			// DOM 元素引用
 			const $ = id => document.getElementById(id);
 			const panel = new PerfPanel({
 				fps: $('m-fps'),
@@ -990,55 +987,29 @@
 				graphCanvas: $('fps-graph'),
 			});
 
-			// 当前场景 ID（用于导出报告）
-			let currentSceneId = 'dynamic-transform';
-			let currentCount = 300;
+			let currentSceneId = 'dynamic-transform',
+				currentCount = 300;
+			const runner = new BenchmarkRunner(collector, () => {}, getScene, root);
 
-			const runner = new BenchmarkRunner(
-				collector,
-				phase => {
-					// phase 变化时更新 UI（panel.update 会在帧循环中处理）
-				},
-				getScene,
-				root,
-			);
-
-			// ─────────────────────────────────────────────────────────────────────────
-			// 帧循环：通过 ENTER_FRAME 事件驱动
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── Frame loop ─────────────────────────────────────────────────────────
 			const frameProxy = new Sprite();
 			root.addChild(frameProxy);
 			frameProxy.addEventListener(Event.ENTER_FRAME, () => {
 				const perf = app.player.perf;
-				runner.onFrame({
-					fps: perf.fps,
-					drawCalls: perf.drawCalls,
-					renderTimeMs: perf.renderTimeMs,
-				});
-				const stats = collector.getStats();
-				const phase = runner.getPhase();
-				if (stats.frameCount % 60 === 1) {
-					console.log(
-						`[Frame] phase=${phase} frameCount=${stats.frameCount} fps=${perf.fps.toFixed(1)} drawCalls=${perf.drawCalls} root.numChildren=${root.numChildren}`,
-					);
-				}
-				panel.update(stats, phase);
+				runner.onFrame({ fps: perf.fps, drawCalls: perf.drawCalls, renderTimeMs: perf.renderTimeMs });
+				panel.update(collector.getStats(), runner.getPhase());
 			});
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// 场景切换辅助函数
-			// ─────────────────────────────────────────────────────────────────────────
+			// ── Scene switch helper ────────────────────────────────────────────────
 			function switchToScene(sceneId, count) {
 				currentSceneId = sceneId;
 				currentCount = count;
 				runner.switchScene(sceneId, count);
-				// 更新滑块范围
 				const scene = getScene(sceneId);
 				if (scene) {
 					const slider = $('count-slider');
 					slider.min = scene.minCount;
 					slider.max = scene.maxCount;
-					// 如果当前值超出范围则修正
 					const clamped = Math.max(scene.minCount, Math.min(scene.maxCount, parseInt(slider.value)));
 					slider.value = clamped;
 					$('count-display').textContent = clamped;
@@ -1046,74 +1017,53 @@
 				}
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// 控件事件绑定
-			// ─────────────────────────────────────────────────────────────────────────
-
-			// 场景单选按钮
+			// ── Controls ───────────────────────────────────────────────────────────
 			document.querySelectorAll('input[name="scene"]').forEach(radio => {
 				radio.addEventListener('change', () => {
-					if (radio.checked) {
-						switchToScene(radio.value, currentCount);
-					}
+					if (radio.checked) switchToScene(radio.value, currentCount);
 				});
 			});
 
-			// 对象数量滑块
-			const countSlider = $('count-slider');
-			const countDisplay = $('count-display');
-			countSlider.addEventListener('input', () => {
-				const val = parseInt(countSlider.value);
-				countDisplay.textContent = val;
+			$('count-slider').addEventListener('input', function () {
+				const val = parseInt(this.value);
+				$('count-display').textContent = val;
 				currentCount = val;
 				runner.rebuildScene(val);
 			});
 
-			// 重置测量
-			$('btn-reset').addEventListener('click', () => {
-				runner.resetMeasurement();
-			});
+			$('btn-reset').addEventListener('click', () => runner.resetMeasurement());
 
-			// 暂停/继续
 			const btnPause = $('btn-pause');
 			btnPause.addEventListener('click', () => {
 				const phase = runner.getPhase();
 				if (phase === 'measuring') {
 					runner.pause();
-					btnPause.textContent = '继续';
+					btnPause.textContent = 'Resume';
 				} else if (phase === 'paused') {
 					runner.resume();
-					btnPause.textContent = '暂停';
+					btnPause.textContent = 'Pause';
 				}
 			});
 
-			// 导出 JSON
 			$('btn-export-json').addEventListener('click', () => {
-				const stats = collector.getStats();
-				const report = exporter.buildReport(currentSceneId, currentCount, stats);
-				exporter.exportJSON(report);
+				exporter.exportJSON(exporter.buildReport(currentSceneId, currentCount, collector.getStats()));
 			});
 
-			// 复制 Markdown
 			$('btn-copy-md').addEventListener('click', async () => {
-				const stats = collector.getStats();
-				const report = exporter.buildReport(currentSceneId, currentCount, stats);
-				await exporter.copyMarkdown(report, text => {
-					// fallback：显示文本框
-					$('fallback-textarea').value = text;
-					$('fallback-textarea-wrap').style.display = 'block';
-				});
-				showToast('已复制到剪贴板');
+				await exporter.copyMarkdown(
+					exporter.buildReport(currentSceneId, currentCount, collector.getStats()),
+					text => {
+						$('fallback-textarea').value = text;
+						$('fallback-textarea-wrap').style.display = 'block';
+					},
+				);
+				showToast('Copied to clipboard');
 			});
 
-			// 关闭 fallback 文本框
 			$('btn-close-fallback').addEventListener('click', () => {
 				$('fallback-textarea-wrap').style.display = 'none';
 			});
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// Toast 提示
-			// ─────────────────────────────────────────────────────────────────────────
 			function showToast(msg) {
 				const toast = $('toast');
 				toast.textContent = msg;
@@ -1121,12 +1071,7 @@
 				setTimeout(() => toast.classList.remove('show'), 2000);
 			}
 
-			// ─────────────────────────────────────────────────────────────────────────
-			// 启动默认场景
-			// ─────────────────────────────────────────────────────────────────────────
 			switchToScene('dynamic-transform', 300);
-
-			console.log('[Benchmark] 初始化完成，当前场景：dynamic-transform，对象数量：300');
 		</script>
 	</body>
 </html>

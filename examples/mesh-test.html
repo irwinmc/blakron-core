@@ -2,139 +2,384 @@
 <html>
 	<head>
 		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Mesh Test</title>
 		<style>
+			:root {
+				--bg: #0a0b14;
+				--bg-deep: #060710;
+				--glass: rgba(255, 255, 255, 0.035);
+				--glass-border: rgba(255, 255, 255, 0.07);
+				--glass-hover: rgba(255, 255, 255, 0.06);
+				--glass-strong: rgba(255, 255, 255, 0.06);
+				--accent: #6c9cff;
+				--accent-dim: rgba(108, 156, 255, 0.15);
+				--accent-glow: rgba(108, 156, 255, 0.25);
+				--success: #4ade80;
+				--warning: #fbbf24;
+				--error: #f87171;
+				--text: #e0e0e8;
+				--text-muted: #8888a0;
+				--text-dim: #55556a;
+				--sidebar-w: 280px;
+				--log-h: 320px;
+			}
 			* {
 				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
 			}
 			body {
-				margin: 0;
-				background: #111;
-				color: #ddd;
-				font-family: monospace;
-				font-size: 13px;
+				background: var(--bg);
+				color: var(--text);
+				font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+				font-size: 12px;
 				display: flex;
 				flex-direction: column;
 				height: 100vh;
+				overflow: hidden;
+				position: relative;
 			}
-			h1 {
-				margin: 0;
-				padding: 12px 16px;
-				font-size: 15px;
-				background: #1a1a2e;
-				border-bottom: 1px solid #333;
-				color: #8cf;
+			/* ── Ambient background ─────────────────────────────────────────── */
+			body::before {
+				content: '';
+				position: fixed;
+				inset: 0;
+				background:
+					radial-gradient(ellipse 600px 400px at 15% 80%, rgba(108, 156, 255, 0.06) 0%, transparent 70%),
+					radial-gradient(ellipse 500px 500px at 85% 20%, rgba(167, 139, 250, 0.04) 0%, transparent 70%);
+				pointer-events: none;
+				z-index: 0;
 			}
-			#main {
+
+			/* ── Header ─────────────────────────────────────────────────────── */
+			.header {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				padding: 0 20px;
+				height: 48px;
+				border-bottom: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.85);
+				backdrop-filter: blur(20px);
+				flex-shrink: 0;
+				position: relative;
+				z-index: 10;
+			}
+			.back-link {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				color: var(--text-muted);
+				text-decoration: none;
+				font-size: 12px;
+				padding: 4px 10px;
+				border-radius: 6px;
+				border: 1px solid transparent;
+				transition: all 0.2s;
+			}
+			.back-link:hover {
+				color: var(--accent);
+				border-color: var(--glass-border);
+				background: var(--glass);
+			}
+			.page-title {
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--text);
+				letter-spacing: 0.01em;
+			}
+			.header-right {
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 14px;
+			}
+			.fps-badge {
+				font-size: 11px;
+				font-weight: 600;
+				padding: 3px 10px;
+				border-radius: 6px;
+				background: rgba(74, 222, 128, 0.1);
+				border: 1px solid rgba(74, 222, 128, 0.2);
+				color: var(--success);
+				font-variant-numeric: tabular-nums;
+				min-width: 68px;
+				text-align: center;
+				transition: all 0.3s;
+			}
+			.fps-badge.warn {
+				background: rgba(251, 191, 36, 0.1);
+				border-color: rgba(251, 191, 36, 0.2);
+				color: var(--warning);
+			}
+			.fps-badge.bad {
+				background: rgba(248, 113, 113, 0.1);
+				border-color: rgba(248, 113, 113, 0.2);
+				color: var(--error);
+			}
+
+			/* ── Main layout ───────────────────────────────────────────────── */
+			.main {
 				display: flex;
 				flex: 1;
 				overflow: hidden;
+				position: relative;
+				z-index: 1;
 			}
-			#controls {
-				width: 320px;
+
+			/* ── Sidebar ───────────────────────────────────────────────────── */
+			.sidebar {
+				width: var(--sidebar-w);
 				flex-shrink: 0;
-				padding: 12px;
-				border-right: 1px solid #333;
+				border-right: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.5);
+				backdrop-filter: blur(12px);
 				overflow-y: auto;
+				padding: 14px;
 				display: flex;
 				flex-direction: column;
 				gap: 10px;
 			}
-			.card {
-				background: #1c1c2e;
-				border: 1px solid #333;
-				border-radius: 6px;
-				padding: 10px 12px;
+			.sidebar::-webkit-scrollbar {
+				width: 4px;
 			}
-			.card h3 {
-				margin: 0 0 8px 0;
-				font-size: 12px;
-				color: #8cf;
+			.sidebar::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			.sidebar::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.08);
+				border-radius: 4px;
+			}
+
+			/* ── Glass card ────────────────────────────────────────────────── */
+			.glass-card {
+				background: var(--glass);
+				border: 1px solid var(--glass-border);
+				border-radius: 10px;
+				padding: 12px 14px;
+				backdrop-filter: blur(12px);
+			}
+			.glass-card h3 {
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--text-muted);
 				text-transform: uppercase;
-				letter-spacing: 0.05em;
+				letter-spacing: 0.08em;
+				margin-bottom: 10px;
 			}
+
+			/* ── Row ──────────────────────────────────────────────────────── */
 			.row {
 				display: flex;
 				align-items: center;
 				gap: 8px;
 				margin-bottom: 6px;
 			}
-			.row label {
-				width: 100px;
-				color: #aaa;
-				flex-shrink: 0;
+			.row:last-child {
+				margin-bottom: 0;
 			}
+			.row label {
+				width: 80px;
+				color: var(--text-muted);
+				flex-shrink: 0;
+				font-size: 11px;
+			}
+
+			/* ── Inputs ───────────────────────────────────────────────────── */
 			input[type='range'] {
 				flex: 1;
 				min-width: 0;
+				accent-color: var(--accent);
+				height: 4px;
 			}
 			input[type='number'],
 			input[type='text'] {
 				flex: 1;
-				background: #111;
-				border: 1px solid #444;
-				color: #eee;
-				padding: 4px 6px;
-				border-radius: 3px;
-				font-family: monospace;
-				font-size: 12px;
+				min-width: 0;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid var(--glass-border);
+				color: var(--text);
+				padding: 4px 8px;
+				border-radius: 6px;
+				font-family: inherit;
+				font-size: 11px;
+				outline: none;
+				transition: border-color 0.2s;
 			}
-			button {
-				background: #2a2a4a;
-				border: 1px solid #555;
-				color: #ddd;
-				padding: 5px 10px;
-				border-radius: 4px;
-				cursor: pointer;
-				font-family: monospace;
-				font-size: 12px;
-				white-space: nowrap;
-			}
-			button:hover {
-				background: #3a3a6a;
-				border-color: #8cf;
-			}
-			button.active {
-				background: #2a4a2a;
-				border-color: #4f8;
-				color: #4f8;
+			input[type='number']:focus,
+			input[type='text']:focus {
+				border-color: var(--accent);
 			}
 			.val-display {
-				color: #8cf;
+				color: var(--accent);
 				font-size: 11px;
-				width: 40px;
+				width: 36px;
 				text-align: right;
 				flex-shrink: 0;
+				font-variant-numeric: tabular-nums;
 			}
-			/* canvas */
+
+			/* ── Buttons ─────────────────────────────────────────────────── */
+			button {
+				background: rgba(108, 156, 255, 0.08);
+				border: 1px solid rgba(108, 156, 255, 0.15);
+				color: var(--text);
+				padding: 5px 12px;
+				border-radius: 7px;
+				cursor: pointer;
+				font-family: inherit;
+				font-size: 11px;
+				white-space: nowrap;
+				transition: all 0.2s;
+			}
+			button:hover {
+				background: rgba(108, 156, 255, 0.15);
+				border-color: rgba(108, 156, 255, 0.3);
+			}
+			button:active {
+				background: rgba(108, 156, 255, 0.2);
+			}
+			button.active {
+				background: rgba(74, 222, 128, 0.12);
+				border-color: rgba(74, 222, 128, 0.35);
+				color: var(--success);
+			}
+			button.danger {
+				border-color: rgba(248, 113, 113, 0.25);
+				color: rgba(248, 113, 113, 0.9);
+			}
+			button.danger:hover {
+				background: rgba(248, 113, 113, 0.12);
+			}
+
+			/* ── Right panel ──────────────────────────────────────────────── */
+			.right-panel {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+			}
 			#canvas-wrap {
 				flex: 1;
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				background: #0a0a0a;
+				background: var(--bg-deep);
+				position: relative;
+				overflow: hidden;
+			}
+			#canvas-wrap::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: radial-gradient(circle at 50% 50%, rgba(108, 156, 255, 0.03) 0%, transparent 60%);
+				pointer-events: none;
 			}
 			canvas {
-				border: 1px solid #333;
+				border: 1px solid var(--glass-border);
+				border-radius: 4px;
+			}
+
+			/* ── Log panel ────────────────────────────────────────────────── */
+			.log-panel {
+				height: var(--log-h);
+				border-top: 1px solid var(--glass-border);
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+				background: rgba(6, 7, 16, 0.6);
+				backdrop-filter: blur(12px);
+			}
+			.log-header {
+				padding: 6px 14px;
+				border-bottom: 1px solid var(--glass-border);
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				flex-shrink: 0;
+			}
+			.log-header span {
+				font-size: 10px;
+				font-weight: 600;
+				color: var(--text-muted);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+			}
+			#log {
+				flex: 1;
+				overflow-y: auto;
+				padding: 6px 14px;
+				line-height: 1.7;
+				font-size: 11px;
+			}
+			#log::-webkit-scrollbar {
+				width: 4px;
+			}
+			#log::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			#log::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.06);
+				border-radius: 4px;
+			}
+			.log-entry {
+				display: flex;
+				gap: 10px;
+				padding: 1px 0;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+			}
+			.log-time {
+				color: var(--text-dim);
+				flex-shrink: 0;
+				width: 60px;
+				font-variant-numeric: tabular-nums;
+			}
+			.log-tag {
+				flex-shrink: 0;
+				width: 72px;
+				font-weight: 600;
+			}
+			.log-msg {
+				color: var(--text-muted);
+			}
+			.tag-event {
+				color: #4ade80;
+			}
+			.tag-action {
+				color: #fbbf24;
+			}
+			.tag-error {
+				color: #f87171;
+			}
+			.tag-info {
+				color: var(--text-dim);
 			}
 		</style>
 	</head>
 	<body>
-		<h1>Mesh Test</h1>
-		<div id="main">
-			<div id="controls">
+		<div class="header">
+			<a href="index.html" class="back-link">&larr; Back</a>
+			<span class="page-title">Mesh Test</span>
+			<div class="header-right">
+				<div id="fps-display" class="fps-badge">-- FPS</div>
+			</div>
+		</div>
+
+		<div class="main">
+			<div class="sidebar">
 				<!-- Preset shapes -->
-				<div class="card">
+				<div class="glass-card">
 					<h3>1. Preset Shapes</h3>
 					<div class="row" style="flex-wrap: wrap; gap: 6px">
 						<button id="btn-quad" class="active">Quad</button>
 						<button id="btn-fan">Fan (8)</button>
-						<button id="btn-grid">Grid 4×4</button>
+						<button id="btn-grid">Grid 4x4</button>
 					</div>
 				</div>
 
 				<!-- Deform -->
-				<div class="card">
+				<div class="glass-card">
 					<h3>2. Vertex Deform</h3>
 					<div class="row">
 						<label>Top-left X</label>
@@ -182,7 +427,7 @@
 				</div>
 
 				<!-- Animation -->
-				<div class="card">
+				<div class="glass-card">
 					<h3>3. Animation</h3>
 					<div class="row" style="flex-wrap: wrap; gap: 6px">
 						<button id="btn-wave">Wave</button>
@@ -203,7 +448,7 @@
 				</div>
 
 				<!-- Transform -->
-				<div class="card">
+				<div class="glass-card">
 					<h3>4. Transform</h3>
 					<div class="row">
 						<label>Alpha</label>
@@ -223,18 +468,62 @@
 					<div class="row">
 						<label>Rotation</label>
 						<input type="range" id="mesh-rot" min="-180" max="180" step="1" value="0" />
-						<span class="val-display" id="mesh-rot-val">0°</span>
+						<span class="val-display" id="mesh-rot-val">0&deg;</span>
 					</div>
 				</div>
 			</div>
 
-			<div id="canvas-wrap">
-				<canvas id="gameCanvas" width="640" height="480"></canvas>
+			<div class="right-panel">
+				<div id="canvas-wrap">
+					<canvas id="gameCanvas" width="640" height="480"></canvas>
+				</div>
+				<div class="log-panel">
+					<div class="log-header">
+						<span>Event Log</span>
+						<button id="btn-clear-log" style="margin-left: auto; padding: 3px 8px; font-size: 10px">
+							Clear
+						</button>
+					</div>
+					<div id="log"></div>
+				</div>
 			</div>
 		</div>
 
 		<script type="module">
 			import { createPlayer, Sprite, Mesh, Texture, BitmapData, Event } from '../src/index.js';
+
+			// ── FPS Counter ────────────────────────────────────────────────────
+			const fpsEl = document.getElementById('fps-display');
+			let fpsFrames = 0,
+				fpsLast = performance.now();
+			(function fpsLoop() {
+				fpsFrames++;
+				const now = performance.now();
+				if (now - fpsLast >= 500) {
+					const fps = Math.round((fpsFrames / (now - fpsLast)) * 1000);
+					fpsEl.textContent = fps + ' FPS';
+					fpsEl.className = 'fps-badge' + (fps > 50 ? '' : fps > 30 ? ' warn' : ' bad');
+					fpsFrames = 0;
+					fpsLast = now;
+				}
+				requestAnimationFrame(fpsLoop);
+			})();
+
+			// ── Log helper ─────────────────────────────────────────────────────
+			const logEl = document.getElementById('log');
+			const logT0 = Date.now();
+			function logMsg(tag, msg, cls = 'tag-info') {
+				const elapsed = ((Date.now() - logT0) / 1000).toFixed(1);
+				const entry = document.createElement('div');
+				entry.className = 'log-entry';
+				entry.innerHTML =
+					`<span class="log-time">${elapsed}s</span>` +
+					`<span class="log-tag ${cls}">[${tag}]</span>` +
+					`<span class="log-msg">${msg}</span>`;
+				logEl.appendChild(entry);
+				logEl.scrollTop = logEl.scrollHeight;
+			}
+			document.getElementById('btn-clear-log').onclick = () => (logEl.innerHTML = '');
 
 			// ── Player ────────────────────────────────────────────────────────
 			const canvas = document.getElementById('gameCanvas');
@@ -247,6 +536,7 @@
 			});
 			const root = new Sprite();
 			app.start(root);
+			logMsg('INFO', 'Player initialized 640x480');
 
 			// ── Texture: checkerboard ─────────────────────────────────────────
 			function makeCheckerTexture(size = 256, cells = 8) {
@@ -309,6 +599,7 @@
 				mesh.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
 				mesh.updateVertices();
 				resetDeformSliders();
+				logMsg('ACTION', 'Preset: Quad', 'tag-action');
 			}
 
 			function setTriangle() {
@@ -317,6 +608,7 @@
 				mesh.uvs = [0.5, 0, 1, 1, 0, 1];
 				mesh.updateVertices();
 				resetDeformSliders();
+				logMsg('ACTION', 'Preset: Triangle', 'tag-action');
 			}
 
 			function setFan(n = 8) {
@@ -337,6 +629,7 @@
 				mesh.indices = idx;
 				mesh.updateVertices();
 				resetDeformSliders();
+				logMsg('ACTION', `Preset: Fan (${n})`, 'tag-action');
 			}
 
 			function setGrid(cols = 4, rows = 4) {
@@ -360,6 +653,7 @@
 				mesh.indices = idx;
 				mesh.updateVertices();
 				resetDeformSliders();
+				logMsg('ACTION', `Preset: Grid ${cols}x${rows}`, 'tag-action');
 			}
 
 			function setStrip(segs = 8) {
@@ -381,6 +675,7 @@
 				mesh.indices = idx;
 				mesh.updateVertices();
 				resetDeformSliders();
+				logMsg('ACTION', `Preset: Strip (${segs})`, 'tag-action');
 			}
 
 			// ── Preset buttons ────────────────────────────────────────────────
@@ -446,6 +741,7 @@
 					document.getElementById(id).disabled = true;
 				});
 				document.getElementById('btn-reset-deform').disabled = true;
+				logMsg('ACTION', `Animation: ${mode}`, 'tag-action');
 			}
 
 			document.getElementById('btn-wave').onclick = () => {
@@ -468,6 +764,7 @@
 					document.getElementById(id).disabled = false;
 				});
 				document.getElementById('btn-reset-deform').disabled = false;
+				logMsg('ACTION', 'Animation stopped', 'tag-action');
 			};
 
 			document.getElementById('anim-speed').addEventListener('input', e => {
@@ -549,7 +846,7 @@
 			bindSlider(
 				'mesh-rot',
 				'mesh-rot-val',
-				v => v + '°',
+				v => v + '\u00B0',
 				v => {
 					mesh.rotation = v;
 				},
