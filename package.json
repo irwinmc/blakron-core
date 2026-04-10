@@ -26,7 +26,7 @@
 		"clean": "rm -rf dist",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"benchmark": "vite --config vite.config.ts --open /benchmark.html"
+		"benchmark": "vite --config vite.config.ts --open /index.html"
 	},
 	"devDependencies": {
 		"@types/node": "^22.0.0",
