@@ -30,33 +30,15 @@ export interface Instruction {
  *   updateRenderable(), not a full rebuild.
  */
 export class InstructionSet {
-	/** Flat array of instructions. May contain stale entries past instructionSize. */
+	// ── Instance fields ───────────────────────────────────────────────────────
 	public readonly instructions: Instruction[] = [];
-
-	/** True length of the instructions array. */
 	public instructionSize = 0;
-
-	/**
-	 * When true the renderer must call buildInstructions() before executing.
-	 * Set to true whenever the scene structure changes (add/remove child,
-	 * visibility toggle, filter added, etc.).
-	 */
 	public structureDirty = true;
-
-	/**
-	 * Objects whose visual data changed this frame but whose instruction-set
-	 * position is still valid. The renderer calls pipe.updateRenderable() for
-	 * each entry instead of rebuilding the whole set.
-	 */
 	public readonly dirtyRenderables: DisplayObject[] = [];
 	public dirtyRenderableCount = 0;
-
-	/**
-	 * Maps a DisplayObject to its leaf instruction index so that
-	 * _updateDirtyRenderables can patch the transform snapshot in O(1).
-	 * Only populated for leaf instructions (bitmap / mesh / graphics).
-	 */
 	public readonly renderableIndex: Map<DisplayObject, number> = new Map<DisplayObject, number>();
+
+	// ── Public methods ────────────────────────────────────────────────────────
 
 	/** Reset the instruction list (does not shrink the backing array). */
 	public reset(): void {

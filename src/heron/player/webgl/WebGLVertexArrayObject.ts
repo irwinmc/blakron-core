@@ -95,7 +95,7 @@ export class WebGLVertexArrayObject {
 		return this._isMulti;
 	}
 
-	/** Switch this batch to multi-texture mode. Must be called before any cacheArrays. */
+	// Switch this batch to multi-texture mode. Must be called before any cacheArrays.
 	public setMultiTexture(enabled: boolean): void {
 		this._isMulti = enabled;
 	}

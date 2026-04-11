@@ -6,7 +6,7 @@ import { WebGLRenderContext } from './WebGLRenderContext.js';
 const _pool: WebGLRenderBuffer[] = [];
 
 export class WebGLRenderBuffer {
-	// ── Static pool ───────────────────────────────────────────────────────────
+	// ── Static fields ─────────────────────────────────────────────────────────
 
 	public static create(context: WebGLRenderContext, width: number, height: number): WebGLRenderBuffer {
 		const buf = _pool.pop();
@@ -34,8 +34,11 @@ export class WebGLRenderBuffer {
 	public static release(buf: WebGLRenderBuffer): void {
 		buf.filterPadX = 0;
 		buf.filterPadY = 0;
-		if (_pool.length < 6) _pool.push(buf);
-		else buf.rootRenderTarget.resize(0, 0);
+		if (_pool.length < 6) {
+			_pool.push(buf);
+		} else {
+			buf.rootRenderTarget.resize(0, 0);
+		}
 	}
 
 	// ── Public readonly fields ────────────────────────────────────────────────
@@ -55,18 +58,9 @@ export class WebGLRenderBuffer {
 	public currentTexture: WebGLTexture | undefined = undefined;
 	public drawCalls = 0;
 
-	/**
-	 * World-space origin that should be subtracted from transforms when
-	 * drawing into this buffer.  Set by the renderer when an offscreen FBO
-	 * is allocated for a filter or mask so that leaf instructions (which
-	 * carry world-space transforms) are drawn in the buffer's local space.
-	 * Zero for the root / main buffer — no adjustment needed.
-	 */
 	public offscreenOriginX = 0;
 	public offscreenOriginY = 0;
-	/** Horizontal padding from filter, used by the renderer to offset content within the expanded buffer. */
 	public filterPadX = 0;
-	/** Vertical padding from filter. */
 	public filterPadY = 0;
 
 	// Stencil
@@ -93,11 +87,15 @@ export class WebGLRenderBuffer {
 			context.pushBuffer(this);
 		} else {
 			const last = context.activatedBuffer;
-			if (last) last.rootRenderTarget.activate();
+			if (last) {
+				last.rootRenderTarget.activate();
+			}
 			this.rootRenderTarget.initFrameBuffer();
 		}
 
-		if (width && height) this.resize(width, height);
+		if (width && height) {
+			this.resize(width, height);
+		}
 	}
 
 	// ── Getters ───────────────────────────────────────────────────────────────
@@ -121,7 +119,9 @@ export class WebGLRenderBuffer {
 			this.rootRenderTarget.width = width;
 			this.rootRenderTarget.height = height;
 		}
-		if (this.isRoot) this.context.resize(width, height);
+		if (this.isRoot) {
+			this.context.resize(width, height);
+		}
 		this.context.clear();
 		this.context.popBuffer();
 	}
@@ -258,7 +258,10 @@ export class WebGLRenderBuffer {
 	}
 
 	public restoreScissor(): void {
-		if (this.scissorState) this.context.enableScissorTest(this._scissorRect);
-		else this.context.disableScissorTest();
+		if (this.scissorState) {
+			this.context.enableScissorTest(this._scissorRect);
+		} else {
+			this.context.disableScissorTest();
+		}
 	}
 }

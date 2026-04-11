@@ -12,23 +12,39 @@ import { WebGLRenderContext, WebGLRenderBuffer, WebGLRenderer, checkWebGLSupport
  * Automatically uses WebGL if available, falls back to Canvas 2D.
  */
 export class Player implements Renderable {
-	public readonly stage: Stage;
+	// ── Static fields ─────────────────────────────────────────────────────────
+	private static readonly _IDENTITY = new Matrix();
 
+	// ── Instance fields ───────────────────────────────────────────────────────
+	public readonly stage: Stage;
 	private _isPlaying = false;
 	private _root: DisplayObject | undefined = undefined;
-
-	// Canvas 2D path
 	private _canvas2dBuffer: RenderBuffer | undefined;
 	private _canvas2dRenderer: CanvasRenderer | undefined;
-
-	// WebGL path
 	private _webglBuffer: WebGLRenderBuffer | undefined;
 	private _webglRenderer: WebGLRenderer | undefined;
 	private _webglContext: WebGLRenderContext | undefined;
-
-	// Cleanup callbacks — called when the player is destroyed.
 	private _unregisterCallbacks: Array<() => void> = [];
 
+	public readonly perf = {
+		frameCount: 0,
+		lastFrameTime: 0,
+		fps: 0,
+		avgFps: 0,
+		minFps: 0 as number,
+		maxFps: 0 as number,
+		drawCalls: 0,
+		avgDrawCalls: 0,
+		renderTimeMs: 0,
+		avgRenderTimeMs: 0,
+		maxRenderTimeMs: 0,
+		totalRenderTimeMs: 0,
+	};
+
+	private _fpsFrames = 0;
+	private _fpsLastTime = performance.now();
+
+	// ── Constructor ───────────────────────────────────────────────────────────
 	public constructor(canvas: HTMLCanvasElement, stage?: Stage) {
 		this.stage = stage ?? new Stage();
 
@@ -114,30 +130,9 @@ export class Player implements Renderable {
 		}
 	}
 
-	// Reuse a single identity matrix across frames to avoid per-frame GC pressure.
-	private static readonly _IDENTITY = new Matrix();
+	// ── Public methods (Renderable) ───────────────────────────────────────────
 
-	// ── Performance metrics ──────────────────────────────────────────────────
-
-	public readonly perf = {
-		frameCount: 0,
-		lastFrameTime: 0,
-		fps: 0,
-		avgFps: 0,
-		minFps: 0 as number,
-		maxFps: 0 as number,
-		drawCalls: 0,
-		avgDrawCalls: 0,
-		renderTimeMs: 0,
-		avgRenderTimeMs: 0,
-		maxRenderTimeMs: 0,
-		totalRenderTimeMs: 0,
-	};
-
-	private _fpsFrames = 0;
-	private _fpsLastTime = performance.now();
-
-	render(_triggerByFrame: boolean, _costTicker: number): void {
+	public render(_triggerByFrame: boolean, _costTicker: number): void {
 		const t0 = performance.now();
 
 		if (this._webglBuffer && this._webglRenderer) {

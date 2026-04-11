@@ -41,7 +41,9 @@ export class MeshPipe implements RenderPipe<Mesh> {
 	// ── RenderPipe impl ───────────────────────────────────────────────────────
 
 	public addToInstructionSet(mesh: Mesh, set: InstructionSet): void {
-		if (!mesh.bitmapData?.source || mesh.vertices.length === 0 || mesh.indices.length === 0) return;
+		if (!mesh.bitmapData?.source || mesh.vertices.length === 0 || mesh.indices.length === 0) {
+			return;
+		}
 		set.add(MeshPipe._alloc(mesh, 0, 0));
 	}
 
@@ -58,7 +60,9 @@ export class MeshPipe implements RenderPipe<Mesh> {
 	public execute(inst: MeshInstruction, buffer: WebGLRenderBuffer): void {
 		const mesh = inst.renderable;
 		const bd = mesh.bitmapData;
-		if (!bd?.source || mesh.vertices.length === 0 || mesh.indices.length === 0) return;
+		if (!bd?.source || mesh.vertices.length === 0 || mesh.indices.length === 0) {
+			return;
+		}
 
 		const destW = !isNaN(mesh.width) ? mesh.width : mesh.textureWidth;
 		const destH = !isNaN(mesh.height) ? mesh.height : mesh.textureHeight;

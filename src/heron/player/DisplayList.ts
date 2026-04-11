@@ -10,19 +10,23 @@ import { RenderBuffer } from './RenderBuffer.js';
  * Equivalent to Egret's sys.DisplayList (non-stage variant).
  */
 export class DisplayList {
-	public readonly root: DisplayObject;
-
-	public offsetX = 0;
-	public offsetY = 0;
-
-	/** The offscreen render buffer for this cached object. */
-	public renderBuffer: RenderBuffer;
-
-	/** The BitmapData wrapping the offscreen canvas, used by the renderer. */
-	public bitmapData: BitmapData | undefined = undefined;
-
+	// ── Static fields ─────────────────────────────────────────────────────────
 	private static _pool: DisplayList[] = [];
 
+	// ── Instance fields ───────────────────────────────────────────────────────
+	public root: DisplayObject;
+	public offsetX = 0;
+	public offsetY = 0;
+	public renderBuffer: RenderBuffer;
+	public bitmapData?: BitmapData;
+
+	// ── Constructor ───────────────────────────────────────────────────────────
+	private constructor(root: DisplayObject) {
+		this.root = root;
+		this.renderBuffer = new RenderBuffer();
+	}
+
+	// ── Public methods ────────────────────────────────────────────────────────
 	public static create(target: DisplayObject): DisplayList | undefined {
 		try {
 			const dl = DisplayList._pool.pop() ?? new DisplayList(target);
@@ -39,13 +43,9 @@ export class DisplayList {
 		if (DisplayList._pool.length < 8) DisplayList._pool.push(dl);
 	}
 
-	private constructor(root: DisplayObject) {
+	// ── Private methods ───────────────────────────────────────────────────────
+	private _reset(root: DisplayObject): void {
 		this.root = root;
-		this.renderBuffer = new RenderBuffer();
-	}
-
-	private _reset(root: (typeof this)['root']): void {
-		(this as { root: DisplayObject }).root = root;
 		this.offsetX = 0;
 		this.offsetY = 0;
 	}

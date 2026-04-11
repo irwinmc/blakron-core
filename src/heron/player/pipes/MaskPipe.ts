@@ -13,11 +13,6 @@ export interface MaskPushInstruction extends Instruction {
 	renderable: DisplayObject;
 	offsetX: number;
 	offsetY: number;
-	/**
-	 * When true this instruction represents a scrollRect/maskRect clip,
-	 * handled via scissor or stencil. When false (default) it represents
-	 * a DisplayObject mask, handled via offscreen compositing.
-	 */
 	isScrollRect?: boolean;
 }
 
@@ -36,8 +31,13 @@ export interface MaskPopInstruction extends Instruction {
  * logic as a push/pop instruction pair.
  */
 export class MaskPipe implements RenderPipe<DisplayObject> {
+	// ── Static fields ─────────────────────────────────────────────────────────
 	public static readonly PUSH_ID = 'maskPush';
 	public static readonly POP_ID = 'maskPop';
+	private static readonly _pushPool: MaskPushInstruction[] = [];
+	private static readonly _popPool: MaskPopInstruction[] = [];
+
+	// ── RenderPipe impl ───────────────────────────────────────────────────────
 
 	public addToInstructionSet(_renderable: DisplayObject, _set: InstructionSet): void {
 		// Added by the renderer traversal, not here.
@@ -46,9 +46,6 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	public updateRenderable(_renderable: DisplayObject): void {}
 
 	// ── Factory helpers ───────────────────────────────────────────────────────
-
-	private static readonly _pushPool: MaskPushInstruction[] = [];
-	private static readonly _popPool: MaskPopInstruction[] = [];
 
 	public static makePush(renderable: DisplayObject, offsetX: number, offsetY: number): MaskPushInstruction {
 		const inst = MaskPipe._pushPool.pop();
@@ -89,7 +86,9 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	public executeScrollRectPush(inst: MaskPushInstruction, buffer: WebGLRenderBuffer): boolean {
 		const { renderable, offsetX, offsetY } = inst;
 		const rect = renderable.internalScrollRect ?? renderable.internalMaskRect;
-		if (!rect || rect.isEmpty()) return false;
+		if (!rect || rect.isEmpty()) {
+			return false;
+		}
 
 		const m = buffer.globalMatrix;
 		if (buffer.hasScissor || m.b !== 0 || m.c !== 0) {
@@ -114,8 +113,11 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	}
 
 	public executeScrollRectPop(buffer: WebGLRenderBuffer, usedScissor: boolean): void {
-		if (usedScissor) buffer.context.disableScissor();
-		else buffer.context.popMask();
+		if (usedScissor) {
+			buffer.context.disableScissor();
+		} else {
+			buffer.context.popMask();
+		}
 	}
 
 	/**
@@ -150,7 +152,9 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 		}
 
 		const bounds = renderable.getOriginalBounds();
-		if (bounds.width <= 0 || bounds.height <= 0) return null;
+		if (bounds.width <= 0 || bounds.height <= 0) {
+			return null;
+		}
 
 		const bw = bounds.width;
 		const bh = bounds.height;
@@ -178,7 +182,9 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 
 		if (!displayBuffer) {
 			// Simple stencil path — just pop the mask.
-			if (scrollRect) buffer.context.popMask();
+			if (scrollRect) {
+				buffer.context.popMask();
+			}
 			return;
 		}
 

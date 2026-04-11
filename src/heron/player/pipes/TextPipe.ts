@@ -24,17 +24,11 @@ export interface TextInstruction extends Instruction {
  * for HiDPI), upload as a WebGL texture, and reuse until the text is dirty.
  */
 interface TextCache {
-	/** Offscreen canvas used for rasterization. */
 	renderBuffer: RenderBuffer;
-	/** WebGL texture uploaded from the offscreen canvas. */
 	texture: WebGLTexture | undefined;
-	/** Pixel width of the uploaded texture (may be scaled by canvasScale). */
 	textureWidth: number;
-	/** Pixel height of the uploaded texture (may be scaled by canvasScale). */
 	textureHeight: number;
-	/** Last known canvasScaleX — if device pixel ratio changes, we invalidate. */
 	canvasScaleX: number;
-	/** Last known canvasScaleY. */
 	canvasScaleY: number;
 }
 
@@ -57,14 +51,15 @@ interface TextCache {
  * dimensions / DPR change.
  */
 export class TextPipe implements RenderPipe<TextField> {
+	// ── Static fields ─────────────────────────────────────────────────────────
 	public static readonly PIPE_ID = 'text';
-
-	private readonly _canvasRenderer: CanvasRenderer;
-	/** WeakMap so entries are GC'd automatically when TextField is collected. */
-	private readonly _cache = new WeakMap<TextField, TextCache>();
-
 	private static readonly _pool: TextInstruction[] = [];
 
+	// ── Instance fields ───────────────────────────────────────────────────────
+	private readonly _canvasRenderer: CanvasRenderer;
+	private readonly _cache = new WeakMap<TextField, TextCache>();
+
+	// ── Constructor ───────────────────────────────────────────────────────────
 	public constructor(canvasRenderer: CanvasRenderer) {
 		this._canvasRenderer = canvasRenderer;
 	}
@@ -121,12 +116,16 @@ export class TextPipe implements RenderPipe<TextField> {
 		// Don't render the canvas texture — the native <input>/<textarea>
 		// is overlaid on top and already shows the text. Rendering here too
 		// would produce a double-text artefact.
-		if (tf.type === TextFieldType.INPUT && tf.isTyping) return;
+		if (tf.type === TextFieldType.INPUT && tf.isTyping) {
+			return;
+		}
 
 		// ── 1. Compute logical dimensions ────────────────────────────────────
 		const logicalW = Math.ceil(!isNaN(tf.explicitWidth) ? tf.explicitWidth : tf.textWidth);
 		const logicalH = Math.ceil(!isNaN(tf.explicitHeight) ? tf.explicitHeight : tf.textHeight);
-		if (logicalW <= 0 || logicalH <= 0) return;
+		if (logicalW <= 0 || logicalH <= 0) {
+			return;
+		}
 
 		buffer.offsetX = 0;
 		buffer.offsetY = 0;

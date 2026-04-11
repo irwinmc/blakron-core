@@ -44,6 +44,10 @@ function colorToString(color: number): string {
  *   be implemented as an alternative backend.
  */
 export class CanvasRenderer {
+	// ── Instance fields ───────────────────────────────────────────────────────
+	private _hasFill = false;
+	private _hasStroke = false;
+
 	// ── Public methods ────────────────────────────────────────────────────────
 
 	/**
@@ -707,18 +711,12 @@ export class CanvasRenderer {
 		return drawCalls > 0 ? 1 : 0;
 	}
 
-	/** Flush any open path that wasn't closed by an explicit endFill command. */
 	private flushOpenPath(ctx: CanvasRenderingContext2D): void {
 		if (this._hasFill) ctx.fill();
 		if (this._hasStroke) ctx.stroke();
 		this._hasFill = false;
 		this._hasStroke = false;
 	}
-
-	/** Tracks whether a fill is active (beginFill/beginGradientFill was called). */
-	private _hasFill = false;
-	/** Tracks whether a stroke style has been set via lineStyle. */
-	private _hasStroke = false;
 
 	private executeGraphicsCommand(cmd: GraphicsCommand, ctx: CanvasRenderingContext2D, forHitTest = false): void {
 		switch (cmd.type) {

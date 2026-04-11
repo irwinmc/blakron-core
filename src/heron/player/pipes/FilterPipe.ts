@@ -50,8 +50,11 @@ const BLEND_MODES: Record<number, string> = {
  * a pair of instructions so the traversal and execution phases are separated.
  */
 export class FilterPipe implements RenderPipe<DisplayObject> {
+	// ── Static fields ─────────────────────────────────────────────────────────
 	public static readonly PUSH_ID = 'filterPush';
 	public static readonly POP_ID = 'filterPop';
+	private static readonly _pushPool: FilterPushInstruction[] = [];
+	private static readonly _popPool: FilterPopInstruction[] = [];
 
 	// ── RenderPipe impl ───────────────────────────────────────────────────────
 
@@ -63,9 +66,6 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 	public updateRenderable(_renderable: DisplayObject): void {}
 
 	// ── Factory helpers used by the renderer ─────────────────────────────────
-
-	private static readonly _pushPool: FilterPushInstruction[] = [];
-	private static readonly _popPool: FilterPopInstruction[] = [];
 
 	public static makePush(
 		renderable: DisplayObject,

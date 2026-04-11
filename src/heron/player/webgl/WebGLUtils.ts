@@ -33,7 +33,7 @@ export function deleteWebGLTexture(gl: WebGLRenderingContext | undefined, textur
 	if (gl) gl.deleteTexture(texture);
 }
 
-/** Premultiply tint color with alpha, packing into a uint32. */
+// Premultiply tint color with alpha, packing into a uint32.
 export function premultiplyTint(tint: number, alpha: number): number {
 	if (alpha === 1.0) return (0xff000000 | tint) >>> 0;
 	if (alpha === 0.0) return 0;

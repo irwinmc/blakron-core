@@ -14,9 +14,9 @@ import type { TextField } from './TextField.js';
  * page layout (flexbox centering, CSS transforms, scroll offset, etc.).
  */
 export class StageText extends EventDispatcher {
-	private _textField: TextField | undefined = undefined;
-	private _inputElement: HTMLInputElement | HTMLTextAreaElement | undefined = undefined;
-	private _inputDiv: HTMLDivElement | undefined = undefined;
+	private _textField?: TextField;
+	private _inputElement?: HTMLInputElement | HTMLTextAreaElement;
+	private _inputDiv?: HTMLDivElement;
 	private _text = '';
 	private _gscaleX = 1;
 	private _gscaleY = 1;

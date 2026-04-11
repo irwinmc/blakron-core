@@ -14,7 +14,7 @@ import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './MultiTextureBatcher.js';
 
 export class WebGLRenderContext {
-	// ── Static ────────────────────────────────────────────────────────────────
+	// ── Static fields ─────────────────────────────────────────────────────────
 
 	private static _instance: WebGLRenderContext | undefined;
 
@@ -39,10 +39,7 @@ export class WebGLRenderContext {
 	public contextLost = false;
 	public projectionX = 0;
 	public projectionY = 0;
-	/** Active filter applied to the next draw call. Set by FilterPipe. */
 	public activeFilter: Filter | undefined = undefined;
-
-	/** Tracks the last blend mode set via setGlobalCompositeOperation(). */
 	public currentBlendMode = 'source-over';
 
 	// ── Private fields ────────────────────────────────────────────────────────
@@ -55,17 +52,8 @@ export class WebGLRenderContext {
 	private readonly _indexBuffer: WebGLBuffer;
 	private _bindIndices = false;
 	private _defaultEmptyTexture: WebGLTexture | undefined;
-	/** Max texture units available; capped at MultiTextureBatcher.MAX_TEXTURES. */
 	private _maxTextureUnits = MultiTextureBatcher.MAX_TEXTURES;
-
-	/** Callbacks invoked after WebGL context is restored. */
 	private readonly _contextRestoredCallbacks: Array<() => void> = [];
-
-	/**
-	 * BitmapData instances that have been assigned a WebGLTexture via getWebGLTexture().
-	 * Tracked so we can invalidate them on context loss.
-	 * Uses a Set of WeakRefs to avoid preventing garbage collection.
-	 */
 	private readonly _trackedBitmapDatas: Set<WeakRef<BitmapData>> = new Set();
 
 	private constructor(canvas: HTMLCanvasElement) {
@@ -843,6 +831,7 @@ export class WebGLRenderContext {
 				break;
 			default:
 				gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+				break;
 		}
 	}
 

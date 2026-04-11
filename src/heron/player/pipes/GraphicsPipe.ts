@@ -44,14 +44,15 @@ interface GraphicsCache {
  * `graphics.canvasCacheDirty` is true (set by Graphics.dirty()).
  */
 export class GraphicsPipe implements RenderPipe<DisplayObject> {
+	// ── Static fields ─────────────────────────────────────────────────────────
 	public static readonly PIPE_ID = 'graphics';
-
-	private readonly _canvasRenderer: CanvasRenderer;
-	/** WeakMap so entries are GC'd automatically when Graphics is collected. */
-	private readonly _cache = new WeakMap<Graphics, GraphicsCache>();
-
 	private static readonly _pool: GraphicsInstruction[] = [];
 
+	// ── Instance fields ───────────────────────────────────────────────────────
+	private readonly _canvasRenderer: CanvasRenderer;
+	private readonly _cache = new WeakMap<Graphics, GraphicsCache>();
+
+	// ── Constructor ───────────────────────────────────────────────────────────
 	public constructor(canvasRenderer: CanvasRenderer) {
 		this._canvasRenderer = canvasRenderer;
 	}
@@ -79,7 +80,9 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 
 	public addToInstructionSet(renderable: DisplayObject, set: InstructionSet): void {
 		const graphics = renderable.graphics;
-		if (!graphics || graphics.commands.length === 0) return;
+		if (!graphics || graphics.commands.length === 0) {
+			return;
+		}
 		set.add(GraphicsPipe._alloc(renderable, graphics, 0, 0));
 	}
 
@@ -97,14 +100,18 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 
 	public execute(inst: GraphicsInstruction, buffer: WebGLRenderBuffer): void {
 		const { graphics } = inst;
-		if (graphics.commands.length === 0) return;
+		if (graphics.commands.length === 0) {
+			return;
+		}
 
 		const bounds = _scratchBounds;
 		bounds.setEmpty();
 		graphics.measureContentBounds(bounds);
 		const w = Math.ceil(bounds.width);
 		const h = Math.ceil(bounds.height);
-		if (w <= 0 || h <= 0) return;
+		if (w <= 0 || h <= 0) {
+			return;
+		}
 
 		const ox = inst.offsetX;
 		const oy = inst.offsetY;
@@ -156,7 +163,9 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 			graphics.canvasCacheDirty = false;
 		}
 
-		if (!cache.texture) return;
+		if (!cache.texture) {
+			return;
+		}
 
 		// ── Draw cached texture ───────────────────────────────────────────────
 		// ox/oy are already baked into globalMatrix via _applyTransform.

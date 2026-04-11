@@ -102,13 +102,7 @@ export class WebGLRenderer {
 	// ── Instruction set ───────────────────────────────────────────────────────
 	private readonly _instructionSet = new InstructionSet();
 
-	/**
-	 * Cache of InstructionSets owned by RenderGroup containers.
-	 * Key: the DisplayObjectContainer with isRenderGroup=true.
-	 * Entries are created on first encounter and reused across frames.
-	 */
 	private readonly _renderGroupSets = new WeakMap<DisplayObjectContainer, InstructionSet>();
-	/** Iterable list of all live RenderGroup sets (mirrors the WeakMap keys). */
 	private readonly _renderGroupSetList: Array<WeakRef<DisplayObjectContainer>> = [];
 
 	// ── Nesting (for recursive offscreen renders, e.g. cacheAsBitmap) ────────
@@ -123,7 +117,7 @@ export class WebGLRenderer {
 
 	// ── Public entry point ────────────────────────────────────────────────────
 
-	/** Release pooled instructions back to their respective pipes before a rebuild. */
+	// Release pooled instructions back to their respective pipes before a rebuild.
 	private _releaseInstructions(set: InstructionSet): void {
 		for (let i = 0; i < set.instructionSize; i++) {
 			const inst = set.instructions[i];
@@ -276,7 +270,7 @@ export class WebGLRenderer {
 		}
 	}
 
-	/** Emit a leaf instruction for a single DisplayObject (no children). */
+	// Emit a leaf instruction for a single DisplayObject (no children).
 	private _buildLeaf(
 		obj: DisplayObject,
 		set: InstructionSet,
@@ -443,7 +437,7 @@ export class WebGLRenderer {
 		} as RenderGroupInstruction);
 	}
 
-	/** Build a synthetic instruction for a cacheAsBitmap object. */
+	// Build a synthetic instruction for a cacheAsBitmap object.
 	private _makeCacheInstruction(
 		obj: DisplayObject,
 		offsetX: number,
@@ -641,7 +635,7 @@ export class WebGLRenderer {
 		}
 	}
 
-	/** Restore the buffer's global matrix / alpha / tint from a snapshot. */
+	// Restore the buffer's global matrix / alpha / tint from a snapshot.
 	private _applyTransform(buffer: WebGLRenderBuffer, t: TransformState): void {
 		const m = buffer.globalMatrix;
 		m.a = t.a;
@@ -671,7 +665,7 @@ export class WebGLRenderer {
 		buf.offscreenOriginY = worldBY - padY;
 	}
 
-	/** Execute a cacheAsBitmap DisplayList instruction. */
+	// Execute a cacheAsBitmap DisplayList instruction.
 	private _executeDisplayListCache(
 		obj: DisplayObject,
 		buffer: WebGLRenderBuffer,
@@ -725,7 +719,7 @@ export class WebGLRenderer {
 		return this._directDraw(obj, buffer, offsetX, offsetY);
 	}
 
-	/** Direct draw (used for offscreen mask/filter buffers). */
+	// Direct draw (used for offscreen mask/filter buffers).
 	private _directDraw(obj: DisplayObject, buffer: WebGLRenderBuffer, offsetX: number, offsetY: number): number {
 		let drawCalls = 0;
 

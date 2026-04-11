@@ -12,7 +12,9 @@ export class WebGLProgram {
 	private static readonly _cache = new Map<string, WebGLProgram>();
 
 	public static get(gl: WebGLRenderingContext, vertSrc: string, fragSrc: string, key: string): WebGLProgram {
-		if (!this._cache.has(key)) this._cache.set(key, new WebGLProgram(gl, vertSrc, fragSrc));
+		if (!this._cache.has(key)) {
+			this._cache.set(key, new WebGLProgram(gl, vertSrc, fragSrc));
+		}
 		return this._cache.get(key)!;
 	}
 

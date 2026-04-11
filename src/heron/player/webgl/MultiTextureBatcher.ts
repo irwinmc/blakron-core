@@ -5,11 +5,8 @@ import type { Filter } from '../../filters/Filter.js';
 /** A draw command that references a multi-texture batch. */
 export interface MultiTextureDrawCmd {
 	readonly isMulti: true;
-	/** Number of index-buffer entries (triangles × 2 for the count convention). */
 	count: number;
-	/** Snapshot of the texture slots at the time this command was emitted. */
-	readonly textures: (WebGLTexture | undefined)[];
-	/** Number of active slots in `textures`. */
+	readonly textures: WebGLTexture[];
 	textureCount: number;
 	filter: Filter | undefined;
 }
@@ -22,7 +19,7 @@ export function makeMultiCmd(
 	return {
 		isMulti: true,
 		count,
-		textures: slots.slice(0, slotCount),
+		textures: slots.slice(0, slotCount) as WebGLTexture[],
 		textureCount: slotCount,
 		filter: undefined,
 	};
@@ -43,24 +40,16 @@ export function makeMultiCmd(
  * - Maximum 8 textures per batch (WebGL1 minimum guaranteed texture units).
  */
 export class MultiTextureBatcher {
-	// ── Static ────────────────────────────────────────────────────────────────
-
-	/** Maximum simultaneous textures per batch. */
+	// ── Static fields ─────────────────────────────────────────────────────────
 	public static readonly MAX_TEXTURES = 8;
 
-	// ── Public fields ─────────────────────────────────────────────────────────
-
-	/** Currently bound textures in slot order. */
+	// ── Instance fields ───────────────────────────────────────────────────────
 	public readonly slots: (WebGLTexture | undefined)[] = new Array(MultiTextureBatcher.MAX_TEXTURES).fill(undefined);
-
-	// ── Private fields ────────────────────────────────────────────────────────
-
 	private _slotCount = 0;
 	private readonly _slotMap = new Map<WebGLTexture, number>();
 
 	// ── Getters ───────────────────────────────────────────────────────────────
 
-	/** Number of textures currently assigned. */
 	public get textureCount(): number {
 		return this._slotCount;
 	}
@@ -73,22 +62,26 @@ export class MultiTextureBatcher {
 	 */
 	public getOrAssignSlot(texture: WebGLTexture): number {
 		const existing = this._slotMap.get(texture);
-		if (existing !== undefined) return existing;
-		if (this._slotCount >= MultiTextureBatcher.MAX_TEXTURES) return -1;
+		if (existing !== undefined) {
+			return existing;
+		}
+		if (this._slotCount >= MultiTextureBatcher.MAX_TEXTURES) {
+			return -1;
+		}
 		const slot = this._slotCount++;
 		this.slots[slot] = texture;
 		this._slotMap.set(texture, slot);
 		return slot;
 	}
 
-	/** True when no more texture slots are available. */
 	public isFull(): boolean {
 		return this._slotCount >= MultiTextureBatcher.MAX_TEXTURES;
 	}
 
-	/** Reset slot assignments — called after a flush. */
 	public reset(): void {
-		for (let i = 0; i < this._slotCount; i++) this.slots[i] = undefined;
+		for (let i = 0; i < this._slotCount; i++) {
+			this.slots[i] = undefined;
+		}
 		this._slotCount = 0;
 		this._slotMap.clear();
 	}
