@@ -438,7 +438,11 @@ export class TextField extends DisplayObject {
 			this.text = this._text + element.text;
 			return;
 		}
-		const flow = this._textFlow ? [...this._textFlow] : [];
+		const flow = this._textFlow
+			? [...this._textFlow]
+			: this._text
+				? [{ text: this._text, style: undefined as ITextElement['style'] }]
+				: [];
 		flow.push(element);
 		this.textFlow = flow;
 	}

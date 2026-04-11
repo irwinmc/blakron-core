@@ -212,7 +212,7 @@
 		<div class="main">
 			<div class="right-panel">
 				<div id="canvas-wrap">
-					<canvas id="gameCanvas" width="800" height="600"></canvas>
+					<canvas id="gameCanvas" width="800" height="1500"></canvas>
 				</div>
 				<div class="log-panel">
 					<div class="log-header"><span>Test Results</span></div>
@@ -264,7 +264,7 @@
 			const app = createPlayer({
 				canvas,
 				contentWidth: 800,
-				contentHeight: 600,
+				contentHeight: 1500,
 				scaleMode: 'showAll',
 				frameRate: 60,
 			});
@@ -274,100 +274,79 @@
 			app.start(root);
 			log('info', 'Player started');
 
-			// ── Helper: draw a label above each test ────────────────────────────
-			let testY = 10;
-			const COL_W = 390;
-			const COLS = 2;
-			let testCol = 0;
-			let colBaseY = [10, 10];
+			// ── Layout helpers ──────────────────────────────────────────────────
+			let cursorY = 10;
 
-			function nextPosition(h) {
-				const y = colBaseY[testCol];
-				const x = testCol * (COL_W + 10) + 10;
-				colBaseY[testCol] += h + 8;
-				if (colBaseY[testCol] > colBaseY[(testCol + 1) % COLS]) {
-					// next goes to shorter column
-				}
-				return { x, y };
-			}
-
-			function nextColumn() {
-				testCol = (testCol + 1) % COLS;
-			}
-
-			function addLabel(text, x, y) {
+			function addLabel(text) {
 				const label = new TextField();
 				label.text = text;
 				label.textColor = 0x8888a0;
-				label.size = 11;
-				label.width = 380;
-				label.height = 16;
-				label.x = x;
-				label.y = y;
+				label.size = 13;
+				label.bold = true;
+				label.width = 780;
+				label.height = 18;
+				label.x = 10;
+				label.y = cursorY;
 				root.addChild(label);
+				cursorY += 20;
+			}
+
+			function addTest(tf, h) {
+				tf.x = 10;
+				tf.y = cursorY;
+				tf.width = tf.width || 780;
+				root.addChild(tf);
+				cursorY += (h || tf.height || 30) + 6;
 			}
 
 			// ── Test 1: Basic single-line text ──────────────────────────────────
+			addLabel('1. Basic single-line');
 			{
-				const pos = nextPosition(50);
-				addLabel('1. Basic single-line', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = 'Hello, Heron!';
 				tf.textColor = 0xffffff;
 				tf.size = 28;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 40;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 40);
 				assert(tf.text === 'Hello, Heron!', '1. Basic text set/get');
 				assert(tf.textWidth > 0, '1. textWidth > 0 (' + tf.textWidth.toFixed(1) + ')');
 			}
-			nextColumn();
 
 			// ── Test 2: Multi-color rich text (textFlow) ────────────────────────
+			addLabel('2. Rich text (textFlow)');
 			{
-				const pos = nextPosition(50);
-				addLabel('2. Rich text (textFlow)', pos.x, pos.y);
 				const tf = new TextField();
 				tf.textFlow = [
 					{ text: 'Red ', style: { textColor: 0xff4444, size: 24, bold: true } },
 					{ text: 'Green ', style: { textColor: 0x44ff44, size: 24 } },
 					{ text: 'Blue', style: { textColor: 0x4488ff, size: 24, italic: true } },
 				];
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 40;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 40);
 				assert(tf.text === 'Red Green Blue', '2. textFlow concatenated text');
 				assert(tf.numLines === 1, '2. Single line');
 			}
-			nextColumn();
 
 			// ── Test 3: Word wrap ───────────────────────────────────────────────
+			addLabel('3. Word wrap');
 			{
-				const pos = nextPosition(80);
-				addLabel('3. Word wrap', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text =
 					'The quick brown fox jumps over the lazy dog. This is a longer sentence to test word wrapping behavior.';
 				tf.textColor = 0xccccdd;
 				tf.size = 16;
-				tf.width = 380;
-				tf.height = 70;
+				tf.width = 780;
+				tf.height = 60;
 				tf.wordWrap = true;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 60);
 				assert(tf.numLines > 1, '3. Word wrap: ' + tf.numLines + ' lines');
 			}
-			nextColumn();
 
 			// ── Test 4: textAlign (left / center / right) ───────────────────────
+			addLabel('4. textAlign (L / C / R)');
 			{
-				const pos = nextPosition(90);
-				addLabel('4. textAlign (L / C / R)', pos.x, pos.y);
 				const labels = ['Left', 'Center', 'Right'];
 				const aligns = [HorizontalAlign.LEFT, HorizontalAlign.CENTER, HorizontalAlign.RIGHT];
 				for (let i = 0; i < 3; i++) {
@@ -376,20 +355,20 @@
 					tf.textColor = 0x88ccff;
 					tf.size = 14;
 					tf.textAlign = aligns[i];
-					tf.width = 380;
+					tf.width = 780;
 					tf.height = 20;
-					tf.x = pos.x;
-					tf.y = pos.y + 18 + i * 22;
+					tf.x = 10;
+					tf.y = cursorY;
 					root.addChild(tf);
+					cursorY += 22;
 					assert(tf.textAlign === aligns[i], '4. textAlign = ' + aligns[i]);
 				}
+				cursorY += 4;
 			}
-			nextColumn();
 
 			// ── Test 5: verticalAlign (top / middle / bottom) ───────────────────
+			addLabel('5. verticalAlign (T / M / B)');
 			{
-				const pos = nextPosition(90);
-				addLabel('5. verticalAlign (T / M / B)', pos.x, pos.y);
 				const vals = [
 					{ label: 'Top', align: VerticalAlign.TOP },
 					{ label: 'Middle', align: VerticalAlign.MIDDLE },
@@ -401,31 +380,30 @@
 					tf.textColor = 0xffcc44;
 					tf.size = 14;
 					tf.verticalAlign = vals[i].align;
-					tf.width = 120;
-					tf.height = 24;
+					tf.width = 250;
+					tf.height = 28;
 					tf.border = true;
 					tf.borderColor = 0x444455;
-					tf.x = pos.x + i * 130;
-					tf.y = pos.y + 18;
+					tf.x = 10 + i * 260;
+					tf.y = cursorY;
 					root.addChild(tf);
 					assert(tf.verticalAlign === vals[i].align, '5. verticalAlign = ' + vals[i].align);
 				}
+				cursorY += 34;
 			}
-			nextColumn();
 
 			// ── Test 6: Bold + Italic ────────────────────────────────────────────
+			addLabel('6. Bold + Italic');
 			{
-				const pos = nextPosition(50);
-				addLabel('6. Bold + Italic', pos.x, pos.y);
 				const tf1 = new TextField();
 				tf1.text = 'Bold text';
 				tf1.textColor = 0xffffff;
 				tf1.size = 20;
 				tf1.bold = true;
-				tf1.width = 180;
+				tf1.width = 380;
 				tf1.height = 28;
-				tf1.x = pos.x;
-				tf1.y = pos.y + 16;
+				tf1.x = 10;
+				tf1.y = cursorY;
 				root.addChild(tf1);
 				assert(tf1.bold === true, '6. bold = true');
 
@@ -434,38 +412,33 @@
 				tf2.textColor = 0xffffff;
 				tf2.size = 20;
 				tf2.italic = true;
-				tf2.width = 180;
+				tf2.width = 380;
 				tf2.height = 28;
-				tf2.x = pos.x + 190;
-				tf2.y = pos.y + 16;
+				tf2.x = 400;
+				tf2.y = cursorY;
 				root.addChild(tf2);
 				assert(tf2.italic === true, '6. italic = true');
+				cursorY += 34;
 			}
-			nextColumn();
 
 			// ── Test 7: Stroke (text outline) ────────────────────────────────────
+			addLabel('7. Stroke');
 			{
-				const pos = nextPosition(50);
-				addLabel('7. Stroke', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = 'Stroked Text';
 				tf.textColor = 0xffff00;
 				tf.strokeColor = 0x000000;
 				tf.stroke = 2;
 				tf.size = 26;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 40;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 40);
 				assert(tf.stroke === 2, '7. stroke = 2');
 			}
-			nextColumn();
 
 			// ── Test 8: Font family ─────────────────────────────────────────────
+			addLabel('8. Font family');
 			{
-				const pos = nextPosition(70);
-				addLabel('8. Font family', pos.x, pos.y);
 				const fonts = ['Georgia', 'Courier New', 'Verdana'];
 				for (let i = 0; i < fonts.length; i++) {
 					const tf = new TextField();
@@ -473,20 +446,20 @@
 					tf.textColor = 0xddddff;
 					tf.size = 16;
 					tf.fontFamily = fonts[i];
-					tf.width = 380;
+					tf.width = 780;
 					tf.height = 20;
-					tf.x = pos.x;
-					tf.y = pos.y + 16 + i * 20;
+					tf.x = 10;
+					tf.y = cursorY;
 					root.addChild(tf);
+					cursorY += 22;
 					assert(tf.fontFamily === fonts[i], '8. fontFamily = ' + fonts[i]);
 				}
+				cursorY += 4;
 			}
-			nextColumn();
 
 			// ── Test 9: Background + Border ─────────────────────────────────────
+			addLabel('9. Background + Border');
 			{
-				const pos = nextPosition(50);
-				addLabel('9. Background + Border', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = '  Background + Border  ';
 				tf.textColor = 0x000000;
@@ -495,59 +468,48 @@
 				tf.backgroundColor = 0xeeeeee;
 				tf.border = true;
 				tf.borderColor = 0xff4444;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 36;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 36);
 				assert(tf.background === true, '9. background = true');
 				assert(tf.border === true, '9. border = true');
 			}
-			nextColumn();
 
 			// ── Test 10: displayAsPassword ──────────────────────────────────────
+			addLabel('10. displayAsPassword');
 			{
-				const pos = nextPosition(50);
-				addLabel('10. displayAsPassword', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = 'secret123';
 				tf.textColor = 0xffffff;
 				tf.size = 22;
 				tf.displayAsPassword = true;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 34;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 34);
 				assert(tf.text === 'secret123', '10. text returns raw value');
-				// Internally displays as '*********'
-				assert(tf.getLinesArr()[0].elements[0].text === '*********', '10. Displays as asterisks');
+				// Internally displays as asterisks
+				const displayText = tf.getLinesArr()[0].elements[0].text;
+				assert(displayText === '*********', '10. Displays as asterisks (got: "' + displayText + '")');
 			}
-			nextColumn();
 
 			// ── Test 11: lineSpacing ────────────────────────────────────────────
+			addLabel('11. lineSpacing (8px gap)');
 			{
-				const pos = nextPosition(80);
-				addLabel('11. lineSpacing (8px gap)', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = 'Line 1\nLine 2\nLine 3';
 				tf.textColor = 0xaaddaa;
 				tf.size = 14;
 				tf.lineSpacing = 8;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 70;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 70);
 				assert(tf.lineSpacing === 8, '11. lineSpacing = 8');
-				assert(tf.numLines === 3, '11. 3 lines (\\n breaks)');
+				assert(tf.numLines === 3, '11. 3 lines (\\n breaks), got ' + tf.numLines);
 			}
-			nextColumn();
 
 			// ── Test 12: Multiline with word wrap ───────────────────────────────
+			addLabel('12. Multiline + wordWrap');
 			{
-				const pos = nextPosition(80);
-				addLabel('12. Multiline + wordWrap', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text =
 					'This is a multiline text field with word wrapping enabled. It should automatically break lines at the boundary.';
@@ -555,163 +517,132 @@
 				tf.size = 14;
 				tf.multiline = true;
 				tf.wordWrap = true;
-				tf.width = 380;
-				tf.height = 70;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				tf.width = 780;
+				tf.height = 60;
+				addTest(tf, 60);
 				assert(tf.multiline === true, '12. multiline = true');
 				assert(tf.wordWrap === true, '12. wordWrap = true');
-				assert(tf.numLines >= 3, '12. >= 3 lines (' + tf.numLines + ')');
+				assert(tf.numLines >= 2, '12. >= 2 lines (' + tf.numLines + ')');
 			}
-			nextColumn();
 
 			// ── Test 13: appendText ─────────────────────────────────────────────
+			addLabel('13. appendText');
 			{
-				const pos = nextPosition(50);
-				addLabel('13. appendText', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = 'Hello';
 				tf.appendText(' World');
 				tf.textColor = 0xffffff;
 				tf.size = 22;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 34;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
-				assert(tf.text === 'Hello World', '13. appendText works');
+				addTest(tf, 34);
+				assert(tf.text === 'Hello World', '13. appendText works (got: "' + tf.text + '")');
 			}
-			nextColumn();
 
 			// ── Test 14: appendElement (rich) ───────────────────────────────────
+			addLabel('14. appendElement (rich)');
 			{
-				const pos = nextPosition(50);
-				addLabel('14. appendElement (rich)', pos.x, pos.y);
 				const tf = new TextField();
 				tf.textFlow = [{ text: 'Normal ', style: { textColor: 0xffffff, size: 18 } }];
 				tf.appendElement({ text: 'Bold', style: { textColor: 0xffaa00, size: 18, bold: true } });
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 34;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
-				assert(tf.text === 'Normal Bold', '14. appendElement text');
-				assert(tf.textFlow.length === 2, '14. textFlow has 2 elements');
+				addTest(tf, 34);
+				assert(tf.text === 'Normal Bold', '14. appendElement text (got: "' + tf.text + '")');
+				assert(
+					tf.textFlow && tf.textFlow.length === 2,
+					'14. textFlow has 2 elements (got: ' + (tf.textFlow?.length ?? 0) + ')',
+				);
 			}
-			nextColumn();
 
 			// ── Test 15: Empty text ─────────────────────────────────────────────
+			addLabel('15. Empty text');
 			{
-				const pos = nextPosition(40);
-				addLabel('15. Empty text', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = '';
 				tf.border = true;
 				tf.borderColor = 0x666666;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 24;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 24);
 				assert(tf.text === '', '15. Empty string');
 				assert(tf.textWidth === 0, '15. textWidth = 0');
 			}
-			nextColumn();
 
 			// ── Test 16: Unicode / CJK text ────────────────────────────────────
+			addLabel('16. Unicode / CJK');
 			{
-				const pos = nextPosition(50);
-				addLabel('16. Unicode / CJK', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = '你好世界 🎮 こんにちは';
 				tf.textColor = 0xff88cc;
 				tf.size = 20;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 34;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				addTest(tf, 34);
 				assert(tf.text === '你好世界 🎮 こんにちは', '16. CJK + emoji preserved');
 			}
-			nextColumn();
 
 			// ── Test 17: Size variation in textFlow ─────────────────────────────
+			addLabel('17. Mixed sizes (textFlow)');
 			{
-				const pos = nextPosition(50);
-				addLabel('17. Mixed sizes (textFlow)', pos.x, pos.y);
 				const tf = new TextField();
 				tf.textFlow = [
 					{ text: 'Small ', style: { textColor: 0xffffff, size: 12 } },
 					{ text: 'Medium ', style: { textColor: 0xaaccff, size: 20 } },
 					{ text: 'Large', style: { textColor: 0xffcc88, size: 30 } },
 				];
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 40;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
-				assert(tf.textFlow.length === 3, '17. 3 elements with different sizes');
+				addTest(tf, 40);
+				assert(tf.textFlow && tf.textFlow.length === 3, '17. 3 elements with different sizes');
 			}
-			nextColumn();
 
 			// ── Test 18: Input mode ─────────────────────────────────────────────
+			addLabel('18. Input mode (click to type)');
 			{
-				const pos = nextPosition(50);
-				addLabel('18. Input mode (click to type)', pos.x, pos.y);
 				const tf = new TextField();
-				tf.type = TextFieldType.INPUT;
 				tf.text = 'Click to edit';
 				tf.textColor = 0xffffff;
 				tf.size = 16;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 30;
 				tf.border = true;
 				tf.borderColor = 0x6c9cff;
 				tf.background = true;
 				tf.backgroundColor = 0x1a1a2e;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				// Set type AFTER all other properties to avoid early StageText creation
+				tf.type = TextFieldType.INPUT;
+				addTest(tf, 30);
 				assert(tf.type === TextFieldType.INPUT, '18. type = INPUT');
 				assert(tf.touchEnabled === true, '18. touchEnabled = true');
 			}
-			nextColumn();
 
 			// ── Test 19: getLineHeight ──────────────────────────────────────────
+			addLabel('19. getLineHeight()');
 			{
-				const pos = nextPosition(40);
-				addLabel('19. getLineHeight()', pos.x, pos.y);
 				const tf = new TextField();
 				tf.size = 24;
 				tf.lineSpacing = 6;
 				tf.text = 'Line height test';
 				tf.textColor = 0xaaaaaa;
-				tf.width = 380;
-				tf.height = 24;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
+				tf.width = 780;
+				tf.height = 30;
+				addTest(tf, 30);
 				assert(tf.getLineHeight() === 30, '19. getLineHeight() = 30 (24+6)');
 			}
-			nextColumn();
 
 			// ── Test 20: numLines with explicit newlines ────────────────────────
+			addLabel('20. numLines');
 			{
-				const pos = nextPosition(40);
-				addLabel('20. numLines', pos.x, pos.y);
 				const tf = new TextField();
 				tf.text = 'A\nB\nC\nD';
 				tf.textColor = 0x88ffaa;
 				tf.size = 14;
-				tf.width = 380;
+				tf.width = 780;
 				tf.height = 24;
-				tf.x = pos.x;
-				tf.y = pos.y + 16;
-				root.addChild(tf);
-				assert(tf.numLines === 4, '20. numLines = 4 (A\\nB\\nC\\nD)');
+				addTest(tf, 24);
+				assert(tf.numLines === 4, '20. numLines = 4 (got ' + tf.numLines + ')');
 			}
-			nextColumn();
 
 			// ── Summary ─────────────────────────────────────────────────────────
 			log('info', '────────────────────────────────');
