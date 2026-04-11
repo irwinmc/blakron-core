@@ -560,6 +560,12 @@ export class CanvasRenderer {
 
 	private renderTextField(tf: TextField, ctx: CanvasRenderingContext2D, offsetX: number, offsetY: number): number {
 		tf.getLinesArr(); // ensure lines are computed
+
+		// INPUT mode while focused: HTML input element owns the display.
+		// Only render background/border so the field is visible, but skip
+		// text content to avoid the double-text artefact.
+		const inputFocused = tf.type === TextFieldType.INPUT && tf.isTyping;
+
 		const width = !isNaN(tf.explicitWidth) ? tf.explicitWidth : tf.textWidth;
 		const height = !isNaN(tf.explicitHeight) ? tf.explicitHeight : tf.textHeight;
 		if (width <= 0 || height <= 0) return 0;
@@ -578,6 +584,12 @@ export class CanvasRenderer {
 			ctx.strokeStyle = colorToString(tf.borderColor);
 			ctx.lineWidth = 1;
 			ctx.strokeRect(0, 0, width, height);
+		}
+
+		// While the native input is active, skip text/cursor rendering.
+		if (inputFocused) {
+			ctx.restore();
+			return 0;
 		}
 
 		// ── Clip to visible area (for scrollV support) ────────────────────────

@@ -1,4 +1,5 @@
 import type { TextField } from '../../text/TextField.js';
+import { TextFieldType } from '../../text/enums/TextFieldType.js';
 import type { WebGLRenderBuffer } from '../webgl/WebGLRenderBuffer.js';
 import type { Instruction } from '../InstructionSet.js';
 import type { InstructionSet } from '../InstructionSet.js';
@@ -115,6 +116,12 @@ export class TextPipe implements RenderPipe<TextField> {
 	public execute(inst: TextInstruction, buffer: WebGLRenderBuffer): void {
 		const tf = inst.renderable;
 		tf.getLinesArr(); // ensure lines are computed
+
+		// ── INPUT mode while focused: HTML input element owns the display ────
+		// Don't render the canvas texture — the native <input>/<textarea>
+		// is overlaid on top and already shows the text. Rendering here too
+		// would produce a double-text artefact.
+		if (tf.type === TextFieldType.INPUT && tf.isTyping) return;
 
 		// ── 1. Compute logical dimensions ────────────────────────────────────
 		const logicalW = Math.ceil(!isNaN(tf.explicitWidth) ? tf.explicitWidth : tf.textWidth);
