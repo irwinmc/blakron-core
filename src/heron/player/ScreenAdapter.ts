@@ -74,8 +74,13 @@ export class ScreenAdapter {
 
 		this._player.updateStageSize(size.stageWidth, size.stageHeight);
 
-		const scaleX = size.stageWidth / size.displayWidth;
-		const scaleY = size.stageHeight / size.displayHeight;
+		// Use clientWidth/clientHeight (excludes CSS borders) for the scale
+		// ratio so that stage coordinates map correctly to the visible content
+		// area, not the border-box area.
+		const innerW = this._canvas.clientWidth || size.displayWidth;
+		const innerH = this._canvas.clientHeight || size.displayHeight;
+		const scaleX = size.stageWidth / innerW;
+		const scaleY = size.stageHeight / innerH;
 		this._touchHandler.updateScale(scaleX, scaleY);
 	}
 

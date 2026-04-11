@@ -86,10 +86,10 @@ export class StageText extends EventDispatcher {
 		const stage = tf.stage;
 
 		// _gscaleX/Y = canvas CSS pixels per stage logical pixel.
+		// Use clientWidth/Height (excludes CSS border) for correct scaling.
 		if (canvas && stage) {
-			const rect = canvas.getBoundingClientRect();
-			this._gscaleX = rect.width / (stage.stageWidth || 1);
-			this._gscaleY = rect.height / (stage.stageHeight || 1);
+			this._gscaleX = canvas.clientWidth / (stage.stageWidth || 1);
+			this._gscaleY = canvas.clientHeight / (stage.stageHeight || 1);
 		}
 
 		el.style.fontFamily = tf.fontFamily;
@@ -188,6 +188,8 @@ export class StageText extends EventDispatcher {
 			div.style.transformOrigin = '0% 0% 0px';
 			div.style.zIndex = '10000';
 			div.style.pointerEvents = 'none';
+			// DEBUG: visual positioning verification (red outline, no layout effect)
+			div.style.outline = '2px solid red';
 			document.body.appendChild(div);
 			this._inputDiv = div;
 		}
@@ -244,6 +246,9 @@ export class StageText extends EventDispatcher {
 	 *
 	 * Uses `position:fixed` + viewport coordinates so the calculation works
 	 * regardless of the page layout (flex centering, CSS transforms, etc.).
+	 *
+	 * IMPORTANT: Uses `clientWidth`/`clientHeight` and `clientLeft`/`clientTop`
+	 * to correctly handle CSS borders on the canvas element.
 	 */
 	private initElementPosition(): void {
 		if (!this._textField || !this._inputDiv) return;
@@ -255,15 +260,36 @@ export class StageText extends EventDispatcher {
 		const stagePoint = tf.localToGlobal(0, 0);
 
 		// Convert stage logical coords → viewport (CSS) coords.
+		// We must use the canvas' INNER content area (excluding CSS border)
+		// for both the origin and the scaling factor.
 		let left = stagePoint.x;
 		let top = stagePoint.y;
 
 		if (canvas && stage) {
-			const canvasRect = canvas.getBoundingClientRect();
-			const scaleX = canvasRect.width / (stage.stageWidth || 1);
-			const scaleY = canvasRect.height / (stage.stageHeight || 1);
-			left = canvasRect.left + stagePoint.x * scaleX;
-			top = canvasRect.top + stagePoint.y * scaleY;
+			// getBoundingClientRect includes CSS border
+			const rect = canvas.getBoundingClientRect();
+			// clientWidth/Height = inner size (excludes border)
+			const innerW = canvas.clientWidth;
+			const innerH = canvas.clientHeight;
+			// clientLeft/Top = border width on left/top side
+			const borderLeft = canvas.clientLeft;
+			const borderTop = canvas.clientTop;
+
+			const scaleX = innerW / (stage.stageWidth || 1);
+			const scaleY = innerH / (stage.stageHeight || 1);
+
+			left = rect.left + borderLeft + stagePoint.x * scaleX;
+			top = rect.top + borderTop + stagePoint.y * scaleY;
+
+			console.log(
+				`[StageText] initElementPosition:\n` +
+					`  stagePoint=(${stagePoint.x.toFixed(1)}, ${stagePoint.y.toFixed(1)})\n` +
+					`  canvasRect=(${rect.left.toFixed(1)}, ${rect.top.toFixed(1)}, ${rect.width.toFixed(1)}, ${rect.height.toFixed(1)})\n` +
+					`  canvasClient=(${innerW}, ${innerH}) border=(${borderLeft}, ${borderTop})\n` +
+					`  scale=(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})\n` +
+					`  stageSize=(${stage.stageWidth}, ${stage.stageHeight})\n` +
+					`  → viewport=(${left.toFixed(1)}, ${top.toFixed(1)})`,
+			);
 		}
 
 		this._inputDiv.style.left = left + 'px';
@@ -275,8 +301,7 @@ export class StageText extends EventDispatcher {
 			const stage2 = tf.stage;
 			let sy = 1;
 			if (canvas2 && stage2) {
-				const r = canvas2.getBoundingClientRect();
-				sy = r.height / (stage2.stageHeight || 1);
+				sy = canvas2.clientHeight / (stage2.stageHeight || 1);
 			}
 			this._inputElement.style.top = `${(-tf.lineSpacing / 2) * sy}px`;
 		} else if (this._inputElement) {
@@ -291,10 +316,6 @@ export class StageText extends EventDispatcher {
 			node = (node as any).parent;
 		}
 		this._inputDiv.style.transform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
-
-		console.log(
-			`[StageText] initElementPosition: stage=(${stagePoint.x.toFixed(1)},${stagePoint.y.toFixed(1)}) → viewport=(${left.toFixed(1)},${top.toFixed(1)})`,
-		);
 	}
 
 	private executeShow(): void {
@@ -306,7 +327,10 @@ export class StageText extends EventDispatcher {
 		// Reveal the input element
 		el.style.opacity = '1';
 		this._isShowing = true;
-		console.log('[StageText] executeShow: opacity=1, text="' + this._text + '"');
+		console.log(
+			`[StageText] executeShow: opacity=1, text="${this._text}", ` +
+				`div.left=${this._inputDiv?.style.left}, div.top=${this._inputDiv?.style.top}`,
+		);
 		// Defer focus to avoid the browser stealing it back during the
 		// current mousedown event processing.
 		setTimeout(() => {

@@ -215,6 +215,10 @@ export class TextField extends DisplayObject {
 			if (this.stage) {
 				this._inputController.addStageText();
 			}
+			// Sync the raw text to StageText so the native input shows the
+			// current value (the text setter may have run before the
+			// InputController was created).
+			this._inputController.setText(this._text);
 		} else {
 			if (this._inputController) {
 				this._inputController.removeStageText();

@@ -113,9 +113,12 @@ export class TouchHandler {
 
 	private getStageCoords(clientX: number, clientY: number): { x: number; y: number } {
 		const rect = this._canvas.getBoundingClientRect();
+		// Use clientLeft/clientTop to offset for CSS borders on the canvas.
+		// getBoundingClientRect() includes borders, but the stage content
+		// area starts at (clientLeft, clientTop) inside the rect.
 		return {
-			x: (clientX - rect.left) * this._scaleX,
-			y: (clientY - rect.top) * this._scaleY,
+			x: (clientX - rect.left - this._canvas.clientLeft) * this._scaleX,
+			y: (clientY - rect.top - this._canvas.clientTop) * this._scaleY,
 		};
 	}
 
