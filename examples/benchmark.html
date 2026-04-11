@@ -323,8 +323,20 @@
 				background: radial-gradient(circle at 50% 50%, rgba(108, 156, 255, 0.03) 0%, transparent 60%);
 				pointer-events: none;
 			}
-			canvas {
+			#canvas-frame {
+				position: relative;
+				overflow: hidden;
+				width: 800px;
+				height: 600px;
 				border: 1px solid var(--glass-border);
+				border-radius: 4px;
+			}
+			#canvas-frame canvas {
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
 				border-radius: 4px;
 			}
 			#webgl-error {
@@ -444,7 +456,9 @@
 			</div>
 			<div class="right-panel">
 				<div id="canvas-wrap">
-					<canvas id="gameCanvas" width="800" height="600"></canvas>
+					<div id="canvas-frame">
+						<canvas id="gameCanvas" width="800" height="600"></canvas>
+					</div>
 					<div id="webgl-error">
 						<div>
 							<div style="font-size: 32px; margin-bottom: 12px">&#x26A0;</div>
@@ -907,7 +921,6 @@
 						buildTree(holder, 0);
 						return () => factory.removeChild(container, holder);
 					},
-
 				},
 				{
 					id: 'rapid-churn',
@@ -934,7 +947,7 @@
 								const churnCount = Math.min(
 									Math.floor(count * 0.2),
 									holder.numChildren,
-								pool.length - holder.numChildren
+									pool.length - holder.numChildren,
 								);
 								for (let i = 0; i < churnCount; i++) {
 									if (holder.numChildren > 0) holder.removeChildAt(0);
@@ -1003,7 +1016,7 @@
 				canvas,
 				contentWidth: 800,
 				contentHeight: 600,
-				scaleMode: 'showAll',
+				scaleMode: 'exactFit',
 				frameRate: 60,
 			});
 
