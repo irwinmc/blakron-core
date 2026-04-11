@@ -278,17 +278,7 @@ export class TextField extends DisplayObject {
 
 	public get maxScrollV(): number {
 		this.ensureLines();
-		if (!this._multiline) return Math.max(1, this._numLines);
-		const lineHeight = this._fontSize + this._lineSpacing;
-		const visibleLines =
-			lineHeight > 0 && !isNaN(this.explicitHeight)
-				? Math.max(
-						1,
-						Math.floor(this.explicitHeight / lineHeight) +
-							(this.explicitHeight % lineHeight > this._fontSize / 2 ? 1 : 0),
-					)
-				: this._numLines;
-		return Math.max(1, this._numLines - visibleLines + 1);
+		return Math.max(1, this._numLines - this.getScrollNum() + 1);
 	}
 
 	public get numLines(): number {
@@ -397,7 +387,11 @@ export class TextField extends DisplayObject {
 	}
 	public get textHeight(): number {
 		this.ensureLines();
-		return this._textHeight;
+		// INPUT single-line: height is always fontSize, matching Egret behaviour
+		if (this._type === TextFieldType.INPUT && !this._multiline) {
+			return this._fontSize;
+		}
+		return this._textHeight + (this._numLines - 1) * this._lineSpacing;
 	}
 
 	/** @internal Font string for Canvas 2D rendering. */
@@ -426,6 +420,19 @@ export class TextField extends DisplayObject {
 		return this._linesArr ?? [];
 	}
 
+	/** @internal Y offset in pixels for the current scrollV position. */
+	getScrollYOffset(): number {
+		if (this._scrollV <= 1) return 0;
+		this.ensureLines();
+		const lines = this._linesArr ?? [];
+		let offset = 0;
+		const startLine = Math.min(this._scrollV - 1, lines.length - 1);
+		for (let i = 0; i < startLine; i++) {
+			offset += lines[i].height + this._lineSpacing;
+		}
+		return offset;
+	}
+
 	// ── Public methods ────────────────────────────────────────────────────────
 
 	public appendText(text: string): void {
@@ -445,6 +452,9 @@ export class TextField extends DisplayObject {
 				: [];
 		flow.push(element);
 		this.textFlow = flow;
+		if (this._inputController) {
+			this._inputController.setText(this._text);
+		}
 	}
 
 	public setFocus(): void {
@@ -490,7 +500,7 @@ export class TextField extends DisplayObject {
 	override measureContentBounds(bounds: Rectangle): void {
 		this.ensureLines();
 		const w = !isNaN(this.explicitWidth) ? this.explicitWidth : this._textWidth;
-		const h = !isNaN(this.explicitHeight) ? this.explicitHeight : this._textHeight;
+		const h = !isNaN(this.explicitHeight) ? this.explicitHeight : this.textHeight;
 		bounds.setTo(0, 0, w, h);
 	}
 
@@ -520,10 +530,22 @@ export class TextField extends DisplayObject {
 			const line = this._linesArr[i];
 			if (line.width > maxWidth) maxWidth = line.width;
 			totalHeight += line.height;
-			if (i > 0) totalHeight += this._lineSpacing;
 		}
 		this._textWidth = maxWidth;
+		// Store raw sum of line heights (without lineSpacing); textHeight getter adds spacing.
 		this._textHeight = totalHeight;
+	}
+
+	/** Number of fully-visible lines in the current explicit height (mirrors Egret's $getScrollNum). */
+	private getScrollNum(): number {
+		if (!this._multiline) return 1;
+		if (isNaN(this.explicitHeight)) return this._numLines;
+		const lineH = this._fontSize + this._lineSpacing;
+		if (lineH <= 0) return this._numLines;
+		let scrollNum = Math.floor(this.explicitHeight / lineH);
+		const leftH = this.explicitHeight - lineH * scrollNum;
+		if (leftH > this._fontSize / 2) scrollNum++;
+		return Math.max(1, scrollNum);
 	}
 
 	private calculateLines(): ILineElement[] {
@@ -690,18 +712,48 @@ export class TextField extends DisplayObject {
 	private getTextElementAt(x: number, y: number): ITextElement | undefined {
 		this.ensureLines();
 		const lines = this._linesArr ?? [];
+		const width = !isNaN(this.explicitWidth) ? this.explicitWidth : this._textWidth;
+		const height = !isNaN(this.explicitHeight) ? this.explicitHeight : this.textHeight;
+
+		// Compute total text height for vertical alignment offset
+		let totalTextHeight = 0;
+		for (let i = 0; i < lines.length; i++) {
+			totalTextHeight += lines[i].height;
+			if (i > 0) totalTextHeight += this._lineSpacing;
+		}
+
+		// Vertical alignment offset (mirrors renderTextField)
+		let verticalOffset = 0;
+		if (this._verticalAlign === VerticalAlign.MIDDLE) {
+			verticalOffset = Math.max(0, (height - totalTextHeight) / 2);
+		} else if (this._verticalAlign === VerticalAlign.BOTTOM) {
+			verticalOffset = Math.max(0, height - totalTextHeight);
+		}
+
+		// ScrollV offset
+		const scrollOffset = this.getScrollYOffset();
+
+		// Adjust y into text-local space
+		const localY = y - verticalOffset + scrollOffset;
+
 		let lineY = 0;
 		for (const line of lines) {
-			if (y < lineY || y > lineY + line.height) {
-				lineY += line.height + this._lineSpacing;
-				continue;
+			if (localY < lineY) break;
+			if (localY <= lineY + line.height) {
+				// Horizontal alignment offset
+				let lineX = 0;
+				if (this._textAlign === HorizontalAlign.RIGHT) {
+					lineX = width - line.width;
+				} else if (this._textAlign === HorizontalAlign.CENTER) {
+					lineX = (width - line.width) / 2;
+				}
+				for (const el of line.elements) {
+					if (x >= lineX && x < lineX + el.width) return el;
+					lineX += el.width;
+				}
+				break;
 			}
-			let lineX = 0;
-			for (const el of line.elements) {
-				if (x >= lineX && x < lineX + el.width) return el;
-				lineX += el.width;
-			}
-			break;
+			lineY += line.height + this._lineSpacing;
 		}
 		return undefined;
 	}

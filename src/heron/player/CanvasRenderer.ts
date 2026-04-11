@@ -613,8 +613,8 @@ export class CanvasRenderer {
 			verticalOffset = Math.max(0, height - totalTextHeight);
 		}
 
-		// ── ScrollV offset ────────────────────────────────────────────────────
-		const scrollOffset = (tf.scrollV - 1) * (tf.size + lineSpacing);
+		// ── ScrollV offset: accumulate actual line heights instead of fixed formula ──
+		const scrollOffset = tf.getScrollYOffset();
 
 		// ── Draw lines ────────────────────────────────────────────────────────
 		let drawY = verticalOffset - scrollOffset;

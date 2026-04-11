@@ -3,34 +3,26 @@ import type { TextField } from './TextField.js';
 
 /**
  * Manages a native HTML <input> or <textarea> element overlaid on the canvas
- * for text input. Follows Egret's pattern:
+ * for text input.
  *
- * - A wrapper div (_inputDiv) is positioned at the TextField's global coords.
- * - The actual <input>/<textarea> lives inside that div.
- * - The input element starts with opacity:0 (invisible) and is revealed on focus.
- * - On blur, the element is hidden and moved off-screen.
- *
- * Dispatches 'updateText', 'focus', and 'blur' events.
+ * Positioning strategy
+ * ────────────────────
+ * The wrapper div uses `position:fixed` so that its `left`/`top` are relative
+ * to the **viewport**.  We then compute the viewport coordinates of the
+ * TextField by combining `canvas.getBoundingClientRect()` with the stage-
+ * logical coordinates from `localToGlobal()`.  This works regardless of the
+ * page layout (flexbox centering, CSS transforms, scroll offset, etc.).
  */
 export class StageText extends EventDispatcher {
-	// ── Instance fields ───────────────────────────────────────────────────────
-
 	private _textField: TextField | undefined = undefined;
 	private _inputElement: HTMLInputElement | HTMLTextAreaElement | undefined = undefined;
 	private _inputDiv: HTMLDivElement | undefined = undefined;
 	private _text = '';
-
-	/** Accumulated global scale (stageScale × displayObject hierarchy scale) */
 	private _gscaleX = 1;
 	private _gscaleY = 1;
-
-	/** IME composition lock */
 	private _compositionLock = false;
-
-	/** Guard against re-entrant clearInputElement calls triggered by el.blur() */
 	private _clearing = false;
-
-	// ── Public API ─────────────────────────────────────────────────────────────
+	private _isShowing = false;
 
 	setTextField(textField: TextField): void {
 		this._textField = textField;
@@ -51,20 +43,20 @@ export class StageText extends EventDispatcher {
 		}
 	}
 
-	/**
-	 * Makes the native input visible and optionally focuses it.
-	 * Called by InputController when the TextField is tapped.
-	 */
-	show(active = false): void {
+	show(_active = false): void {
 		if (!this._textField) return;
+		if (this._isShowing) {
+			// Already visible — just reposition
+			this.initElementPosition();
+			this.resetStageText();
+			return;
+		}
 		this.ensureElements();
 		this.initElementPosition();
+		this.resetStageText();
 		this.executeShow();
 	}
 
-	/**
-	 * Hides the native input (blur + opacity:0).
-	 */
 	hide(): void {
 		this.clearInputElement();
 	}
@@ -84,51 +76,28 @@ export class StageText extends EventDispatcher {
 
 	onBlur(): void {
 		// clearInputElement is already called from the native blur event listener.
-		// Nothing extra needed here.
 	}
 
-	/**
-	 * Updates the native input element's styles and position to match
-	 * the current TextField state. Called every frame while focused,
-	 * and when the TextField's properties change.
-	 */
 	resetStageText(): void {
 		if (!this._textField || !this._inputElement || !this._inputDiv) return;
 		const tf = this._textField;
 		const el = this._inputElement;
-
-		// ── Compute global scale ────────────────────────────────────────────
-		// stageScale = canvas CSS width / stage.stageWidth
-		// Then multiply by accumulated display-object hierarchy scale
 		const canvas = this.getCanvas();
 		const stage = tf.stage;
+
+		// _gscaleX/Y = canvas CSS pixels per stage logical pixel.
 		if (canvas && stage) {
 			const rect = canvas.getBoundingClientRect();
-			const stageScaleX = rect.width / (stage.stageWidth || 1);
-			const stageScaleY = rect.height / (stage.stageHeight || 1);
-
-			// Walk up the display list to accumulate scaleX/Y
-			let cX = 1;
-			let cY = 1;
-			let node: typeof tf | undefined = tf;
-			while (node) {
-				cX *= node.scaleX;
-				cY *= node.scaleY;
-				node = (node as any).parent;
-			}
-
-			this._gscaleX = stageScaleX * cX;
-			this._gscaleY = stageScaleY * cY;
+			this._gscaleX = rect.width / (stage.stageWidth || 1);
+			this._gscaleY = rect.height / (stage.stageHeight || 1);
 		}
 
-		// ── Font styles ─────────────────────────────────────────────────────
 		el.style.fontFamily = tf.fontFamily;
 		el.style.fontSize = tf.size * this._gscaleY + 'px';
 		el.style.fontWeight = tf.bold ? 'bold' : 'normal';
 		el.style.fontStyle = tf.italic ? 'italic' : 'normal';
 		el.style.textAlign = tf.textAlign;
 		el.style.color = colorString(tf.textColor);
-
 		if (el instanceof HTMLInputElement) {
 			el.type = tf.inputType;
 			if (tf.maxChars > 0) {
@@ -138,69 +107,64 @@ export class StageText extends EventDispatcher {
 			}
 		}
 
-		// ── Width with scale correction ─────────────────────────────────────
-		// If the TextField is scaled non-uniformly, we compensate with CSS transform
+		// Width: clamp to not exceed the right edge of the stage
 		let tw: number;
-		if (tf.stage) {
+		if (stage) {
 			const globalX = tf.localToGlobal(0, 0).x;
-			tw = Math.min(tf.width, tf.stage.stageWidth - globalX);
+			tw = Math.min(tf.width, stage.stageWidth - globalX);
 		} else {
 			tw = tf.width;
 		}
 
-		const inputWidth = tw * this._gscaleX;
+		// When scaleX !== scaleY (non-uniform stage scaling), the input element
+		// needs a CSS transform to match the canvas aspect ratio.
 		const rawScaleRatio = this._gscaleX / this._gscaleY;
-		const scale = isFinite(rawScaleRatio) ? rawScaleRatio : 1;
+		const aspectScale = isFinite(rawScaleRatio) ? rawScaleRatio : 1;
+		const inputCSSWidth = tw * this._gscaleX;
 
-		el.style.width = inputWidth / scale + 'px';
-		el.style.transform = `scale(${scale}, 1)`;
-		el.style.left = `${((scale - 1) * inputWidth) / scale / 2}px`;
-
-		// ── Height & vertical padding ───────────────────────────────────────
-		el.style.verticalAlign = tf.verticalAlign;
+		el.style.width = inputCSSWidth / aspectScale + 'px';
+		if (aspectScale !== 1) {
+			el.style.transform = `scale(${aspectScale}, 1)`;
+			el.style.left = `${((aspectScale - 1) * inputCSSWidth) / aspectScale / 2}px`;
+		} else {
+			el.style.transform = '';
+			el.style.left = '0px';
+		}
 
 		if (tf.multiline) {
 			this.setAreaHeight(tf, el);
 		} else {
-			el.style.lineHeight = tf.size * this._gscaleY + 'px';
-			if (tf.height < tf.size) {
-				el.style.height = tf.size * this._gscaleY + 'px';
-				el.style.padding = `0px 0px ${(tf.size / 2) * this._gscaleY}px 0px`;
-			} else {
-				el.style.height = tf.size * this._gscaleY + 'px';
-				const rap = (tf.height - tf.size) * this._gscaleY;
-				// valign: 0=top, 0.5=middle, 1=bottom
+			// Single-line: height = fontSize in CSS pixels, padding handles vertical align
+			const cssFontH = tf.size * this._gscaleY;
+			el.style.lineHeight = cssFontH + 'px';
+			el.style.height = cssFontH + 'px';
+			const extraH = (tf.height - tf.size) * this._gscaleY;
+			if (extraH > 0) {
 				const valign = tf.verticalAlign === 'middle' ? 0.5 : tf.verticalAlign === 'bottom' ? 1 : 0;
-				const top = rap * valign;
-				let bottom = rap - top;
-				if (bottom < (tf.size / 2) * this._gscaleY) {
-					bottom = (tf.size / 2) * this._gscaleY;
-				}
-				el.style.padding = `${top}px 0px ${bottom}px 0px`;
+				const padTop = extraH * valign;
+				const padBottom = Math.max(extraH - padTop, cssFontH / 2);
+				el.style.padding = `${padTop}px 0px ${padBottom}px 0px`;
+			} else {
+				el.style.padding = `0px 0px ${cssFontH / 2}px 0px`;
 			}
 		}
 
-		// ── Wrapper div clip ────────────────────────────────────────────────
-		this._inputDiv.style.clip = `rect(0px ${tf.width * this._gscaleX}px ${tf.height * this._gscaleY}px 0px)`;
+		this._inputDiv.style.overflow = 'hidden';
+		this._inputDiv.style.width = inputCSSWidth + 'px';
 		this._inputDiv.style.height = tf.height * this._gscaleY + 'px';
-		this._inputDiv.style.width = tw * this._gscaleX + 'px';
 	}
 
-	// ── Private ───────────────────────────────────────────────────────────────
+	// ── Element lifecycle ────────────────────────────────────────────────────
 
-	/**
-	 * Creates the wrapper div and input element if they don't exist yet.
-	 */
 	private ensureElements(): void {
 		if (this._inputDiv && this._inputElement) return;
 		if (!this._textField) return;
-
-		// Create wrapper div (like Egret's _inputDIV)
+		// Create wrapper div
 		if (!this._inputDiv) {
 			const div = document.createElement('div');
 			div.style.position = 'fixed';
 			div.style.left = '0px';
-			div.style.top = '-100px'; // off-screen initially
+			div.style.top = '-100px';
 			div.style.border = 'none';
 			div.style.padding = '0';
 			div.style.margin = '0';
@@ -209,19 +173,17 @@ export class StageText extends EventDispatcher {
 			div.style.overflow = 'hidden';
 			div.style.transformOrigin = '0% 0% 0px';
 			div.style.zIndex = '10000';
+			div.style.pointerEvents = 'none';
 			document.body.appendChild(div);
 			this._inputDiv = div;
 		}
-
 		// Create input element
 		if (!this._inputElement) {
 			const tf = this._textField;
 			const el = tf.multiline ? document.createElement('textarea') : document.createElement('input');
-
 			if (el instanceof HTMLTextAreaElement) {
 				el.style.resize = 'none';
 			}
-
 			el.style.position = 'absolute';
 			el.style.left = '0px';
 			el.style.top = '0px';
@@ -233,13 +195,9 @@ export class StageText extends EventDispatcher {
 			el.style.overflow = 'hidden';
 			el.style.wordBreak = 'break-all';
 			el.style.boxSizing = 'border-box';
-
-			// Hidden initially (Egret pattern: opacity 0)
 			el.style.opacity = '0';
-
+			el.style.pointerEvents = 'auto';
 			el.value = this._text;
-
-			// Input events with IME composition support
 			el.addEventListener('input', () => {
 				if (!this._compositionLock) {
 					this.onTextInput();
@@ -252,133 +210,136 @@ export class StageText extends EventDispatcher {
 				this._compositionLock = false;
 				this.onTextInput();
 			});
-
-			el.addEventListener('focus', () => this.dispatchEventWith('focus'));
+			el.addEventListener('focus', () => {
+				console.log('[StageText] native focus event');
+				this.dispatchEventWith('focus');
+			});
 			el.addEventListener('blur', () => {
-				// Dispatch blur first so InputController can read the final text value,
-				// then clear the element. clearInputElement is guarded against re-entry.
+				console.log('[StageText] native blur event');
 				this.dispatchEventWith('blur');
 				this.clearInputElement();
 			});
-
 			this._inputDiv.appendChild(el);
 			this._inputElement = el;
 		}
-
-		this.resetStageText();
 	}
 
 	/**
-	 * Positions the wrapper div at the TextField's global coordinates.
-	 * Equivalent to Egret's _initElement().
+	 * Positions the wrapper div so that its (0,0) aligns with the TextField's
+	 * top-left corner on screen.
+	 *
+	 * Uses `position:fixed` + viewport coordinates so the calculation works
+	 * regardless of the page layout (flex centering, CSS transforms, etc.).
 	 */
 	private initElementPosition(): void {
 		if (!this._textField || !this._inputDiv) return;
 		const tf = this._textField;
-
-		const point = tf.localToGlobal(0, 0);
-		const x = point.x;
-		const y = point.y;
-
 		const canvas = this.getCanvas();
 		const stage = tf.stage;
-		let scaleX = 1;
-		let scaleY = 1;
-		let canvasLeft = 0;
-		let canvasTop = 0;
+
+		// Convert the TextField's local origin (0,0) to stage logical coordinates.
+		const stagePoint = tf.localToGlobal(0, 0);
+
+		// Convert stage logical coords → viewport (CSS) coords.
+		let left = stagePoint.x;
+		let top = stagePoint.y;
+
 		if (canvas && stage) {
-			const rect = canvas.getBoundingClientRect();
-			scaleX = rect.width / (stage.stageWidth || 1);
-			scaleY = rect.height / (stage.stageHeight || 1);
-			canvasLeft = rect.left;
-			canvasTop = rect.top;
+			const canvasRect = canvas.getBoundingClientRect();
+			const scaleX = canvasRect.width / (stage.stageWidth || 1);
+			const scaleY = canvasRect.height / (stage.stageHeight || 1);
+			left = canvasRect.left + stagePoint.x * scaleX;
+			top = canvasRect.top + stagePoint.y * scaleY;
 		}
 
-		this._inputDiv.style.left = canvasLeft + x * scaleX + 'px';
-		this._inputDiv.style.top = canvasTop + y * scaleY + 'px';
+		this._inputDiv.style.left = left + 'px';
+		this._inputDiv.style.top = top + 'px';
 
-		// Adjust top for multiline
+		// For multiline fields with lineSpacing, nudge the textarea up slightly
 		if (tf.multiline && tf.height > tf.size && this._inputElement) {
-			this._inputElement.style.top = `${(-tf.lineSpacing / 2) * scaleY}px`;
+			const canvas2 = this.getCanvas();
+			const stage2 = tf.stage;
+			let sy = 1;
+			if (canvas2 && stage2) {
+				const r = canvas2.getBoundingClientRect();
+				sy = r.height / (stage2.stageHeight || 1);
+			}
+			this._inputElement.style.top = `${(-tf.lineSpacing / 2) * sy}px`;
 		} else if (this._inputElement) {
 			this._inputElement.style.top = '0px';
 		}
 
-		// Handle rotation from display hierarchy
+		// Propagate any rotation from the display hierarchy
 		let rotation = 0;
 		let node: typeof tf | undefined = tf;
 		while (node) {
 			rotation += (node as any).rotation ?? 0;
 			node = (node as any).parent;
 		}
-		this._inputDiv.style.transform = `rotate(${rotation}deg)`;
+		this._inputDiv.style.transform = rotation !== 0 ? `rotate(${rotation}deg)` : '';
+
+		console.log(
+			`[StageText] initElementPosition: stage=(${stagePoint.x.toFixed(1)},${stagePoint.y.toFixed(1)}) → viewport=(${left.toFixed(1)},${top.toFixed(1)})`,
+		);
 	}
 
-	/**
-	 * Shows the input element (opacity 1), sets value, focuses.
-	 * Equivalent to Egret's executeShow().
-	 */
 	private executeShow(): void {
 		const el = this._inputElement;
 		if (!el) return;
-
 		if (el.value !== this._text) {
 			el.value = this._text;
 		}
-
-		this.resetStageText();
-
-		// Move cursor to end
-		el.selectionStart = el.value.length;
-		el.selectionEnd = el.value.length;
-
-		// Reveal
+		// Reveal the input element
 		el.style.opacity = '1';
-		el.focus();
+		this._isShowing = true;
+		console.log('[StageText] executeShow: opacity=1, text="' + this._text + '"');
+		// Defer focus to avoid the browser stealing it back during the
+		// current mousedown event processing.
+		setTimeout(() => {
+			if (!this._isShowing || !this._inputElement) return;
+			el.selectionStart = el.value.length;
+			el.selectionEnd = el.value.length;
+			console.log('[StageText] deferred focus()');
+			el.focus();
+		}, 0);
 	}
 
-	/**
-	 * Hides the input element and resets it to the off-screen state.
-	 * Equivalent to Egret's clearInputElement().
-	 */
 	private clearInputElement(): void {
 		if (this._clearing) return;
 		this._clearing = true;
-
+		this._isShowing = false;
 		const el = this._inputElement;
 		const div = this._inputDiv;
-
 		if (el) {
-			el.value = '';
+			el.style.opacity = '0';
 			el.style.width = '1px';
 			el.style.height = '12px';
 			el.style.left = '0px';
 			el.style.top = '0px';
-			el.style.opacity = '0';
-			// Remove blur listener temporarily to avoid re-entrant clearInputElement call
+			el.style.transform = '';
+			el.style.padding = '0';
+			el.style.lineHeight = '';
+			el.value = '';
 			el.blur();
 		}
-
 		if (div) {
 			div.style.left = '0px';
 			div.style.top = '-100px';
 			div.style.height = '0px';
 			div.style.width = '0px';
+			div.style.transform = '';
 		}
-
 		this._clearing = false;
 	}
 
-	/**
-	 * Sets the height and padding for multiline text areas.
-	 */
+	// ── Helpers ─────────────────────────────────────────────────────────────
+
 	private setAreaHeight(tf: TextField, el: HTMLElement): void {
 		if (tf.height <= tf.size) {
 			el.style.height = tf.size * this._gscaleY + 'px';
 			el.style.padding = '0px';
 			el.style.lineHeight = tf.size * this._gscaleY + 'px';
 		} else {
-			// Use the TextField height as the area height
 			el.style.height = tf.height * this._gscaleY + 'px';
 			const valign = tf.verticalAlign === 'middle' ? 0.5 : tf.verticalAlign === 'bottom' ? 1 : 0;
 			const rap = (tf.height - tf.size) * this._gscaleY;
@@ -397,11 +358,9 @@ export class StageText extends EventDispatcher {
 	}
 
 	private getCanvas(): HTMLCanvasElement | undefined {
-		return (document.querySelector('canvas') as HTMLCanvasElement | undefined) ?? undefined;
+		return document.querySelector('canvas') ?? undefined;
 	}
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function colorString(color: number): string {
 	const r = (color >> 16) & 0xff;
