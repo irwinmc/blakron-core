@@ -22,10 +22,10 @@
 
 ## P1: 高优先级
 
-### TextField 渲染实现（Canvas 2D + WebGL）
+### ~~TextField 渲染实现（Canvas 2D + WebGL）~~ ✅ 已完成
 
-> **当前状态**：`RenderObjectType` 没有 TEXT 类型，`CanvasRenderer.renderSelf()` 和 WebGL 渲染管线
-> 都没有处理 TextField —— **文本目前完全无法渲染**。
+> **当前状态**：TextPipe 已实现 WebGL 文本渲染（offscreen canvas 光栅化 → 纹理上传 → drawTexture），
+> Canvas 2D 通过 `renderTextFieldToContext` 支持。
 
 #### 整体方案
 
