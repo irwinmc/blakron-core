@@ -128,8 +128,6 @@ export class TextPipe implements RenderPipe<TextField> {
 		const logicalH = Math.ceil(!isNaN(tf.explicitHeight) ? tf.explicitHeight : tf.textHeight);
 		if (logicalW <= 0 || logicalH <= 0) return;
 
-		const ox = inst.offsetX;
-		const oy = inst.offsetY;
 		buffer.offsetX = 0;
 		buffer.offsetY = 0;
 
@@ -218,8 +216,8 @@ export class TextPipe implements RenderPipe<TextField> {
 			0,
 			cache.textureWidth,
 			cache.textureHeight, // src rect (full texture)
-			ox,
-			oy, // dest position
+			0,
+			0, // dest position (offset already in globalMatrix via _applyTransform)
 			cache.textureWidth / canvasScaleX, // dest width (scaled back)
 			cache.textureHeight / canvasScaleY, // dest height (scaled back)
 			cache.textureWidth, // texture source width

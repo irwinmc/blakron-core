@@ -74,13 +74,18 @@ export class ScreenAdapter {
 
 		this._player.updateStageSize(size.stageWidth, size.stageHeight);
 
-		// Use clientWidth/clientHeight (excludes CSS borders) for the scale
-		// ratio so that stage coordinates map correctly to the visible content
-		// area, not the border-box area.
+		// The WebGL renderer maps stage coordinates 1:1 to canvas buffer pixels
+		// (projectionVector = canvasWidth/2, -canvasHeight/2).  To convert a
+		// CSS-pixel offset within the canvas to a stage coordinate we need:
+		//   stageCoord = cssPixel * (canvasBufferWidth / clientWidth)
+		//
+		// IMPORTANT: After the call to updateStageSize() above, the WebGL buffer
+		// resize may have changed canvas.width from displayWidth to stageWidth.
+		// So we must read canvas.width *now*, not reuse size.displayWidth.
 		const innerW = this._canvas.clientWidth || size.displayWidth;
 		const innerH = this._canvas.clientHeight || size.displayHeight;
-		const scaleX = size.stageWidth / innerW;
-		const scaleY = size.stageHeight / innerH;
+		const scaleX = this._canvas.width / innerW;
+		const scaleY = this._canvas.height / innerH;
 		this._touchHandler.updateScale(scaleX, scaleY);
 	}
 

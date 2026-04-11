@@ -85,11 +85,14 @@ export class StageText extends EventDispatcher {
 		const canvas = this.getCanvas();
 		const stage = tf.stage;
 
-		// _gscaleX/Y = canvas CSS pixels per stage logical pixel.
-		// Use clientWidth/Height (excludes CSS border) for correct scaling.
-		if (canvas && stage) {
-			this._gscaleX = canvas.clientWidth / (stage.stageWidth || 1);
-			this._gscaleY = canvas.clientHeight / (stage.stageHeight || 1);
+		// _gscaleX/Y = canvas CSS pixels per canvas buffer pixel.
+		// The WebGL renderer maps stage coords 1:1 to canvas buffer pixels
+		// (projectionVector = canvasWidth/2, -canvasHeight/2), so this ratio
+		// is also "CSS pixels per stage pixel".  It is ≈1.0 when the CSS box
+		// size matches the buffer size.
+		if (canvas) {
+			this._gscaleX = (canvas.clientWidth || 1) / (canvas.width || 1);
+			this._gscaleY = (canvas.clientHeight || 1) / (canvas.height || 1);
 		}
 
 		el.style.fontFamily = tf.fontFamily;
@@ -188,8 +191,6 @@ export class StageText extends EventDispatcher {
 			div.style.transformOrigin = '0% 0% 0px';
 			div.style.zIndex = '10000';
 			div.style.pointerEvents = 'none';
-			// DEBUG: visual positioning verification (red outline, no layout effect)
-			div.style.outline = '2px solid red';
 			document.body.appendChild(div);
 			this._inputDiv = div;
 		}
@@ -265,18 +266,18 @@ export class StageText extends EventDispatcher {
 		let left = stagePoint.x;
 		let top = stagePoint.y;
 
-		if (canvas && stage) {
+		if (canvas) {
 			// getBoundingClientRect includes CSS border
 			const rect = canvas.getBoundingClientRect();
-			// clientWidth/Height = inner size (excludes border)
-			const innerW = canvas.clientWidth;
-			const innerH = canvas.clientHeight;
 			// clientLeft/Top = border width on left/top side
 			const borderLeft = canvas.clientLeft;
 			const borderTop = canvas.clientTop;
 
-			const scaleX = innerW / (stage.stageWidth || 1);
-			const scaleY = innerH / (stage.stageHeight || 1);
+			// Stage coords map 1:1 to canvas buffer pixels (WebGL projection).
+			// Canvas buffer pixels map to CSS pixels via:  cssPx = bufPx * (clientW / canvas.width)
+			// Combined:  cssPx = stagePx * (clientW / canvas.width)
+			const scaleX = (canvas.clientWidth || 1) / (canvas.width || 1);
+			const scaleY = (canvas.clientHeight || 1) / (canvas.height || 1);
 
 			left = rect.left + borderLeft + stagePoint.x * scaleX;
 			top = rect.top + borderTop + stagePoint.y * scaleY;
@@ -284,10 +285,9 @@ export class StageText extends EventDispatcher {
 			console.log(
 				`[StageText] initElementPosition:\n` +
 					`  stagePoint=(${stagePoint.x.toFixed(1)}, ${stagePoint.y.toFixed(1)})\n` +
-					`  canvasRect=(${rect.left.toFixed(1)}, ${rect.top.toFixed(1)}, ${rect.width.toFixed(1)}, ${rect.height.toFixed(1)})\n` +
-					`  canvasClient=(${innerW}, ${innerH}) border=(${borderLeft}, ${borderTop})\n` +
+					`  canvasBufSize=(${canvas.width}, ${canvas.height})\n` +
+					`  canvasClient=(${canvas.clientWidth}, ${canvas.clientHeight}) border=(${borderLeft}, ${borderTop})\n` +
 					`  scale=(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})\n` +
-					`  stageSize=(${stage.stageWidth}, ${stage.stageHeight})\n` +
 					`  → viewport=(${left.toFixed(1)}, ${top.toFixed(1)})`,
 			);
 		}
@@ -297,12 +297,7 @@ export class StageText extends EventDispatcher {
 
 		// For multiline fields with lineSpacing, nudge the textarea up slightly
 		if (tf.multiline && tf.height > tf.size && this._inputElement) {
-			const canvas2 = this.getCanvas();
-			const stage2 = tf.stage;
-			let sy = 1;
-			if (canvas2 && stage2) {
-				sy = canvas2.clientHeight / (stage2.stageHeight || 1);
-			}
+			const sy = this._gscaleY;
 			this._inputElement.style.top = `${(-tf.lineSpacing / 2) * sy}px`;
 		} else if (this._inputElement) {
 			this._inputElement.style.top = '0px';
