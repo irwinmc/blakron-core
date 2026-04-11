@@ -372,6 +372,14 @@
 							<input type="radio" name="scene" value="deep-container" />
 							Deep Container
 						</label>
+						<label>
+							<input type="radio" name="scene" value="rapid-churn" />
+							Rapid Churn
+						</label>
+						<label>
+							<input type="radio" name="scene" value="texture-swap" />
+							Texture Swap
+						</label>
 					</div>
 				</div>
 				<!-- Object count -->
@@ -382,7 +390,7 @@
 							<span>Count</span>
 							<span id="count-display">500</span>
 						</div>
-						<input type="range" id="count-slider" min="50" max="2000" step="10" value="500" />
+						<input type="range" id="count-slider" min="50" max="5000" step="10" value="500" />
 					</div>
 				</div>
 				<!-- Metrics -->
@@ -780,7 +788,7 @@
 					label: 'Sprite Batch',
 					defaultCount: 500,
 					minCount: 50,
-					maxCount: 2000,
+					maxCount: 5000,
 					build(container, count, factory) {
 						const children = [];
 						for (let i = 0; i < count; i++) {
@@ -798,7 +806,7 @@
 					label: 'Mixed Texture',
 					defaultCount: 400,
 					minCount: 50,
-					maxCount: 2000,
+					maxCount: 5000,
 					build(container, count, factory) {
 						const children = [],
 							numTextures = 8,
@@ -838,7 +846,7 @@
 					label: 'Dynamic Transform',
 					defaultCount: 300,
 					minCount: 50,
-					maxCount: 2000,
+					maxCount: 5000,
 					build(container, count, factory) {
 						const objects = [];
 						const holder = factory.createSprite();
@@ -898,6 +906,88 @@
 						}
 						buildTree(holder, 0);
 						return () => factory.removeChild(container, holder);
+					},
+
+				},
+				{
+					id: 'rapid-churn',
+					label: 'Rapid Churn',
+					defaultCount: 500,
+					minCount: 50,
+					maxCount: 3000,
+					build(container, count, factory) {
+						const holder = factory.createSprite();
+						factory.addChild(container, holder);
+						const pool = [];
+						for (let i = 0; i < count; i++) {
+							const bmp = factory.createBitmap(i % 8);
+							bmp.x = Math.random() * 760;
+							bmp.y = Math.random() * 560;
+							pool.push(bmp);
+						}
+						const half = Math.floor(count / 2);
+						for (let i = 0; i < half; i++) factory.addChild(holder, pool[i]);
+						let tick = 0;
+						const onFrame = () => {
+							tick++;
+							if (tick % 3 === 0) {
+								const churnCount = Math.min(
+									Math.floor(count * 0.2),
+									holder.numChildren,
+								pool.length - holder.numChildren
+								);
+								for (let i = 0; i < churnCount; i++) {
+									if (holder.numChildren > 0) holder.removeChildAt(0);
+								}
+								let added = 0;
+								for (let i = 0; i < pool.length && added < churnCount; i++) {
+									if (!pool[i].parent) {
+										pool[i].x = Math.random() * 760;
+										pool[i].y = Math.random() * 560;
+										factory.addChild(holder, pool[i]);
+										added++;
+									}
+								}
+							}
+						};
+						factory.addEventListener(holder, Event.ENTER_FRAME, onFrame);
+						return () => {
+							factory.removeEventListener(holder, Event.ENTER_FRAME, onFrame);
+							factory.removeChild(container, holder);
+						};
+					},
+				},
+				{
+					id: 'texture-swap',
+					label: 'Texture Swap',
+					defaultCount: 500,
+					minCount: 50,
+					maxCount: 3000,
+					build(container, count, factory) {
+						const holder = factory.createSprite();
+						factory.addChild(container, holder);
+						const objects = [];
+						for (let i = 0; i < count; i++) {
+							const bmp = factory.createBitmap(i % 8);
+							bmp.x = Math.random() * 760;
+							bmp.y = Math.random() * 560;
+							factory.addChild(holder, bmp);
+							objects.push(bmp);
+						}
+						const onFrame = () => {
+							for (const o of objects) {
+								if (Math.random() < 0.3) {
+									o.texture = textures[Math.floor(Math.random() * 8)];
+								}
+								o.x += (Math.random() - 0.5) * 2;
+								o.y += (Math.random() - 0.5) * 2;
+							}
+						};
+						factory.addEventListener(holder, Event.ENTER_FRAME, onFrame);
+						return () => {
+							factory.removeEventListener(holder, Event.ENTER_FRAME, onFrame);
+							factory.removeChild(container, holder);
+						};
 					},
 				},
 			];
