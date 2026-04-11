@@ -81,7 +81,7 @@ export class StageText extends EventDispatcher {
 
 		if (el instanceof HTMLInputElement) {
 			el.type = tf.inputType;
-			el.maxLength = tf.maxChars > 0 ? tf.maxChars : -1;
+			if (tf.maxChars > 0) el.maxLength = tf.maxChars;
 		}
 
 		// ── Position ──────────────────────────────────────────────────────────

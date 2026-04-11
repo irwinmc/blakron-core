@@ -1,4 +1,4 @@
-import { DisplayObject } from '../display/DisplayObject.js';
+import { DisplayObject, RenderObjectType } from '../display/DisplayObject.js';
 import type { Stage } from '../display/Stage.js';
 import { Rectangle } from '../geom/Rectangle.js';
 import { Event } from '../events/Event.js';
@@ -70,6 +70,7 @@ export class TextField extends DisplayObject {
 
 	public constructor() {
 		super();
+		this.renderObjectType = RenderObjectType.TEXT;
 		this.invalidateFontString();
 	}
 

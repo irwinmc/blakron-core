@@ -22,10 +22,71 @@
 
 ## P1: 高优先级
 
-### TextField WebGL 渲染优化
+### TextField 渲染实现（Canvas 2D + WebGL）
 
-当前文本通过 Canvas 2D 光栅化后上传纹理，频繁更新文本时开销大。
-引入文字图集缓存（参考 Egret TextAtlasRender），对频繁变化的文本（如分数、计时器）效果显著。
+> **当前状态**：`RenderObjectType` 没有 TEXT 类型，`CanvasRenderer.renderSelf()` 和 WebGL 渲染管线
+> 都没有处理 TextField —— **文本目前完全无法渲染**。
+
+#### 整体方案
+
+分三阶段实现，每阶段可独立交付：
+
+##### 阶段一：Canvas 2D 渲染（基础可用）
+
+1. **`RenderObjectType` 增加 `TEXT = 5`**
+2. **`TextField.renderObjectType` 返回 `TEXT`**（override getter）
+3. **`CanvasRenderer.renderSelf()` 新增 `TEXT` 分支**，调用 `renderTextField()`
+4. **`renderTextField()` 实现**：
+    - 绘制 `background` / `border`
+    - 遍历 `getLinesArr()` 逐行逐元素绘制文字（`fillText`）
+    - 处理 `textAlign`（行内偏移）、`verticalAlign`（整体垂直偏移）
+    - 处理 `stroke`（`strokeText`）、`scrollV`（垂直裁剪）
+    - INPUT 模式：绘制光标 / 选区高亮
+
+##### 阶段二：WebGL 渲染（GraphicsPipe 模式）
+
+参照 `GraphicsPipe` 的 offscreen canvas → texture → `drawTexture` 模式：
+
+1. **新增 `TextPipe`**（`packages/core/src/heron/player/pipes/TextPipe.ts`）
+    - `updateRenderable()`：检查 TextField dirty 标志
+    - `execute()`：若 dirty，用 Canvas 2D 光栅化到 offscreen canvas → 上传为 WebGLTexture → `drawTexture()`
+2. **`WebGLRenderer` 注册 TextPipe**，按 renderObjectType 路由到 `TextPipe`
+3. **纹理尺寸优化**：只光栅化 `textWidth × textHeight` 区域，不包含 padding
+4. **Dirty 检测**：`_textDirty` / `renderDirty` 变化时才重绘，静态文本不重上传
+
+##### 阶段三：文字图集缓存（性能优化，参考 Egret TextAtlasStrategy）
+
+对频繁更新的短文本（分数、计时器、状态标签），使用 `Book > Page > Line > TextBlock` 模型：
+
+1. **移植 `TextBlock / Line / Page / Book` 类**（来自 `reference/old-src/src/egret/web/rendering/webgl/TextAtlasStrategy.ts`）
+2. **`TextAtlas` 管理器**：
+    - 维护一张或几张 1024×1024 图集纹理
+    - 每个字/词作为 `TextBlock` 打包进图集
+    - 同一 font + size + color 的字/词共享同一个图集纹理区域
+3. **`TextAtlasPipe`**（替代 `TextPipe`，按需启用）：
+    - 不再整块光栅化 TextField，而是逐字符/词查找图集
+    - 命中时直接 `drawTexture()` 图集的子区域（sub-texture）
+    - 未命中时光栅化新字/词插入图集
+4. **适用场景**：大量同字体文本（UI 列表、聊天消息、分数板）
+5. **不适用场景**：富文本（每段样式不同）、stroke 较大的文本 → 退回阶段二整块光栅化
+
+#### 关键参考文件
+
+| 用途                           | 文件                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| Egret 文字图集模型             | `reference/old-src/src/egret/web/rendering/webgl/TextAtlasStrategy.ts` |
+| Egret TextField WebGL 渲染     | `reference/old-src/src/egret/web/rendering/webgl/TextAtlasRender.ts`   |
+| Heron TextField 数据层         | `packages/core/src/heron/text/TextField.ts`                            |
+| Heron GraphicsPipe（参照模板） | `packages/core/src/heron/player/pipes/GraphicsPipe.ts`                 |
+| Heron CanvasRenderer           | `packages/core/src/heron/player/CanvasRenderer.ts`                     |
+| Heron WebGLRenderer            | `packages/core/src/heron/player/webgl/WebGLRenderer.ts`                |
+
+#### 风险与注意事项
+
+- Canvas 2D `fillText()` 的字距/换行行为与 Egret 旧实现可能有微小差异，需视觉回归测试
+- WebGL 文本纹理需要 `UNPACK_PREMULTIPLY_ALPHA_WEBGL = 1`，确保半透明文字正确混合
+- 图集纹理空间有限（通常 2048×2048），需要 LRU 淘汰策略防止溢出
+- INPUT 模式的光标/选区在 WebGL 下需要额外处理（不能用 DOM input 覆盖）
 
 ### ~~Bounds 计算缓存~~ ✅ 已完成
 

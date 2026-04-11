@@ -218,7 +218,6 @@ export const scenes: SceneDescriptor[] = [
 
 			return () => {
 				// Remove only direct children of the root container; nested cleanup cascades
-				const directChildren = allChildren.filter((_, idx) => idx < branchFactor || maxDepth === 0);
 				if (factory) {
 					// Remove the top-level sprites added to container
 					for (let i = 0; i < branchFactor; i++) {

@@ -13,6 +13,8 @@ import { GraphicsPipe, type GraphicsInstruction } from '../pipes/GraphicsPipe.js
 import { MeshPipe, type MeshInstruction } from '../pipes/MeshPipe.js';
 import { FilterPipe, type FilterPushInstruction, type FilterPopInstruction } from '../pipes/FilterPipe.js';
 import { MaskPipe, type MaskPushInstruction, type MaskPopInstruction } from '../pipes/MaskPipe.js';
+import { TextPipe, type TextInstruction } from '../pipes/TextPipe.js';
+import { TextField } from '../../text/TextField.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 
 // ── Transform context ─────────────────────────────────────────────────────────
@@ -36,7 +38,7 @@ interface TransformState {
 
 // ── Augmented instruction types ───────────────────────────────────────────────
 
-type LeafInstruction = (BitmapInstruction | GraphicsInstruction | MeshInstruction) & {
+type LeafInstruction = (BitmapInstruction | GraphicsInstruction | MeshInstruction | TextInstruction) & {
 	transform: TransformState;
 };
 
@@ -93,6 +95,7 @@ export class WebGLRenderer {
 	private readonly _bitmapPipe: BitmapPipe;
 	private readonly _graphicsPipe: GraphicsPipe;
 	private readonly _meshPipe: MeshPipe;
+	private readonly _textPipe: TextPipe;
 	private readonly _filterPipe = new FilterPipe();
 	private readonly _maskPipe = new MaskPipe();
 
@@ -115,6 +118,7 @@ export class WebGLRenderer {
 		this._bitmapPipe = new BitmapPipe();
 		this._graphicsPipe = new GraphicsPipe(this._canvasRenderer);
 		this._meshPipe = new MeshPipe();
+		this._textPipe = new TextPipe(this._canvasRenderer);
 	}
 
 	// ── Public entry point ────────────────────────────────────────────────────
@@ -306,6 +310,15 @@ export class WebGLRenderer {
 					renderPipeId: 'graphics',
 					renderable: obj,
 					graphics: (obj as Shape).graphics,
+					offsetX,
+					offsetY,
+					transform,
+				} as LeafInstruction);
+				break;
+			case RenderObjectType.TEXT:
+				set.addLeaf({
+					renderPipeId: 'text',
+					renderable: obj,
 					offsetX,
 					offsetY,
 					transform,
@@ -536,6 +549,12 @@ export class WebGLRenderer {
 					this._graphicsPipe.execute(leaf, activeBuffer);
 					break;
 				}
+				case 'text': {
+					const leaf = inst as LeafInstruction & TextInstruction;
+					this._applyTransform(activeBuffer, leaf.transform);
+					this._textPipe.execute(leaf, activeBuffer);
+					break;
+				}
 
 				// ── DisplayList cache ─────────────────────────────────────────
 				case 'displayListCache': {
@@ -743,6 +762,17 @@ export class WebGLRenderer {
 					offsetY: 0,
 				};
 				this._graphicsPipe.execute(inst, buffer);
+				drawCalls++;
+				break;
+			}
+			case RenderObjectType.TEXT: {
+				const inst: TextInstruction = {
+					renderPipeId: 'text',
+					renderable: obj as TextField,
+					offsetX: 0,
+					offsetY: 0,
+				};
+				this._textPipe.execute(inst, buffer);
 				drawCalls++;
 				break;
 			}

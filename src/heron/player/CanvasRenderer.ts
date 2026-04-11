@@ -11,9 +11,22 @@ import { BlurFilter } from '../filters/BlurFilter.js';
 import { ColorMatrixFilter } from '../filters/ColorMatrixFilter.js';
 import { GlowFilter } from '../filters/GlowFilter.js';
 import { DropShadowFilter } from '../filters/DropShadowFilter.js';
+import { TextField } from '../text/TextField.js';
+import { HorizontalAlign } from '../text/enums/HorizontalAlign.js';
+import { VerticalAlign } from '../text/enums/VerticalAlign.js';
+import { TextFieldType } from '../text/enums/TextFieldType.js';
+import { getFontString } from '../text/TextMeasurer.js';
 import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 
 const CAPS_MAP: Record<string, CanvasLineCap> = { none: 'butt', square: 'square', round: 'round' };
+
+/** Convert a 0xRRGGBB color number to a CSS rgb() string. */
+function colorToString(color: number): string {
+	const r = (color >> 16) & 0xff;
+	const g = (color >> 8) & 0xff;
+	const b = color & 0xff;
+	return `rgb(${r},${g},${b})`;
+}
 
 /**
  * Canvas 2D renderer. Traverses the DisplayObject tree and draws each node
@@ -67,6 +80,16 @@ export class CanvasRenderer {
 		skipCache = false,
 	): void {
 		this.renderGraphics(graphics, ctx, offsetX, offsetY, forHitTest, skipCache);
+	}
+
+	/** @internal Used by WebGL TextPipe to rasterize a TextField into a Canvas 2D context. */
+	public renderTextFieldToContext(
+		tf: TextField,
+		ctx: CanvasRenderingContext2D,
+		offsetX: number,
+		offsetY: number,
+	): void {
+		this.renderTextField(tf, ctx, offsetX, offsetY);
 	}
 
 	/** @internal Used by Bitmap pixel hit test. */
@@ -412,6 +435,8 @@ export class CanvasRenderer {
 				return this.renderGraphics((displayObject as Shape).graphics, ctx, offsetX, offsetY);
 			case RenderObjectType.SPRITE:
 				return this.renderGraphics((displayObject as Sprite).graphics, ctx, offsetX, offsetY);
+			case RenderObjectType.TEXT:
+				return this.renderTextField(displayObject as TextField, ctx, offsetX, offsetY);
 			default:
 				return 0;
 		}
@@ -531,6 +556,143 @@ export class CanvasRenderer {
 		this.flushOpenPath(ctx);
 		ctx.restore();
 		return 1;
+	}
+
+	private renderTextField(tf: TextField, ctx: CanvasRenderingContext2D, offsetX: number, offsetY: number): number {
+		tf.getLinesArr(); // ensure lines are computed
+		const width = !isNaN(tf.explicitWidth) ? tf.explicitWidth : tf.textWidth;
+		const height = !isNaN(tf.explicitHeight) ? tf.explicitHeight : tf.textHeight;
+		if (width <= 0 || height <= 0) return 0;
+
+		ctx.save();
+		ctx.translate(offsetX, offsetY);
+
+		// ── Background ────────────────────────────────────────────────────────
+		if (tf.background) {
+			ctx.fillStyle = colorToString(tf.backgroundColor);
+			ctx.fillRect(0, 0, width, height);
+		}
+
+		// ── Border ────────────────────────────────────────────────────────────
+		if (tf.border) {
+			ctx.strokeStyle = colorToString(tf.borderColor);
+			ctx.lineWidth = 1;
+			ctx.strokeRect(0, 0, width, height);
+		}
+
+		// ── Clip to visible area (for scrollV support) ────────────────────────
+		ctx.beginPath();
+		ctx.rect(0, 0, width, height);
+		ctx.clip();
+
+		// ── Compute vertical offset ───────────────────────────────────────────
+		const lines = tf.getLinesArr();
+		const lineSpacing = tf.lineSpacing;
+		let totalTextHeight = 0;
+		for (let i = 0; i < lines.length; i++) {
+			totalTextHeight += lines[i].height;
+			if (i > 0) totalTextHeight += lineSpacing;
+		}
+
+		let verticalOffset = 0;
+		if (tf.verticalAlign === VerticalAlign.MIDDLE) {
+			verticalOffset = Math.max(0, (height - totalTextHeight) / 2);
+		} else if (tf.verticalAlign === VerticalAlign.BOTTOM) {
+			verticalOffset = Math.max(0, height - totalTextHeight);
+		}
+
+		// ── ScrollV offset ────────────────────────────────────────────────────
+		const scrollOffset = (tf.scrollV - 1) * (tf.size + lineSpacing);
+
+		// ── Draw lines ────────────────────────────────────────────────────────
+		let drawY = verticalOffset - scrollOffset;
+		let drawCalls = 0;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			if (drawY + line.height < 0 || drawY > height) {
+				drawY += line.height + lineSpacing;
+				continue;
+			}
+
+			// Horizontal alignment offset
+			let lineX = 0;
+			if (tf.textAlign === HorizontalAlign.RIGHT) {
+				lineX = width - line.width;
+			} else if (tf.textAlign === HorizontalAlign.CENTER) {
+				lineX = (width - line.width) / 2;
+			}
+
+			// Draw each element in the line
+			for (const el of line.elements) {
+				const style = el.style;
+				const fontSize = style?.size ?? tf.size;
+				const fontFamily = style?.fontFamily ?? tf.fontFamily;
+				const bold = style?.bold ?? tf.bold;
+				const italic = style?.italic ?? tf.italic;
+				const textColor = style?.textColor ?? tf.textColor;
+				const strokeColor = style?.strokeColor ?? tf.strokeColor;
+				const stroke = style?.stroke ?? tf.stroke;
+
+				const fontStr = getFontString(fontSize, fontFamily, bold, italic);
+				ctx.font = fontStr;
+				ctx.textBaseline = 'top';
+
+				// Stroke
+				if (stroke > 0) {
+					ctx.strokeStyle = colorToString(strokeColor);
+					ctx.lineWidth = stroke * 2;
+					ctx.lineJoin = 'round';
+					ctx.strokeText(el.text, lineX, drawY);
+					drawCalls++;
+				}
+
+				// Fill
+				ctx.fillStyle = colorToString(textColor);
+				ctx.fillText(el.text, lineX, drawY);
+				drawCalls++;
+
+				lineX += el.width;
+			}
+
+			drawY += line.height + lineSpacing;
+		}
+
+		// ── INPUT cursor ──────────────────────────────────────────────────────
+		if (tf.type === TextFieldType.INPUT && tf.isTyping) {
+			// Draw blinking cursor at caretIndex position
+			const caretIndex = tf.caretIndex;
+			const fontStr = getFontString(tf.size, tf.fontFamily, tf.bold, tf.italic);
+			ctx.font = fontStr;
+			ctx.textBaseline = 'top';
+
+			// Calculate cursor x by measuring text up to caretIndex
+			let cursorX = 0;
+			let charCount = 0;
+			for (const line of lines) {
+				for (const el of line.elements) {
+					const elLen = el.text.length;
+					if (charCount + elLen >= caretIndex) {
+						const partial = el.text.substring(0, caretIndex - charCount);
+						cursorX += ctx.measureText(partial).width;
+						charCount = caretIndex;
+						break;
+					}
+					cursorX += el.width;
+					charCount += elLen;
+				}
+				if (charCount >= caretIndex) break;
+				cursorX = 0; // reset x for next line
+			}
+
+			const cursorY = verticalOffset - scrollOffset;
+			ctx.fillStyle = colorToString(tf.textColor);
+			ctx.fillRect(cursorX, cursorY, 1, tf.size);
+			drawCalls++;
+		}
+
+		ctx.restore();
+		return drawCalls > 0 ? 1 : 0;
 	}
 
 	/** Flush any open path that wasn't closed by an explicit endFill command. */
