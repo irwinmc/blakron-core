@@ -27,6 +27,9 @@ export class StageText extends EventDispatcher {
 	/** IME composition lock */
 	private _compositionLock = false;
 
+	/** Guard against re-entrant clearInputElement calls triggered by el.blur() */
+	private _clearing = false;
+
 	// ── Public API ─────────────────────────────────────────────────────────────
 
 	setTextField(textField: TextField): void {
@@ -55,12 +58,7 @@ export class StageText extends EventDispatcher {
 	show(active = false): void {
 		if (!this._textField) return;
 		this.ensureElements();
-
-		// Position the wrapper div at the TextField's global location
 		this.initElementPosition();
-
-		// Always execute show (Egret's two-phase click pattern is handled by
-		// InputController which already intercepts the touch event)
 		this.executeShow();
 	}
 
@@ -85,7 +83,8 @@ export class StageText extends EventDispatcher {
 	}
 
 	onBlur(): void {
-		this.clearInputElement();
+		// clearInputElement is already called from the native blur event listener.
+		// Nothing extra needed here.
 	}
 
 	/**
@@ -256,8 +255,10 @@ export class StageText extends EventDispatcher {
 
 			el.addEventListener('focus', () => this.dispatchEventWith('focus'));
 			el.addEventListener('blur', () => {
-				this.clearInputElement();
+				// Dispatch blur first so InputController can read the final text value,
+				// then clear the element. clearInputElement is guarded against re-entry.
 				this.dispatchEventWith('blur');
+				this.clearInputElement();
 			});
 
 			this._inputDiv.appendChild(el);
@@ -283,14 +284,16 @@ export class StageText extends EventDispatcher {
 		const stage = tf.stage;
 		let scaleX = 1;
 		let scaleY = 1;
+		let canvasLeft = 0;
+		let canvasTop = 0;
 		if (canvas && stage) {
 			const rect = canvas.getBoundingClientRect();
 			scaleX = rect.width / (stage.stageWidth || 1);
 			scaleY = rect.height / (stage.stageHeight || 1);
+			canvasLeft = rect.left;
+			canvasTop = rect.top;
 		}
 
-		const canvasLeft = canvas ? canvas.getBoundingClientRect().left : 0;
-		const canvasTop = canvas ? canvas.getBoundingClientRect().top : 0;
 		this._inputDiv.style.left = canvasLeft + x * scaleX + 'px';
 		this._inputDiv.style.top = canvasTop + y * scaleY + 'px';
 
@@ -339,6 +342,9 @@ export class StageText extends EventDispatcher {
 	 * Equivalent to Egret's clearInputElement().
 	 */
 	private clearInputElement(): void {
+		if (this._clearing) return;
+		this._clearing = true;
+
 		const el = this._inputElement;
 		const div = this._inputDiv;
 
@@ -349,6 +355,7 @@ export class StageText extends EventDispatcher {
 			el.style.left = '0px';
 			el.style.top = '0px';
 			el.style.opacity = '0';
+			// Remove blur listener temporarily to avoid re-entrant clearInputElement call
 			el.blur();
 		}
 
@@ -358,6 +365,8 @@ export class StageText extends EventDispatcher {
 			div.style.height = '0px';
 			div.style.width = '0px';
 		}
+
+		this._clearing = false;
 	}
 
 	/**

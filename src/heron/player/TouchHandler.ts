@@ -156,6 +156,11 @@ export class TouchHandler {
 	};
 
 	private onMouseDown = (e: MouseEvent): void => {
+		// Prevent the canvas from stealing focus away from any native input
+		// element that is about to be focused by the touch handler (e.g. a
+		// TextField in INPUT mode). Without this, the browser would move focus
+		// to the canvas on mousedown, immediately blurring the input.
+		e.preventDefault();
 		const { x, y } = this.getStageCoords(e.clientX, e.clientY);
 		this.onTouchBegin(x, y, 0);
 	};
