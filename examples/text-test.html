@@ -10,6 +10,7 @@
 				--bg-deep: #060710;
 				--glass: rgba(255, 255, 255, 0.035);
 				--glass-border: rgba(255, 255, 255, 0.07);
+				--glass-hover: rgba(255, 255, 255, 0.06);
 				--accent: #6c9cff;
 				--success: #4ade80;
 				--warning: #fbbf24;
@@ -17,6 +18,8 @@
 				--text: #e0e0e8;
 				--text-muted: #8888a0;
 				--text-dim: #55556a;
+				--sidebar-w: 220px;
+				--log-h: 260px;
 			}
 			* {
 				box-sizing: border-box;
@@ -95,7 +98,19 @@
 				font-variant-numeric: tabular-nums;
 				min-width: 68px;
 				text-align: center;
+				transition: all 0.3s;
 			}
+			.fps-badge.warn {
+				background: rgba(251, 191, 36, 0.1);
+				border-color: rgba(251, 191, 36, 0.2);
+				color: var(--warning);
+			}
+			.fps-badge.bad {
+				background: rgba(248, 113, 113, 0.1);
+				border-color: rgba(248, 113, 113, 0.2);
+				color: var(--error);
+			}
+
 			.main {
 				display: flex;
 				flex: 1;
@@ -103,6 +118,70 @@
 				position: relative;
 				z-index: 1;
 			}
+
+			.sidebar {
+				width: var(--sidebar-w);
+				flex-shrink: 0;
+				border-right: 1px solid var(--glass-border);
+				background: rgba(10, 11, 20, 0.5);
+				backdrop-filter: blur(12px);
+				overflow-y: auto;
+				padding: 10px;
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+			}
+			.sidebar::-webkit-scrollbar {
+				width: 4px;
+			}
+			.sidebar::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			.sidebar::-webkit-scrollbar-thumb {
+				background: rgba(255, 255, 255, 0.08);
+				border-radius: 4px;
+			}
+			.sidebar-label {
+				font-size: 9px;
+				font-weight: 600;
+				color: var(--text-dim);
+				text-transform: uppercase;
+				letter-spacing: 0.1em;
+				padding: 6px 8px 4px;
+			}
+			.test-btn {
+				display: block;
+				width: 100%;
+				text-align: left;
+				padding: 7px 10px;
+				border: 1px solid transparent;
+				border-radius: 6px;
+				background: transparent;
+				color: var(--text-muted);
+				font-family: inherit;
+				font-size: 11px;
+				cursor: pointer;
+				transition: all 0.15s;
+				line-height: 1.4;
+			}
+			.test-btn:hover {
+				color: var(--text);
+				background: var(--glass);
+				border-color: var(--glass-border);
+			}
+			.test-btn.active {
+				color: var(--accent);
+				background: rgba(108, 156, 255, 0.08);
+				border-color: rgba(108, 156, 255, 0.2);
+				font-weight: 600;
+			}
+			.test-btn .num {
+				display: inline-block;
+				width: 18px;
+				color: var(--text-dim);
+				font-variant-numeric: tabular-nums;
+			}
+
 			.right-panel {
 				flex: 1;
 				display: flex;
@@ -129,8 +208,9 @@
 				border: 1px solid var(--glass-border);
 				border-radius: 4px;
 			}
+
 			.log-panel {
-				height: 300px;
+				height: var(--log-h);
 				border-top: 1px solid var(--glass-border);
 				display: flex;
 				flex-direction: column;
@@ -179,12 +259,12 @@
 			.log-time {
 				color: var(--text-dim);
 				flex-shrink: 0;
-				width: 60px;
+				width: 50px;
 				font-variant-numeric: tabular-nums;
 			}
 			.log-tag {
 				flex-shrink: 0;
-				width: 72px;
+				width: 52px;
 				font-weight: 600;
 			}
 			.log-msg {
@@ -199,6 +279,20 @@
 			.tag-info {
 				color: var(--text-dim);
 			}
+			.summary {
+				padding: 8px 10px;
+				border-top: 1px solid var(--glass-border);
+				font-size: 11px;
+				color: var(--text-dim);
+				display: flex;
+				justify-content: space-between;
+			}
+			.summary .good {
+				color: var(--success);
+			}
+			.summary .bad {
+				color: var(--error);
+			}
 		</style>
 	</head>
 	<body>
@@ -210,13 +304,20 @@
 			</div>
 		</div>
 		<div class="main">
+			<div class="sidebar">
+				<div class="sidebar-label">Test Scenes</div>
+				<!-- buttons injected by JS -->
+			</div>
 			<div class="right-panel">
 				<div id="canvas-wrap">
-					<canvas id="gameCanvas" width="800" height="1500"></canvas>
+					<canvas id="gameCanvas" width="640" height="480"></canvas>
 				</div>
 				<div class="log-panel">
 					<div class="log-header"><span>Test Results</span></div>
 					<div id="log"></div>
+					<div class="summary">
+						<span id="summary-text">Click a test to begin</span>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -229,9 +330,9 @@
 				HorizontalAlign,
 				VerticalAlign,
 				TextFieldType,
-				TextEvent,
 			} from '../src/index.js';
 
+			// ── Logging ─────────────────────────────────────────────────────────
 			const logEl = document.getElementById('log');
 			const logT0 = Date.now();
 			let passCount = 0;
@@ -259,116 +360,122 @@
 				}
 			}
 
+			function clearLog() {
+				logEl.innerHTML = '';
+				passCount = 0;
+				failCount = 0;
+			}
+
+			function updateSummary() {
+				const el = document.getElementById('summary-text');
+				const total = passCount + failCount;
+				if (total === 0) {
+					el.innerHTML = 'No assertions yet';
+					return;
+				}
+				el.innerHTML =
+					`<span class="${failCount === 0 ? 'good' : 'bad'}">${passCount}/${total} passed</span>` +
+					(failCount > 0 ? ` · <span class="bad">${failCount} failed</span>` : '');
+			}
+
 			// ── Setup player ────────────────────────────────────────────────────
 			const canvas = document.getElementById('gameCanvas');
 			const app = createPlayer({
 				canvas,
-				contentWidth: 800,
-				contentHeight: 1500,
+				contentWidth: 640,
+				contentHeight: 480,
 				scaleMode: 'showAll',
 				frameRate: 60,
 			});
-			log('info', `Player created, WebGL: ${app.player.isWebGL}`);
 
 			const root = new Sprite();
 			app.start(root);
-			log('info', 'Player started');
 
-			// ── Layout helpers ──────────────────────────────────────────────────
-			let cursorY = 10;
-
-			function addLabel(text) {
-				const label = new TextField();
-				label.text = text;
-				label.textColor = 0x8888a0;
-				label.size = 13;
-				label.bold = true;
-				label.width = 780;
-				label.height = 18;
-				label.x = 10;
-				label.y = cursorY;
-				root.addChild(label);
-				cursorY += 20;
+			/** Clear all children from root */
+			function clearScene() {
+				while (root.numChildren > 0) {
+					root.removeChildAt(0);
+				}
 			}
 
-			function addTest(tf, h) {
-				tf.x = 10;
-				tf.y = cursorY;
-				tf.width = tf.width || 780;
-				root.addChild(tf);
-				cursorY += (h || tf.height || 30) + 6;
+			// ── Test definitions ────────────────────────────────────────────────
+			const tests = [];
+
+			function define(name, fn) {
+				tests.push({ name, fn });
 			}
 
-			// ── Test 1: Basic single-line text ──────────────────────────────────
-			addLabel('1. Basic single-line');
-			{
+			// --- 1. Basic single-line ---
+			define('Basic single-line', () => {
 				const tf = new TextField();
 				tf.text = 'Hello, Heron!';
 				tf.textColor = 0xffffff;
 				tf.size = 28;
-				tf.width = 780;
+				tf.width = 600;
 				tf.height = 40;
-				addTest(tf, 40);
-				assert(tf.text === 'Hello, Heron!', '1. Basic text set/get');
-				assert(tf.textWidth > 0, '1. textWidth > 0 (' + tf.textWidth.toFixed(1) + ')');
-			}
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.text === 'Hello, Heron!', 'text set/get');
+				assert(tf.textWidth > 0, 'textWidth > 0 (' + tf.textWidth.toFixed(1) + ')');
+			});
 
-			// ── Test 2: Multi-color rich text (textFlow) ────────────────────────
-			addLabel('2. Rich text (textFlow)');
-			{
+			// --- 2. Rich text (textFlow) ---
+			define('Rich text (textFlow)', () => {
 				const tf = new TextField();
 				tf.textFlow = [
 					{ text: 'Red ', style: { textColor: 0xff4444, size: 24, bold: true } },
 					{ text: 'Green ', style: { textColor: 0x44ff44, size: 24 } },
 					{ text: 'Blue', style: { textColor: 0x4488ff, size: 24, italic: true } },
 				];
-				tf.width = 780;
+				tf.width = 600;
 				tf.height = 40;
-				addTest(tf, 40);
-				assert(tf.text === 'Red Green Blue', '2. textFlow concatenated text');
-				assert(tf.numLines === 1, '2. Single line');
-			}
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.text === 'Red Green Blue', 'textFlow concatenated');
+				assert(tf.numLines === 1, 'Single line');
+			});
 
-			// ── Test 3: Word wrap ───────────────────────────────────────────────
-			addLabel('3. Word wrap');
-			{
+			// --- 3. Word wrap ---
+			define('Word wrap', () => {
 				const tf = new TextField();
 				tf.text =
 					'The quick brown fox jumps over the lazy dog. This is a longer sentence to test word wrapping behavior.';
 				tf.textColor = 0xccccdd;
 				tf.size = 16;
-				tf.width = 780;
-				tf.height = 60;
+				tf.width = 600;
+				tf.height = 80;
 				tf.wordWrap = true;
-				addTest(tf, 60);
-				assert(tf.numLines > 1, '3. Word wrap: ' + tf.numLines + ' lines');
-			}
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.numLines > 1, tf.numLines + ' lines (>1)');
+			});
 
-			// ── Test 4: textAlign (left / center / right) ───────────────────────
-			addLabel('4. textAlign (L / C / R)');
-			{
-				const labels = ['Left', 'Center', 'Right'];
+			// --- 4. textAlign ---
+			define('textAlign (L / C / R)', () => {
 				const aligns = [HorizontalAlign.LEFT, HorizontalAlign.CENTER, HorizontalAlign.RIGHT];
+				const labels = ['Left', 'Center', 'Right'];
 				for (let i = 0; i < 3; i++) {
 					const tf = new TextField();
 					tf.text = labels[i] + ' aligned text';
 					tf.textColor = 0x88ccff;
-					tf.size = 14;
+					tf.size = 16;
 					tf.textAlign = aligns[i];
-					tf.width = 780;
-					tf.height = 20;
-					tf.x = 10;
-					tf.y = cursorY;
+					tf.width = 600;
+					tf.height = 30;
+					tf.border = true;
+					tf.borderColor = 0x334466;
+					tf.x = 20;
+					tf.y = 20 + i * 38;
 					root.addChild(tf);
-					cursorY += 22;
-					assert(tf.textAlign === aligns[i], '4. textAlign = ' + aligns[i]);
+					assert(tf.textAlign === aligns[i], 'textAlign = ' + aligns[i]);
 				}
-				cursorY += 4;
-			}
+			});
 
-			// ── Test 5: verticalAlign (top / middle / bottom) ───────────────────
-			addLabel('5. verticalAlign (T / M / B)');
-			{
+			// --- 5. verticalAlign ---
+			define('verticalAlign (T / M / B)', () => {
 				const vals = [
 					{ label: 'Top', align: VerticalAlign.TOP },
 					{ label: 'Middle', align: VerticalAlign.MIDDLE },
@@ -378,277 +485,347 @@
 					const tf = new TextField();
 					tf.text = vals[i].label;
 					tf.textColor = 0xffcc44;
-					tf.size = 14;
+					tf.size = 16;
 					tf.verticalAlign = vals[i].align;
-					tf.width = 250;
-					tf.height = 28;
+					tf.width = 600;
+					tf.height = 60;
 					tf.border = true;
 					tf.borderColor = 0x444455;
-					tf.x = 10 + i * 260;
-					tf.y = cursorY;
+					tf.x = 20;
+					tf.y = 20 + i * 68;
 					root.addChild(tf);
-					assert(tf.verticalAlign === vals[i].align, '5. verticalAlign = ' + vals[i].align);
+					assert(tf.verticalAlign === vals[i].align, 'verticalAlign = ' + vals[i].align);
 				}
-				cursorY += 34;
-			}
+			});
 
-			// ── Test 6: Bold + Italic ────────────────────────────────────────────
-			addLabel('6. Bold + Italic');
-			{
+			// --- 6. Bold + Italic ---
+			define('Bold + Italic', () => {
 				const tf1 = new TextField();
 				tf1.text = 'Bold text';
 				tf1.textColor = 0xffffff;
-				tf1.size = 20;
+				tf1.size = 22;
 				tf1.bold = true;
-				tf1.width = 380;
-				tf1.height = 28;
-				tf1.x = 10;
-				tf1.y = cursorY;
+				tf1.width = 280;
+				tf1.height = 32;
+				tf1.x = 20;
+				tf1.y = 20;
 				root.addChild(tf1);
-				assert(tf1.bold === true, '6. bold = true');
+				assert(tf1.bold === true, 'bold = true');
 
 				const tf2 = new TextField();
 				tf2.text = 'Italic text';
 				tf2.textColor = 0xffffff;
-				tf2.size = 20;
+				tf2.size = 22;
 				tf2.italic = true;
-				tf2.width = 380;
-				tf2.height = 28;
-				tf2.x = 400;
-				tf2.y = cursorY;
+				tf2.width = 280;
+				tf2.height = 32;
+				tf2.x = 320;
+				tf2.y = 20;
 				root.addChild(tf2);
-				assert(tf2.italic === true, '6. italic = true');
-				cursorY += 34;
-			}
+				assert(tf2.italic === true, 'italic = true');
+			});
 
-			// ── Test 7: Stroke (text outline) ────────────────────────────────────
-			addLabel('7. Stroke');
-			{
+			// --- 7. Stroke ---
+			define('Stroke', () => {
 				const tf = new TextField();
 				tf.text = 'Stroked Text';
-				tf.textColor = 0xffff00;
-				tf.strokeColor = 0x000000;
-				tf.stroke = 2;
-				tf.size = 26;
-				tf.width = 780;
-				tf.height = 40;
-				addTest(tf, 40);
-				assert(tf.stroke === 2, '7. stroke = 2');
-			}
+				tf.textColor = 0x000000;
+				tf.strokeColor = 0xffffff;
+				tf.stroke = 3;
+				tf.size = 30;
+				tf.width = 600;
+				tf.height = 44;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.stroke === 3, 'stroke = 3');
+			});
 
-			// ── Test 8: Font family ─────────────────────────────────────────────
-			addLabel('8. Font family');
-			{
+			// --- 8. Font family ---
+			define('Font family', () => {
 				const fonts = ['Georgia', 'Courier New', 'Verdana'];
 				for (let i = 0; i < fonts.length; i++) {
 					const tf = new TextField();
-					tf.text = fonts[i];
+					tf.text = fonts[i] + ' — The quick brown fox';
 					tf.textColor = 0xddddff;
 					tf.size = 16;
 					tf.fontFamily = fonts[i];
-					tf.width = 780;
-					tf.height = 20;
-					tf.x = 10;
-					tf.y = cursorY;
+					tf.width = 600;
+					tf.height = 24;
+					tf.x = 20;
+					tf.y = 20 + i * 28;
 					root.addChild(tf);
-					cursorY += 22;
-					assert(tf.fontFamily === fonts[i], '8. fontFamily = ' + fonts[i]);
+					assert(tf.fontFamily === fonts[i], 'fontFamily = ' + fonts[i]);
 				}
-				cursorY += 4;
-			}
+			});
 
-			// ── Test 9: Background + Border ─────────────────────────────────────
-			addLabel('9. Background + Border');
-			{
+			// --- 9. Background + Border ---
+			define('Background + Border', () => {
 				const tf = new TextField();
 				tf.text = '  Background + Border  ';
 				tf.textColor = 0x000000;
-				tf.size = 20;
+				tf.size = 22;
 				tf.background = true;
 				tf.backgroundColor = 0xeeeeee;
 				tf.border = true;
 				tf.borderColor = 0xff4444;
-				tf.width = 780;
-				tf.height = 36;
-				addTest(tf, 36);
-				assert(tf.background === true, '9. background = true');
-				assert(tf.border === true, '9. border = true');
-			}
+				tf.width = 600;
+				tf.height = 40;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.background === true, 'background = true');
+				assert(tf.border === true, 'border = true');
+			});
 
-			// ── Test 10: displayAsPassword ──────────────────────────────────────
-			addLabel('10. displayAsPassword');
-			{
+			// --- 10. displayAsPassword ---
+			define('displayAsPassword', () => {
 				const tf = new TextField();
 				tf.text = 'secret123';
 				tf.textColor = 0xffffff;
-				tf.size = 22;
+				tf.size = 24;
 				tf.displayAsPassword = true;
-				tf.width = 780;
-				tf.height = 34;
-				addTest(tf, 34);
-				assert(tf.text === 'secret123', '10. text returns raw value');
-				// Internally displays as asterisks
+				tf.width = 600;
+				tf.height = 36;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.text === 'secret123', 'text returns raw value');
 				const displayText = tf.getLinesArr()[0].elements[0].text;
-				assert(displayText === '*********', '10. Displays as asterisks (got: "' + displayText + '")');
-			}
+				assert(displayText === '*********', 'Displays as asterisks ("' + displayText + '")');
+			});
 
-			// ── Test 11: lineSpacing ────────────────────────────────────────────
-			addLabel('11. lineSpacing (8px gap)');
-			{
+			// --- 11. lineSpacing ---
+			define('lineSpacing', () => {
 				const tf = new TextField();
 				tf.text = 'Line 1\nLine 2\nLine 3';
 				tf.textColor = 0xaaddaa;
-				tf.size = 14;
-				tf.lineSpacing = 8;
-				tf.width = 780;
-				tf.height = 70;
-				addTest(tf, 70);
-				assert(tf.lineSpacing === 8, '11. lineSpacing = 8');
-				assert(tf.numLines === 3, '11. 3 lines (\\n breaks), got ' + tf.numLines);
-			}
+				tf.size = 16;
+				tf.lineSpacing = 10;
+				tf.width = 600;
+				tf.height = 100;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.lineSpacing === 10, 'lineSpacing = 10');
+				assert(tf.numLines === 3, '3 lines (got ' + tf.numLines + ')');
+			});
 
-			// ── Test 12: Multiline with word wrap ───────────────────────────────
-			addLabel('12. Multiline + wordWrap');
-			{
+			// --- 12. Multiline + wordWrap ---
+			define('Multiline + wordWrap', () => {
 				const tf = new TextField();
 				tf.text =
 					'This is a multiline text field with word wrapping enabled. It should automatically break lines at the boundary.';
 				tf.textColor = 0xddbb88;
-				tf.size = 14;
+				tf.size = 16;
 				tf.multiline = true;
 				tf.wordWrap = true;
-				tf.width = 780;
-				tf.height = 60;
-				addTest(tf, 60);
-				assert(tf.multiline === true, '12. multiline = true');
-				assert(tf.wordWrap === true, '12. wordWrap = true');
-				assert(tf.numLines >= 2, '12. >= 2 lines (' + tf.numLines + ')');
-			}
+				tf.width = 600;
+				tf.height = 80;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.multiline === true, 'multiline = true');
+				assert(tf.wordWrap === true, 'wordWrap = true');
+				assert(tf.numLines >= 2, '>= 2 lines (' + tf.numLines + ')');
+			});
 
-			// ── Test 13: appendText ─────────────────────────────────────────────
-			addLabel('13. appendText');
-			{
+			// --- 13. appendText ---
+			define('appendText', () => {
 				const tf = new TextField();
 				tf.text = 'Hello';
 				tf.appendText(' World');
 				tf.textColor = 0xffffff;
-				tf.size = 22;
-				tf.width = 780;
-				tf.height = 34;
-				addTest(tf, 34);
-				assert(tf.text === 'Hello World', '13. appendText works (got: "' + tf.text + '")');
-			}
+				tf.size = 26;
+				tf.width = 600;
+				tf.height = 40;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.text === 'Hello World', 'appendText (got: "' + tf.text + '")');
+			});
 
-			// ── Test 14: appendElement (rich) ───────────────────────────────────
-			addLabel('14. appendElement (rich)');
-			{
+			// --- 14. appendElement ---
+			define('appendElement (rich)', () => {
 				const tf = new TextField();
-				tf.textFlow = [{ text: 'Normal ', style: { textColor: 0xffffff, size: 18 } }];
-				tf.appendElement({ text: 'Bold', style: { textColor: 0xffaa00, size: 18, bold: true } });
-				tf.width = 780;
-				tf.height = 34;
-				addTest(tf, 34);
-				assert(tf.text === 'Normal Bold', '14. appendElement text (got: "' + tf.text + '")');
+				tf.textFlow = [{ text: 'Normal ', style: { textColor: 0xffffff, size: 20 } }];
+				tf.appendElement({ text: 'Bold', style: { textColor: 0xffaa00, size: 20, bold: true } });
+				tf.width = 600;
+				tf.height = 36;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.text === 'Normal Bold', 'text = "Normal Bold" (got: "' + tf.text + '")');
 				assert(
 					tf.textFlow && tf.textFlow.length === 2,
-					'14. textFlow has 2 elements (got: ' + (tf.textFlow?.length ?? 0) + ')',
+					'textFlow.length = 2 (got: ' + (tf.textFlow?.length ?? 0) + ')',
 				);
-			}
+			});
 
-			// ── Test 15: Empty text ─────────────────────────────────────────────
-			addLabel('15. Empty text');
-			{
+			// --- 15. Empty text ---
+			define('Empty text', () => {
 				const tf = new TextField();
 				tf.text = '';
 				tf.border = true;
 				tf.borderColor = 0x666666;
-				tf.width = 780;
-				tf.height = 24;
-				addTest(tf, 24);
-				assert(tf.text === '', '15. Empty string');
-				assert(tf.textWidth === 0, '15. textWidth = 0');
-			}
+				tf.width = 600;
+				tf.height = 30;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.text === '', 'Empty string');
+				assert(tf.textWidth === 0, 'textWidth = 0');
+			});
 
-			// ── Test 16: Unicode / CJK text ────────────────────────────────────
-			addLabel('16. Unicode / CJK');
-			{
+			// --- 16. Unicode / CJK ---
+			define('Unicode / CJK', () => {
 				const tf = new TextField();
 				tf.text = '你好世界 🎮 こんにちは';
 				tf.textColor = 0xff88cc;
-				tf.size = 20;
-				tf.width = 780;
-				tf.height = 34;
-				addTest(tf, 34);
-				assert(tf.text === '你好世界 🎮 こんにちは', '16. CJK + emoji preserved');
-			}
+				tf.size = 24;
+				tf.width = 600;
+				tf.height = 40;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.text === '你好世界 🎮 こんにちは', 'CJK + emoji preserved');
+			});
 
-			// ── Test 17: Size variation in textFlow ─────────────────────────────
-			addLabel('17. Mixed sizes (textFlow)');
-			{
+			// --- 17. Mixed sizes (textFlow) ---
+			define('Mixed sizes (textFlow)', () => {
 				const tf = new TextField();
 				tf.textFlow = [
 					{ text: 'Small ', style: { textColor: 0xffffff, size: 12 } },
-					{ text: 'Medium ', style: { textColor: 0xaaccff, size: 20 } },
-					{ text: 'Large', style: { textColor: 0xffcc88, size: 30 } },
+					{ text: 'Medium ', style: { textColor: 0xaaccff, size: 22 } },
+					{ text: 'Large', style: { textColor: 0xffcc88, size: 34 } },
 				];
-				tf.width = 780;
-				tf.height = 40;
-				addTest(tf, 40);
-				assert(tf.textFlow && tf.textFlow.length === 3, '17. 3 elements with different sizes');
-			}
+				tf.width = 600;
+				tf.height = 50;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.textFlow && tf.textFlow.length === 3, '3 elements');
+			});
 
-			// ── Test 18: Input mode ─────────────────────────────────────────────
-			addLabel('18. Input mode (click to type)');
-			{
+			// --- 18. Input mode ---
+			define('Input mode (click)', () => {
 				const tf = new TextField();
 				tf.text = 'Click to edit';
 				tf.textColor = 0xffffff;
-				tf.size = 16;
-				tf.width = 780;
-				tf.height = 30;
+				tf.size = 18;
+				tf.width = 600;
+				tf.height = 34;
 				tf.border = true;
 				tf.borderColor = 0x6c9cff;
 				tf.background = true;
 				tf.backgroundColor = 0x1a1a2e;
-				// Set type AFTER all other properties to avoid early StageText creation
 				tf.type = TextFieldType.INPUT;
-				addTest(tf, 30);
-				assert(tf.type === TextFieldType.INPUT, '18. type = INPUT');
-				assert(tf.touchEnabled === true, '18. touchEnabled = true');
-			}
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.type === TextFieldType.INPUT, 'type = INPUT');
+				assert(tf.touchEnabled === true, 'touchEnabled = true');
+			});
 
-			// ── Test 19: getLineHeight ──────────────────────────────────────────
-			addLabel('19. getLineHeight()');
-			{
+			// --- 19. getLineHeight ---
+			define('getLineHeight()', () => {
 				const tf = new TextField();
 				tf.size = 24;
 				tf.lineSpacing = 6;
 				tf.text = 'Line height test';
 				tf.textColor = 0xaaaaaa;
-				tf.width = 780;
+				tf.size = 16;
+				tf.width = 600;
 				tf.height = 30;
-				addTest(tf, 30);
-				assert(tf.getLineHeight() === 30, '19. getLineHeight() = 30 (24+6)');
-			}
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.getLineHeight() === 22, 'getLineHeight() = 22 (16+6)');
+			});
 
-			// ── Test 20: numLines with explicit newlines ────────────────────────
-			addLabel('20. numLines');
-			{
+			// --- 20. numLines ---
+			define('numLines', () => {
 				const tf = new TextField();
 				tf.text = 'A\nB\nC\nD';
 				tf.textColor = 0x88ffaa;
-				tf.size = 14;
-				tf.width = 780;
-				tf.height = 24;
-				addTest(tf, 24);
-				assert(tf.numLines === 4, '20. numLines = 4 (got ' + tf.numLines + ')');
-			}
+				tf.size = 16;
+				tf.width = 600;
+				tf.height = 30;
+				tf.x = 20;
+				tf.y = 20;
+				root.addChild(tf);
+				assert(tf.numLines === 4, 'numLines = 4 (got ' + tf.numLines + ')');
+			});
 
-			// ── Summary ─────────────────────────────────────────────────────────
-			log('info', '────────────────────────────────');
-			log('info', `Renderer: ${app.player.isWebGL ? 'WebGL' : 'Canvas 2D'}`);
-			log('info', `Total: ${passCount + failCount} tests, ${passCount} passed, ${failCount} failed`);
-			log('info', '────────────────────────────────');
+			// ── Build sidebar buttons ───────────────────────────────────────────
+			const sidebar = document.querySelector('.sidebar');
+			let activeBtn = null;
+
+			tests.forEach((test, i) => {
+				const btn = document.createElement('button');
+				btn.className = 'test-btn';
+				btn.innerHTML = `<span class="num">${i + 1}.</span> ${test.name}`;
+				btn.addEventListener('click', () => {
+					// Update active state
+					if (activeBtn) activeBtn.classList.remove('active');
+					btn.classList.add('active');
+					activeBtn = btn;
+					// Run test
+					clearScene();
+					clearLog();
+					log('info', `Test ${i + 1}: ${test.name}`);
+					test.fn();
+					updateSummary();
+				});
+				sidebar.appendChild(btn);
+			});
+
+			// Add "Run All" button
+			const sep = document.createElement('div');
+			sep.className = 'sidebar-label';
+			sep.style.marginTop = '8px';
+			sep.textContent = 'Batch';
+			sidebar.appendChild(sep);
+
+			const runAllBtn = document.createElement('button');
+			runAllBtn.className = 'test-btn';
+			runAllBtn.innerHTML = '▶ Run All Tests';
+			runAllBtn.style.color = 'var(--accent)';
+			runAllBtn.addEventListener('click', () => {
+				if (activeBtn) activeBtn.classList.remove('active');
+				activeBtn = null;
+				clearScene();
+				clearLog();
+				log('info', `Running all ${tests.length} tests…`);
+				for (let i = 0; i < tests.length; i++) {
+					log('info', `── Test ${i + 1}: ${tests[i].name} ──`);
+					tests[i].fn();
+				}
+				log('info', '──────────────────────────');
+				log('info', `Renderer: ${app.player.isWebGL ? 'WebGL' : 'Canvas 2D'}`);
+				log('info', `Total: ${passCount + failCount} assertions, ${passCount} passed, ${failCount} failed`);
+				updateSummary();
+
+				// Show a summary TextField on canvas
+				const summary = new TextField();
+				summary.text = `${passCount}/${passCount + failCount} passed`;
+				summary.textColor = failCount === 0 ? 0x4ade80 : 0xf87171;
+				summary.size = 28;
+				summary.bold = true;
+				summary.width = 600;
+				summary.height = 40;
+				summary.textAlign = HorizontalAlign.CENTER;
+				summary.x = 20;
+				summary.y = 220;
+				root.addChild(summary);
+			});
+			sidebar.appendChild(runAllBtn);
+
+			// ── Auto-run first test ─────────────────────────────────────────────
+			if (tests.length > 0) {
+				const firstBtn = sidebar.querySelector('.test-btn');
+				if (firstBtn) firstBtn.click();
+			}
 
 			// ── FPS counter ─────────────────────────────────────────────────────
 			const fpsEl = document.getElementById('fps-display');
