@@ -138,20 +138,33 @@ export class StageText extends EventDispatcher {
 			const cssFontH = tf.size * this._gscaleY;
 			el.style.lineHeight = cssFontH + 'px';
 			el.style.height = cssFontH + 'px';
-			const extraH = (tf.height - tf.size) * this._gscaleY;
-			if (extraH > 0) {
-				const valign = tf.verticalAlign === 'middle' ? 0.5 : tf.verticalAlign === 'bottom' ? 1 : 0;
-				const padTop = extraH * valign;
-				const padBottom = Math.max(extraH - padTop, cssFontH / 2);
-				el.style.padding = `${padTop}px 0px ${padBottom}px 0px`;
+			if (tf.height < tf.size) {
+				const bottom = (tf.size / 2) * this._gscaleY;
+				el.style.padding = `0px 0px ${bottom}px 0px`;
 			} else {
-				el.style.padding = `0px 0px ${cssFontH / 2}px 0px`;
+				const rap = (tf.height - tf.size) * this._gscaleY;
+				const valign = getValign(tf);
+				const top = rap * valign;
+				let bottom = rap - top;
+				if (bottom < (tf.size / 2) * this._gscaleY) {
+					bottom = (tf.size / 2) * this._gscaleY;
+				}
+				el.style.padding = `${top}px 0px ${bottom}px 0px`;
 			}
 		}
 
+		// Clip the div to the TextField bounds (matches Egret's approach)
 		this._inputDiv.style.overflow = 'hidden';
+		this._inputDiv.style.clip = `rect(0px ${inputCSSWidth}px ${tf.height * this._gscaleY}px 0px)`;
 		this._inputDiv.style.width = inputCSSWidth + 'px';
 		this._inputDiv.style.height = tf.height * this._gscaleY + 'px';
+
+		console.log(
+			`[StageText] resetStageText: fontSize=${tf.size * this._gscaleY}px, ` +
+				`inputSize=${el.style.width}×${el.style.height}, ` +
+				`divSize=${inputCSSWidth}×${tf.height * this._gscaleY}, ` +
+				`lineHeight=${el.style.lineHeight}, padding=${el.style.padding}`,
+		);
 	}
 
 	// ── Element lifecycle ────────────────────────────────────────────────────
@@ -163,6 +176,7 @@ export class StageText extends EventDispatcher {
 		if (!this._inputDiv) {
 			const div = document.createElement('div');
 			div.style.position = 'fixed';
+			div.style.boxSizing = 'content-box';
 			div.style.left = '0px';
 			div.style.top = '-100px';
 			div.style.border = 'none';
@@ -185,6 +199,7 @@ export class StageText extends EventDispatcher {
 				el.style.resize = 'none';
 			}
 			el.style.position = 'absolute';
+			el.style.boxSizing = 'content-box';
 			el.style.left = '0px';
 			el.style.top = '0px';
 			el.style.border = 'none';
@@ -194,7 +209,6 @@ export class StageText extends EventDispatcher {
 			el.style.background = 'none transparent';
 			el.style.overflow = 'hidden';
 			el.style.wordBreak = 'break-all';
-			el.style.boxSizing = 'border-box';
 			el.style.opacity = '0';
 			el.style.pointerEvents = 'auto';
 			el.value = this._text;
@@ -319,7 +333,10 @@ export class StageText extends EventDispatcher {
 			el.style.transform = '';
 			el.style.padding = '0';
 			el.style.lineHeight = '';
-			el.value = '';
+			el.style.verticalAlign = '';
+			// DO NOT clear el.value here — the text is preserved in _text.
+			// Clearing it causes the displayed text to disappear while the
+			// InputController still holds a valid text string.
 			el.blur();
 		}
 		if (div) {
@@ -328,6 +345,7 @@ export class StageText extends EventDispatcher {
 			div.style.height = '0px';
 			div.style.width = '0px';
 			div.style.transform = '';
+			div.style.clip = '';
 		}
 		this._clearing = false;
 	}
@@ -335,18 +353,22 @@ export class StageText extends EventDispatcher {
 	// ── Helpers ─────────────────────────────────────────────────────────────
 
 	private setAreaHeight(tf: TextField, el: HTMLElement): void {
+		const cssLineH = (tf.size + tf.lineSpacing) * this._gscaleY;
 		if (tf.height <= tf.size) {
+			// Field shorter than font size — clamp to font height
 			el.style.height = tf.size * this._gscaleY + 'px';
 			el.style.padding = '0px';
-			el.style.lineHeight = tf.size * this._gscaleY + 'px';
+			el.style.lineHeight = cssLineH + 'px';
 		} else {
-			el.style.height = tf.height * this._gscaleY + 'px';
-			const valign = tf.verticalAlign === 'middle' ? 0.5 : tf.verticalAlign === 'bottom' ? 1 : 0;
-			const rap = (tf.height - tf.size) * this._gscaleY;
-			const top = rap * valign;
-			const bottom = rap - top;
+			// Field taller than font size — use line height as content area,
+			// padding distributes the remaining space for vertical alignment.
+			el.style.height = cssLineH + 'px';
+			const rap = (tf.height - tf.size - tf.lineSpacing) * this._gscaleY;
+			const valign = getValign(tf);
+			const top = Math.max(0, rap * valign);
+			const bottom = Math.max(0, rap - top);
 			el.style.padding = `${top}px 0px ${bottom}px 0px`;
-			el.style.lineHeight = tf.size * this._gscaleY + 'px';
+			el.style.lineHeight = cssLineH + 'px';
 		}
 	}
 
@@ -360,6 +382,14 @@ export class StageText extends EventDispatcher {
 	private getCanvas(): HTMLCanvasElement | undefined {
 		return document.querySelector('canvas') ?? undefined;
 	}
+}
+
+/** Convert TextField.verticalAlign string to a 0‒1 ratio (Egret style). */
+function getValign(tf: TextField): number {
+	const v = (tf as any).verticalAlign;
+	if (v === 'middle' || v === 'Middle') return 0.5;
+	if (v === 'bottom' || v === 'Bottom') return 1;
+	return 0; // top
 }
 
 function colorString(color: number): string {
