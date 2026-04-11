@@ -39,7 +39,7 @@ export class WebGLRenderContext {
 	public contextLost = false;
 	public projectionX = 0;
 	public projectionY = 0;
-	public activeFilter: Filter | undefined = undefined;
+	public activeFilter: Filter | undefined;
 	public currentBlendMode = 'source-over';
 
 	// ── Private fields ────────────────────────────────────────────────────────
@@ -435,13 +435,7 @@ export class WebGLRenderContext {
 		);
 
 		const count = meshIndices ? meshIndices.length / 3 : 2;
-		this.drawCmdManager.pushDrawTexture(
-			texture,
-			count,
-			this.activeFilter ?? undefined,
-			textureWidth,
-			textureHeight,
-		);
+		this.drawCmdManager.pushDrawTexture(texture, count, this.activeFilter, textureWidth, textureHeight);
 	}
 
 	/**
@@ -485,7 +479,7 @@ export class WebGLRenderContext {
 
 		// Step 4 — queue a batched drawTexture so the parent buffer's
 		// globalMatrix positions the quad correctly.
-		const nonBlurFilter = filters.find(f => !(f instanceof BlurFilter)) ?? undefined;
+		const nonBlurFilter = filters.find(f => !(f instanceof BlurFilter));
 		this.activeFilter = nonBlurFilter;
 		this.drawTexture(target.texture, 0, 0, w, h, 0, 0, w, h, w, h);
 		this.activeFilter = undefined;

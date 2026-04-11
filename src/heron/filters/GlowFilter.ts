@@ -66,7 +66,7 @@ export class GlowFilter extends Filter {
 		this._red = value >> 16;
 		this._green = (value & 0x00ff00) >> 8;
 		this._blue = value & 0x0000ff;
-		const c = (this.uniforms as Record<string, { x: number; y: number; z: number }>).color;
+		const c = this.uniforms.color as { x: number; y: number; z: number };
 		c.x = this._red / 255;
 		c.y = this._green / 255;
 		c.z = this._blue / 255;
@@ -78,7 +78,7 @@ export class GlowFilter extends Filter {
 	public set alpha(value: number) {
 		if (this._alpha === value) return;
 		this._alpha = value;
-		(this.uniforms as Record<string, number>).alpha = value;
+		this.uniforms.alpha = value;
 	}
 
 	public get blurX(): number {
@@ -87,7 +87,7 @@ export class GlowFilter extends Filter {
 	public set blurX(value: number) {
 		if (this._blurX === value) return;
 		this._blurX = value;
-		(this.uniforms as Record<string, number>).blurX = value;
+		this.uniforms.blurX = value;
 		this.onPropertyChange();
 	}
 
@@ -97,7 +97,7 @@ export class GlowFilter extends Filter {
 	public set blurY(value: number) {
 		if (this._blurY === value) return;
 		this._blurY = value;
-		(this.uniforms as Record<string, number>).blurY = value;
+		this.uniforms.blurY = value;
 		this.onPropertyChange();
 	}
 
@@ -107,7 +107,7 @@ export class GlowFilter extends Filter {
 	public set strength(value: number) {
 		if (this._strength === value) return;
 		this._strength = value;
-		(this.uniforms as Record<string, number>).strength = value;
+		this.uniforms.strength = value;
 	}
 
 	public get quality(): number {
@@ -123,7 +123,7 @@ export class GlowFilter extends Filter {
 	public set inner(value: boolean) {
 		if (this._inner === value) return;
 		this._inner = value;
-		(this.uniforms as Record<string, number>).inner = value ? 1 : 0;
+		this.uniforms.inner = value ? 1 : 0;
 	}
 
 	public get knockout(): boolean {
@@ -132,7 +132,7 @@ export class GlowFilter extends Filter {
 	public set knockout(value: boolean) {
 		if (this._knockout === value) return;
 		this._knockout = value;
-		(this.uniforms as Record<string, number>).knockout = value ? 0 : 1;
+		this.uniforms.knockout = value ? 0 : 1;
 	}
 
 	// ── Internal methods ──────────────────────────────────────────────────────

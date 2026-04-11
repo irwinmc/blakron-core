@@ -27,9 +27,9 @@ export class DropShadowFilter extends GlowFilter {
 		this._distance = distance;
 		this._angle = angle;
 		this._hideObject = hideObject;
-		(this.uniforms as Record<string, unknown>).dist = distance;
-		(this.uniforms as Record<string, unknown>).angle = (angle / 180) * Math.PI;
-		(this.uniforms as Record<string, unknown>).hideObject = hideObject ? 1 : 0;
+		this.uniforms.dist = distance;
+		this.uniforms.angle = (angle / 180) * Math.PI;
+		this.uniforms.hideObject = hideObject ? 1 : 0;
 		this.onPropertyChange();
 	}
 
@@ -41,7 +41,7 @@ export class DropShadowFilter extends GlowFilter {
 	public set distance(value: number) {
 		if (this._distance === value) return;
 		this._distance = value;
-		(this.uniforms as Record<string, unknown>).dist = value;
+		this.uniforms.dist = value;
 		this.onPropertyChange();
 	}
 
@@ -51,7 +51,7 @@ export class DropShadowFilter extends GlowFilter {
 	public set angle(value: number) {
 		if (this._angle === value) return;
 		this._angle = value;
-		(this.uniforms as Record<string, unknown>).angle = (value / 180) * Math.PI;
+		this.uniforms.angle = (value / 180) * Math.PI;
 		this.onPropertyChange();
 	}
 
@@ -61,7 +61,7 @@ export class DropShadowFilter extends GlowFilter {
 	public set hideObject(value: boolean) {
 		if (this._hideObject === value) return;
 		this._hideObject = value;
-		(this.uniforms as Record<string, unknown>).hideObject = value ? 1 : 0;
+		this.uniforms.hideObject = value ? 1 : 0;
 	}
 
 	// ── Internal methods ──────────────────────────────────────────────────────

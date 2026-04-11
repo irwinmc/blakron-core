@@ -5,7 +5,6 @@ export class Filter extends HashObject {
 
 	public type = '';
 
-	/** @internal Uniform values consumed by the renderer. */
 	uniforms: Record<string, unknown> = {};
 
 	protected paddingTop = 0;

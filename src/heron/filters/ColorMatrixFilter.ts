@@ -41,14 +41,15 @@ export class ColorMatrixFilter extends Filter {
 		const src = value ?? IDENTITY;
 		for (let i = 0; i < 20; i++) this._matrix[i] = src[i] ?? 0;
 
-		const u = this.uniforms as { matrix: number[]; colorAdd: { x: number; y: number; z: number; w: number } };
+		const matrix = this.uniforms.matrix as number[];
+		const colorAdd = this.uniforms.colorAdd as { x: number; y: number; z: number; w: number };
 		let j = 0;
 		for (let i = 0; i < 20; i++) {
-			if (i === 4) u.colorAdd.x = this._matrix[i] / 255;
-			else if (i === 9) u.colorAdd.y = this._matrix[i] / 255;
-			else if (i === 14) u.colorAdd.z = this._matrix[i] / 255;
-			else if (i === 19) u.colorAdd.w = this._matrix[i] / 255;
-			else u.matrix[j++] = this._matrix[i];
+			if (i === 4) colorAdd.x = this._matrix[i] / 255;
+			else if (i === 9) colorAdd.y = this._matrix[i] / 255;
+			else if (i === 14) colorAdd.z = this._matrix[i] / 255;
+			else if (i === 19) colorAdd.w = this._matrix[i] / 255;
+			else matrix[j++] = this._matrix[i];
 		}
 		this.onPropertyChange();
 	}
