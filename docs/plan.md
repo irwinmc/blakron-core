@@ -1,6 +1,6 @@
 # Heron Core 开发计划
 
-> 更新日期：2026-04-10
+> 更新日期：2026-04-12
 > 基于代码审查结果重新排列优先级
 
 ---
@@ -31,7 +31,7 @@
 
 分三阶段实现，每阶段可独立交付：
 
-##### 阶段一：Canvas 2D 渲染（基础可用）
+##### 阶段一：Canvas 2D 渲染（基础可用） ✅ 已完成
 
 1. **`RenderObjectType` 增加 `TEXT = 5`**
 2. **`TextField.renderObjectType` 返回 `TEXT`**（override getter）
@@ -43,7 +43,7 @@
     - 处理 `stroke`（`strokeText`）、`scrollV`（垂直裁剪）
     - INPUT 模式：绘制光标 / 选区高亮
 
-##### 阶段二：WebGL 渲染（GraphicsPipe 模式）
+##### 阶段二：WebGL 渲染（GraphicsPipe 模式） ✅ 已完成
 
 参照 `GraphicsPipe` 的 offscreen canvas → texture → `drawTexture` 模式：
 
@@ -54,9 +54,11 @@
 3. **纹理尺寸优化**：只光栅化 `textWidth × textHeight` 区域，不包含 padding
 4. **Dirty 检测**：`_textDirty` / `renderDirty` 变化时才重绘，静态文本不重上传
 
-##### 阶段三：文字图集缓存（性能优化，参考 Egret TextAtlasStrategy）
+##### 阶段三：文字图集缓存（性能优化，参考 Egret TextAtlasStrategy） ⬜ 搁置
 
 对频繁更新的短文本（分数、计时器、状态标签），使用 `Book > Page > Line > TextBlock` 模型：
+
+> **搁置原因**：阶段二的整块光栅化方案对大多数场景已足够。图集缓存仅在大量同字体短文本高频更新时有明显收益（如聊天消息列表、排行榜），少量倒计时等场景不需要。按需启用。
 
 1. **移植 `TextBlock / Line / Page / Book` 类**（来自 `reference/old-src/src/egret/web/rendering/webgl/TextAtlasStrategy.ts`）
 2. **`TextAtlas` 管理器**：
