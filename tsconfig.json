@@ -1,37 +1,23 @@
 {
 	"compilerOptions": {
-		"target": "ES2022", // 现代浏览器支持好，性能平衡
-		"module": "ESNext", // ESM 输出
-		"moduleResolution": "bundler", // 2026 年推荐（支持 package.json exports）
-		"strict": true, // 强烈建议开启，减少运行时 bug
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
 		"esModuleInterop": true,
-		"skipLibCheck": true, // 加速编译，信任依赖类型
+		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
-
-		// 输出相关（核心配置）
 		"outDir": "./dist",
 		"rootDir": "./src",
-		"declaration": true, // 生成 .d.ts（别人用你的引擎时需要）
-		"declarationMap": true, // 支持 “Go to Definition” 到源码
-		"sourceMap": true, // 调试友好
-
-		// 浏览器 / WebGL / WebGPU 相关
-		"lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"], // 浏览器环境 + WebGL 类型
-
-		// 额外安全与现代特性
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
 		"isolatedDeclarations": true,
-		"jsx": "react-jsx", // 如果以后加 UI 组件（可选，先留着）
-		"resolveJsonModule": true, // 支持 import egretProperties.json 等
-		"allowSyntheticDefaultImports": true,
+		"jsx": "react-jsx",
+		"resolveJsonModule": true,
+		"allowSyntheticDefaultImports": true
 	},
-	"include": [
-		"src/**/*",
-		"types/**/*", // 如果你放额外类型定义
-	],
-	"exclude": [
-		"node_modules",
-		"dist",
-		"**/*.test.ts",
-		"reference", // 避免把老参考代码编译进去
-	],
+	"include": ["src/**/*", "types/**/*"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "reference"]
 }
