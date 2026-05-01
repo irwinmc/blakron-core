@@ -1,6 +1,6 @@
 # Heron Core 架构文档
 
-> 版本：0.2.3 | 更新日期：2026-04-11
+> 版本：0.2.4 | 更新日期：2026-05-01
 
 ---
 
@@ -44,6 +44,7 @@ packages/core/src/heron/
 │   ├── CanvasRenderer.ts         # Canvas 2D 渲染器
 │   ├── RenderPipe.ts             # RenderPipe 接口定义
 │   ├── InstructionSet.ts         # 指令集
+│   ├── InstructionSet.test.ts    # 指令集单元测试
 │   ├── DisplayList.ts            # cacheAsBitmap 离屏缓存
 │   ├── RenderBuffer.ts           # Canvas 2D 缓冲区
 │   ├── TouchHandler.ts           # 触摸/鼠标输入
@@ -55,7 +56,8 @@ packages/core/src/heron/
 │   │   ├── GraphicsPipe.ts
 │   │   ├── MeshPipe.ts
 │   │   ├── FilterPipe.ts
-│   │   └── MaskPipe.ts
+│   │   ├── MaskPipe.ts
+│   │   └── TextPipe.ts           # 文本 WebGL 渲染（offscreen canvas → 纹理上传）
 │   └── webgl/                    # WebGL 渲染后端
 │       ├── WebGLRenderer.ts      # 两阶段渲染器（build + execute）
 │       ├── WebGLRenderContext.ts  # WebGL 状态管理 + draw 调度
@@ -70,7 +72,9 @@ packages/core/src/heron/
 ├── events/           # 事件系统（完整保留 Egret API）
 ├── geom/             # 几何工具（Matrix, Point, Rectangle）
 ├── filters/          # 滤镜（Blur, Glow, DropShadow, ColorMatrix, Custom）
-├── text/             # 文本渲染（TextField, BitmapText, BitmapFont）
+├── text/             # 文本渲染（TextField, BitmapText, BitmapFont, StageText）
+│   ├── enums/                    # HorizontalAlign, VerticalAlign, TextFieldType, TextFieldInputType
+│   └── types/                    # ITextElement 等类型定义
 ├── net/              # 网络加载（HttpRequest, ImageLoader）
 ├── media/            # 媒体（Sound, SoundChannel, Video）
 ├── benchmark/        # 性能基准（MetricsCollector, BenchmarkRunner, SceneRegistry, PerfPanel, ReportExporter）
@@ -386,6 +390,7 @@ app.start(root);
 | display/   | 3          |
 | filters/   | 1          |
 | media/     | 3          |
+| player/    | 1          |
 | benchmark/ | 1          |
 
 ---
@@ -424,6 +429,30 @@ export default defineConfig({
 ---
 
 ## 十二、变更日志
+
+### 0.2.4（2026-05-01）
+
+**TextPipe 完成**
+
+- 新增 `player/pipes/TextPipe.ts`，实现 TextField WebGL 渲染（offscreen canvas 光栅化 → WebGLTexture 上传 → `drawTexture()`）
+- `WebGLRenderer` 注册 TextPipe，按 `renderObjectType` 路由
+- 支持 `_textDirty` / `renderDirty` 脏检测，静态文本不重上传
+
+**text 模块结构完善**
+
+- 新增 `text/enums/`：`HorizontalAlign`、`VerticalAlign`、`TextFieldType`、`TextFieldInputType`
+- 新增 `text/types/`：`ITextElement` 等类型定义
+- 新增 `text/StageText.ts`：INPUT 模式 DOM 输入框管理
+
+**InstructionSet 单元测试**
+
+- 新增 `player/InstructionSet.test.ts`，7 个测试用例覆盖指令集核心行为
+
+**版本升级**
+
+- `@heron/core` 版本从 0.2.3 升至 0.2.4
+
+---
 
 ### 0.2.3（2026-04-11）
 

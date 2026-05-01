@@ -1,6 +1,7 @@
 import { StageScaleMode } from '../display/enums/StageScaleMode.js';
 import { Player } from './Player.js';
 import { TouchHandler } from './TouchHandler.js';
+import { Capabilities } from '../system/Capabilities.js';
 
 export interface StageDisplaySize {
 	stageWidth: number;
@@ -73,6 +74,10 @@ export class ScreenAdapter {
 		this._canvas.style.height = size.displayHeight + 'px';
 
 		this._player.updateStageSize(size.stageWidth, size.stageHeight);
+
+		// Sync canvas bounding size into Capabilities for game code to read.
+		Capabilities.boundingClientWidth = size.displayWidth;
+		Capabilities.boundingClientHeight = size.displayHeight;
 
 		// The WebGL renderer maps stage coordinates 1:1 to canvas buffer pixels
 		// (projectionVector = canvasWidth/2, -canvasHeight/2).  To convert a

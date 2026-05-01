@@ -8,7 +8,7 @@ import { Rectangle } from '../../geom/Rectangle.js';
 import { WebGLVertexArrayObject } from './WebGLVertexArrayObject.js';
 import { WebGLDrawCmdManager, DrawCmdType } from './WebGLDrawCmdManager.js';
 import { WebGLProgram } from './WebGLProgram.js';
-import { ShaderLib } from './ShaderLib.js';
+import { ShaderLib, getBlurTier, makeBlurHFrag, makeBlurVFrag } from './ShaderLib.js';
 import { SYM_GL_CONTEXT, SYM_PREMULTIPLIED, SYM_DEFAULT_EMPTY, SYM_SMOOTHING } from './WebGLUtils.js';
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './MultiTextureBatcher.js';
@@ -51,10 +51,17 @@ export class WebGLRenderContext {
 	private readonly _vertexBuffer: WebGLBuffer;
 	private readonly _indexBuffer: WebGLBuffer;
 	private _bindIndices = false;
+	// Track which GPU buffer size is currently allocated so we only re-allocate
+	// when switching between single-texture and multi-texture layouts.
+	private _gpuVertexBufferSize = 0;
 	private _defaultEmptyTexture: WebGLTexture | undefined;
 	private _maxTextureUnits = MultiTextureBatcher.MAX_TEXTURES;
 	private readonly _contextRestoredCallbacks: Array<() => void> = [];
 	private readonly _trackedBitmapDatas: Set<WeakRef<BitmapData>> = new Set();
+
+	// ── Blur FBO pool ─────────────────────────────────────────────────────────
+	// Key: "${width}x${height}", Value: stack of reusable { texture, fbo } pairs.
+	private readonly _blurFboPool = new Map<string, Array<{ texture: WebGLTexture; fbo: WebGLFramebuffer }>>();
 
 	private constructor(canvas: HTMLCanvasElement) {
 		this.surface = canvas;
@@ -81,6 +88,12 @@ export class WebGLRenderContext {
 
 		this.drawCmdManager = new WebGLDrawCmdManager();
 		this._vao = new WebGLVertexArrayObject();
+
+		// Pre-allocate the GPU vertex buffer at maximum single-texture capacity.
+		// bufferSubData will update only the used portion each frame without
+		// triggering a GPU memory reallocation.
+		gl.bufferData(gl.ARRAY_BUFFER, WebGLVertexArrayObject.MAX_VERTEX_BYTES, gl.DYNAMIC_DRAW);
+		this._gpuVertexBufferSize = WebGLVertexArrayObject.MAX_VERTEX_BYTES;
 
 		this.setGlobalCompositeOperation('source-over');
 
@@ -494,6 +507,13 @@ export class WebGLRenderContext {
 	 * blurred result back into the offscreen buffer's FBO so that the caller
 	 * (compositeFilterResult) can composite it onto the parent buffer.
 	 *
+	 * Optimisations vs. the naive approach:
+	 * - FBO pool: temporary textures/framebuffers are reused across frames
+	 *   (keyed by size) to avoid the expensive create/delete cycle on mobile.
+	 * - Dynamic shader tier: the loop bound in the GLSL is a compile-time
+	 *   constant chosen from {4, 8, 16, 32} so the GPU can unroll/optimise it,
+	 *   while still supporting blur radii up to 32 px.
+	 *
 	 * NOTE: This method does NOT restore the parent buffer's FBO — the caller
 	 * is responsible for activating the correct destination FBO before the
 	 * final composite draw.
@@ -507,24 +527,45 @@ export class WebGLRenderContext {
 	): void {
 		const gl = this.gl;
 
-		// ── Create a temporary FBO for the horizontal pass output ─────────────
-		const tmpTex = gl.createTexture()!;
-		gl.bindTexture(gl.TEXTURE_2D, tmpTex);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		// ── Acquire a temporary FBO from the pool (or create a new one) ───────
+		const poolKey = `${w}x${h}`;
+		let pool = this._blurFboPool.get(poolKey);
+		if (!pool) {
+			pool = [];
+			this._blurFboPool.set(poolKey, pool);
+		}
 
-		const tmpFbo = gl.createFramebuffer()!;
-		gl.bindFramebuffer(gl.FRAMEBUFFER, tmpFbo);
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tmpTex, 0);
+		let tmpEntry = pool.pop();
+		if (!tmpEntry) {
+			const tmpTex = gl.createTexture()!;
+			gl.bindTexture(gl.TEXTURE_2D, tmpTex);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+			const tmpFbo = gl.createFramebuffer()!;
+			gl.bindFramebuffer(gl.FRAMEBUFFER, tmpFbo);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tmpTex, 0);
+
+			tmpEntry = { texture: tmpTex, fbo: tmpFbo };
+		}
+
+		// Clear the temporary FBO before use.
+		gl.bindFramebuffer(gl.FRAMEBUFFER, tmpEntry.fbo);
 		gl.viewport(0, 0, w, h);
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
+		// ── Select shader tier based on actual blur radius ────────────────────
+		const hTier = getBlurTier(filter.blurX);
+		const vTier = getBlurTier(filter.blurY);
+		const hKey = `blur_h_${hTier}`;
+		const vKey = `blur_v_${vTier}`;
+
 		// ── Pass 1: horizontal blur → tmpFbo ──────────────────────────────────
-		const hProg = WebGLProgram.get(gl, ShaderLib.default_vert, ShaderLib.blur_h_frag, 'blur_h');
+		const hProg = WebGLProgram.get(gl, ShaderLib.default_vert, makeBlurHFrag(hTier), hKey);
 		this._drawFullscreenQuad(hProg, texture, w, h, prog => {
 			const uBlurX = prog.uniforms['blurX'];
 			const uSize = prog.uniforms['uTextureSize'];
@@ -536,17 +577,16 @@ export class WebGLRenderContext {
 		buffer.rootRenderTarget.activate();
 		this.onResize(w, h);
 
-		const vProg = WebGLProgram.get(gl, ShaderLib.default_vert, ShaderLib.blur_v_frag, 'blur_v');
-		this._drawFullscreenQuad(vProg, tmpTex, w, h, prog => {
+		const vProg = WebGLProgram.get(gl, ShaderLib.default_vert, makeBlurVFrag(vTier), vKey);
+		this._drawFullscreenQuad(vProg, tmpEntry.texture, w, h, prog => {
 			const uBlurY = prog.uniforms['blurY'];
 			const uSize = prog.uniforms['uTextureSize'];
 			if (uBlurY) gl.uniform1f(uBlurY, filter.blurY);
 			if (uSize) gl.uniform2f(uSize, w, h);
 		});
 
-		// ── Cleanup ───────────────────────────────────────────────────────────
-		gl.deleteFramebuffer(tmpFbo);
-		gl.deleteTexture(tmpTex);
+		// ── Return the temporary FBO to the pool ──────────────────────────────
+		pool.push(tmpEntry);
 	}
 
 	/**
@@ -655,6 +695,9 @@ export class WebGLRenderContext {
 		gl.bindBuffer(gl.ARRAY_BUFFER, this._vertexBuffer);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this._indexBuffer);
 
+		// Re-allocate the GPU vertex buffer after context loss.
+		gl.bufferData(gl.ARRAY_BUFFER, this._gpuVertexBufferSize, gl.DYNAMIC_DRAW);
+
 		// Clear the shader program cache — all programs are invalid after context loss.
 		WebGLProgram.clearCache();
 
@@ -666,6 +709,9 @@ export class WebGLRenderContext {
 
 		// The default empty texture is also lost.
 		this._defaultEmptyTexture = undefined;
+
+		// All blur FBO pool entries are invalid after context loss — discard them.
+		this._blurFboPool.clear();
 
 		// Invalidate all cached WebGL textures on BitmapData instances.
 		// After context loss every WebGLTexture handle is invalid; clearing the
@@ -693,10 +739,22 @@ export class WebGLRenderContext {
 		const cmds = this.drawCmdManager;
 		const vao = this._vao;
 
-		if (vao.getVertices().length === 0 && cmds.drawDataLen === 0) return;
+		if (vao.getVerticesByteLength() === 0 && cmds.drawDataLen === 0) return;
 
-		// Upload vertices
-		gl.bufferData(gl.ARRAY_BUFFER, vao.getVertices(), gl.STREAM_DRAW);
+		// Upload only the vertices written this frame.
+		// If the batch switched to multi-texture layout the GPU buffer may need
+		// to grow (multi stride is 24B vs 20B for single); re-allocate once.
+		const neededBytes = vao.getVerticesByteLength();
+		if (neededBytes > 0) {
+			if (neededBytes > this._gpuVertexBufferSize) {
+				// Grow: re-allocate at the new maximum capacity.
+				const newSize = WebGLVertexArrayObject.MAX_MULTI_VERTEX_BYTES;
+				gl.bufferData(gl.ARRAY_BUFFER, newSize, gl.DYNAMIC_DRAW);
+				this._gpuVertexBufferSize = newSize;
+			}
+			// Upload only the used portion — no GPU memory reallocation.
+			gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Uint8Array(vao.getVerticesBuffer(), 0, neededBytes));
+		}
 		if (!this._bindIndices) {
 			gl.bufferData(
 				gl.ELEMENT_ARRAY_BUFFER,

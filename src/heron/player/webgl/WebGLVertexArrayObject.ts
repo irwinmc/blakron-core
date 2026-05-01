@@ -16,6 +16,16 @@ const MAX_VERTS = MAX_QUADS * 4;
 const MAX_INDICES = MAX_QUADS * 6;
 
 export class WebGLVertexArrayObject {
+	// ── Static fields ─────────────────────────────────────────────────────────
+
+	/** Maximum byte size of the vertex buffer (single-texture layout). */
+	public static readonly MAX_VERTEX_BYTES: number = MAX_VERTS * VERT_BYTE_SIZE;
+
+	/** Maximum byte size of the multi-texture vertex buffer. */
+	public static readonly MAX_MULTI_VERTEX_BYTES: number = MAX_VERTS * MULTI_VERT_BYTE_SIZE;
+
+	// ── Instance fields ───────────────────────────────────────────────────────
+
 	// Single-texture buffer
 	private readonly _buffer: ArrayBuffer;
 	private readonly _float32: Float32Array;
@@ -68,6 +78,17 @@ export class WebGLVertexArrayObject {
 			return this._multiFloat32.subarray(0, this._vertexIndex * MULTI_VERT_SIZE);
 		}
 		return this._float32.subarray(0, this._vertexIndex * VERT_SIZE);
+	}
+
+	public getVerticesByteLength(): number {
+		if (this._isMulti) {
+			return this._vertexIndex * MULTI_VERT_BYTE_SIZE;
+		}
+		return this._vertexIndex * VERT_BYTE_SIZE;
+	}
+
+	public getVerticesBuffer(): ArrayBuffer {
+		return this._isMulti ? this._multiBuffer : this._buffer;
 	}
 
 	public getIndices(): Uint16Array {

@@ -11,6 +11,7 @@ import { setupLifecycle } from './SystemTicker.js';
 import { CanvasRenderer } from './CanvasRenderer.js';
 import { RenderBuffer } from './RenderBuffer.js';
 import type { HeronOptions } from './HeronOptions.js';
+import { Capabilities } from '../system/Capabilities.js';
 
 export interface HeronApp {
 	player: Player;
@@ -41,6 +42,9 @@ export interface HeronApp {
  * ```
  */
 export function createPlayer(options: HeronOptions): HeronApp {
+	// Detect runtime environment once per session.
+	Capabilities._init();
+
 	// Wire up RenderTexture renderer once on first call
 	if (!RenderTexture.renderer) {
 		const _renderer = new CanvasRenderer();

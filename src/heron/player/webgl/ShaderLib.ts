@@ -95,6 +95,7 @@ void main() {
 
 	// Horizontal blur pass for ping-pong two-pass Gaussian blur.
 	// Samples along the X axis only; blurX is the radius in pixels.
+	// Radius is hardcoded to 8 (legacy fallback, kept for reference).
 	blur_h_frag: /* glsl */ `
 precision mediump float;
 uniform float blurX;
@@ -105,7 +106,6 @@ void main() {
     float step = 1.0 / uTextureSize.x;
     vec4 color = vec4(0.0);
     float total = 0.0;
-    int radius = int(blurX + 0.5);
     for (int i = -8; i <= 8; i++) {
         if (abs(float(i)) > blurX) continue;
         float weight = 1.0 - abs(float(i)) / (blurX + 1.0);
@@ -117,6 +117,7 @@ void main() {
 
 	// Vertical blur pass for ping-pong two-pass Gaussian blur.
 	// Samples along the Y axis only; blurY is the radius in pixels.
+	// Radius is hardcoded to 8 (legacy fallback, kept for reference).
 	blur_v_frag: /* glsl */ `
 precision mediump float;
 uniform float blurY;
@@ -127,7 +128,6 @@ void main() {
     float step = 1.0 / uTextureSize.y;
     vec4 color = vec4(0.0);
     float total = 0.0;
-    int radius = int(blurY + 0.5);
     for (int i = -8; i <= 8; i++) {
         if (abs(float(i)) > blurY) continue;
         float weight = 1.0 - abs(float(i)) / (blurY + 1.0);
@@ -209,3 +209,73 @@ void main(void) {
     gl_FragColor = vColor * vec4(locColor.rgb * locColor.a, locColor.a);
 }`,
 } as const;
+
+// ── Dynamic blur shader generation ───────────────────────────────────────────
+
+/**
+ * Blur radius tiers. Each tier generates a dedicated shader variant with a
+ * loop bound matching the tier value, avoiding the WebGL1 limitation where
+ * loop bounds must be compile-time constants.
+ *
+ * Tier selection: pick the smallest tier >= ceil(blurValue).
+ * e.g. blurX=5 → tier 8, blurX=12 → tier 16, blurX=25 → tier 32.
+ */
+export const BLUR_TIERS = [4, 8, 16, 32] as const;
+export type BlurTier = (typeof BLUR_TIERS)[number];
+
+/** Returns the smallest tier that can accommodate the given blur radius. */
+export function getBlurTier(radius: number): BlurTier {
+	for (const tier of BLUR_TIERS) {
+		if (radius <= tier) return tier;
+	}
+	return 32;
+}
+
+/**
+ * Generates a horizontal blur fragment shader for the given radius tier.
+ * The loop bound is a compile-time constant so it is valid in WebGL1 GLSL.
+ */
+export function makeBlurHFrag(tier: BlurTier): string {
+	return /* glsl */ `
+precision mediump float;
+uniform float blurX;
+uniform sampler2D uSampler;
+varying vec2 vTextureCoord;
+uniform vec2 uTextureSize;
+void main() {
+    float step = 1.0 / uTextureSize.x;
+    vec4 color = vec4(0.0);
+    float total = 0.0;
+    for (int i = -${tier}; i <= ${tier}; i++) {
+        if (abs(float(i)) > blurX) continue;
+        float weight = 1.0 - abs(float(i)) / (blurX + 1.0);
+        color += texture2D(uSampler, vTextureCoord + vec2(float(i) * step, 0.0)) * weight;
+        total += weight;
+    }
+    gl_FragColor = color / total;
+}`;
+}
+
+/**
+ * Generates a vertical blur fragment shader for the given radius tier.
+ */
+export function makeBlurVFrag(tier: BlurTier): string {
+	return /* glsl */ `
+precision mediump float;
+uniform float blurY;
+uniform sampler2D uSampler;
+varying vec2 vTextureCoord;
+uniform vec2 uTextureSize;
+void main() {
+    float step = 1.0 / uTextureSize.y;
+    vec4 color = vec4(0.0);
+    float total = 0.0;
+    for (int i = -${tier}; i <= ${tier}; i++) {
+        if (abs(float(i)) > blurY) continue;
+        float weight = 1.0 - abs(float(i)) / (blurY + 1.0);
+        color += texture2D(uSampler, vTextureCoord + vec2(0.0, float(i) * step)) * weight;
+        total += weight;
+    }
+    gl_FragColor = color / total;
+}`;
+}
