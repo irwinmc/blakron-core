@@ -1,4 +1,4 @@
-# @heron/core 迁移状态
+# @blakron/core 迁移状态
 
 > 更新日期：2026-05-01
 
@@ -56,10 +56,10 @@
 
 | 模块                       | 包名                   | 说明                               | 工作量估算 |
 | -------------------------- | ---------------------- | ---------------------------------- | ---------- |
-| `extension/tween/`         | `@heron/tween`         | Tween + Ease，补间动画             | ~2天       |
-| `extension/game/`          | `@heron/game`          | MovieClip / ScrollView / URLLoader | ~5天       |
-| `extension/assetsmanager/` | `@heron/assetsmanager` | 资源管理器，分组加载               | ~5天       |
-| `extension/eui/`           | `@heron/eui`           | 完整 UI 组件框架（~60 文件）       | ~20天      |
+| `extension/tween/`         | `@blakron/tween`         | Tween + Ease，补间动画             | ~2天       |
+| `extension/game/`          | `@blakron/game`          | MovieClip / ScrollView / URLLoader | ~5天       |
+| `extension/assetsmanager/` | `@blakron/assetsmanager` | 资源管理器，分组加载               | ~5天       |
+| `extension/eui/`           | `@blakron/eui`           | 完整 UI 组件框架（~60 文件）       | ~20天      |
 | `utils/XML`                | 随 exml-parser 实现    | DOMParser 简化实现                 | —          |
 
 ---

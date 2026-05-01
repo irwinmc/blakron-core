@@ -26,7 +26,7 @@ export class Capabilities {
 	 */
 	public static renderMode: string = 'unknown';
 
-	/** Heron engine version, injected at build time via package.json. */
+	/** Blakron engine version, injected at build time via package.json. */
 	public static readonly engineVersion: string = '0.2.4';
 
 	/**

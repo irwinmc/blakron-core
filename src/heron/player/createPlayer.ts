@@ -10,10 +10,10 @@ import { ScreenAdapter } from './ScreenAdapter.js';
 import { setupLifecycle } from './SystemTicker.js';
 import { CanvasRenderer } from './CanvasRenderer.js';
 import { RenderBuffer } from './RenderBuffer.js';
-import type { HeronOptions } from './HeronOptions.js';
+import type { BlakronOptions } from './BlakronOptions.js';
 import { Capabilities } from '../system/Capabilities.js';
 
-export interface HeronApp {
+export interface BlakronApp {
 	player: Player;
 	stage: Stage;
 	touchHandler: TouchHandler;
@@ -27,7 +27,7 @@ export interface HeronApp {
  * This is the main entry point for starting a Heron application.
  *
  * ```ts
- * import { createPlayer, Sprite } from '@heron/core';
+ * import { createPlayer, Sprite } from '@blakron/core';
  *
  * const app = createPlayer({
  *   canvas: document.getElementById('gameCanvas') as HTMLCanvasElement,
@@ -41,7 +41,7 @@ export interface HeronApp {
  * app.start(root);
  * ```
  */
-export function createPlayer(options: HeronOptions): HeronApp {
+export function createPlayer(options: BlakronOptions): BlakronApp {
 	// Detect runtime environment once per session.
 	Capabilities._init();
 

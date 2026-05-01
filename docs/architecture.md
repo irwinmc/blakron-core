@@ -1,4 +1,4 @@
-# Heron Core 架构文档
+# Blakron Core 架构文档
 
 > 版本：0.2.4 | 更新日期：2026-05-01
 
@@ -6,7 +6,7 @@
 
 ## 一、项目概述
 
-Heron 是对 Egret 游戏引擎的现代化翻新。在保持与 Egret 对外 API 一致性的前提下，
+Blakron 是对 Egret 游戏引擎的现代化翻新。在保持与 Egret 对外 API 一致性的前提下，
 完成了模块系统现代化、类型安全升级、渲染架构重构三大目标。
 
 | 指标     | 旧 Egret                    | Heron                                     |
@@ -18,7 +18,7 @@ Heron 是对 Egret 游戏引擎的现代化翻新。在保持与 Egret 对外 AP
 | 编译目标 | ES5/ES3                     | ES2022                                    |
 | 渲染架构 | RenderNode 三阶段           | InstructionSet 指令驱动（借鉴 Pixi.js 8） |
 | 批处理   | 同纹理合并                  | 多纹理批处理（8张/批）                    |
-| 包管理   | 无 package.json（monolith） | `@heron/core` workspace 包                |
+| 包管理   | 无 package.json（monolith） | `@blakron/core` workspace 包                |
 
 ---
 
@@ -50,7 +50,7 @@ packages/core/src/heron/
 │   ├── TouchHandler.ts           # 触摸/鼠标输入
 │   ├── ScreenAdapter.ts          # 屏幕适配（7种缩放模式）
 │   ├── createPlayer.ts           # 统一创建入口
-│   ├── HeronOptions.ts           # 配置接口
+│   ├── BlakronOptions.ts           # 配置接口
 │   ├── pipes/                    # RenderPipe 实现
 │   │   ├── BitmapPipe.ts
 │   │   ├── GraphicsPipe.ts
@@ -250,7 +250,7 @@ Canvas 2D 渲染器保持直接遍历模式，作为 WebGL 不可用时的降级
 ### `createPlayer(options)`
 
 ```typescript
-import { createPlayer, Event } from '@heron/core';
+import { createPlayer, Event } from '@blakron/core';
 
 const app = createPlayer({
 	canvas: document.getElementById('game-canvas') as HTMLCanvasElement,
@@ -263,7 +263,7 @@ const app = createPlayer({
 app.start(root);
 ```
 
-### HeronOptions
+### BlakronOptions
 
 | 属性            | 类型                | 默认值          | 说明         |
 | --------------- | ------------------- | --------------- | ------------ |
@@ -276,7 +276,7 @@ app.start(root);
 | `maxTouches`    | `number`            | `99`            | 最大触点数   |
 | `background`    | `string`            | —               | CSS 背景色   |
 
-### HeronApp 返回值
+### BlakronApp 返回值
 
 | 属性            | 类型            | 说明          |
 | --------------- | --------------- | ------------- |
@@ -407,10 +407,10 @@ packages/cli/
 └── templates/game/           # 项目模板
 ```
 
-`heron.config.ts` 替代旧的 `egretProperties.json` + `index.html data-*`：
+`blakron.config.ts` 替代旧的 `egretProperties.json` + `index.html data-*`：
 
 ```typescript
-import { defineConfig } from '@heron/cli';
+import { defineConfig } from '@blakron/cli';
 export default defineConfig({
 	target: 'html5',
 	entry: 'src/Main.ts',
@@ -422,8 +422,8 @@ export default defineConfig({
 | --------- | ----------------------------------------- | ------------------------- |
 | CLI 框架  | 手写参数解析                              | commander.js              |
 | TS 编译器 | typescript-plus（魔改 tsc）               | esbuild                   |
-| 配置文件  | egretProperties.json + index.html data-\* | heron.config.ts           |
-| EXML 编译 | 内嵌在 tools/lib/eui/                     | 独立包 @heron/exml-parser |
+| 配置文件  | egretProperties.json + index.html data-\* | blakron.config.ts           |
+| EXML 编译 | 内嵌在 tools/lib/eui/                     | 独立包 @blakron/exml-parser |
 | 模块系统  | CommonJS                                  | ESM                       |
 
 ---
@@ -450,7 +450,7 @@ export default defineConfig({
 
 **版本升级**
 
-- `@heron/core` 版本从 0.2.3 升至 0.2.4
+- `@blakron/core` 版本从 0.2.3 升至 0.2.4
 
 ---
 

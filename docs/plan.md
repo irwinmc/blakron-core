@@ -1,4 +1,4 @@
-# Heron Core 开发计划
+# Blakron Core 开发计划
 
 > 更新日期：2026-05-01
 > 基于老框架（reference/old-src）全量对比 + 当前代码审查
@@ -110,7 +110,7 @@ TextPipe 已实现 WebGL 文本渲染（offscreen canvas 光栅化 → 纹理上
 - `_init()` 在 `createPlayer` 启动时调用，通过 `navigator.userAgent` 检测 `os / isMobile / language`
 - `boundingClientWidth/Height` 由 `ScreenAdapter.updateScreenSize()` 在每次 resize 时同步
 - `renderMode` 由 `Player` 初始化后写入（`"webgl"` 或 `"canvas"`）
-- 通过 `src/index.ts` 导出，游戏代码直接 `import { Capabilities } from '@heron/core'`
+- 通过 `src/index.ts` 导出，游戏代码直接 `import { Capabilities } from '@blakron/core'`
 
 ---
 
@@ -118,7 +118,7 @@ TextPipe 已实现 WebGL 文本渲染（offscreen canvas 光栅化 → 纹理上
 
 **现状**：老框架 `egret.XML.parse()` 将字符串解析为 XML 节点树，主要供 EXML 解析和资源配置文件解析使用。核心引擎不依赖此模块。
 
-**方案**：使用浏览器原生 `DOMParser` 简化实现，不需要完整移植。随 `@heron/exml-parser` 扩展包一起实现。
+**方案**：使用浏览器原生 `DOMParser` 简化实现，不需要完整移植。随 `@blakron/exml-parser` 扩展包一起实现。
 
 **参考**：`reference/old-src/src/egret/utils/XML.ts`、`reference/old-src/src/egret/web/WebXML.ts`
 
@@ -144,7 +144,7 @@ KTX / ASTC / ETC2 格式。减少 GPU 显存占用和加载时间。老框架有
 
 > 以下模块均来自老框架 `reference/old-src/src/extension/`，规模较大，需独立 package。
 
-### `@heron/tween` — 补间动画
+### `@blakron/tween` — 补间动画
 
 **老框架规模**：`Tween.ts`（~500 行）+ `Ease.ts`（~300 行）+ `TweenWrapper.ts`
 
@@ -156,7 +156,7 @@ KTX / ASTC / ETC2 格式。减少 GPU 显存占用和加载时间。老框架有
 
 ---
 
-### `@heron/game` — 游戏扩展
+### `@blakron/game` — 游戏扩展
 
 **老框架规模**：
 
@@ -178,7 +178,7 @@ KTX / ASTC / ETC2 格式。减少 GPU 显存占用和加载时间。老框架有
 
 ---
 
-### `@heron/assetsmanager` — 资源管理器
+### `@blakron/assetsmanager` — 资源管理器
 
 **老框架规模**：
 
@@ -194,7 +194,7 @@ KTX / ASTC / ETC2 格式。减少 GPU 显存占用和加载时间。老框架有
 
 ---
 
-### `@heron/eui` — UI 组件框架
+### `@blakron/eui` — UI 组件框架
 
 **老框架规模**：~60 文件，包含：
 
@@ -204,9 +204,9 @@ KTX / ASTC / ETC2 格式。减少 GPU 显存占用和加载时间。老框架有
 - `collections/`：ArrayCollection、ICollection
 - `states/`：State、AddItems、SetProperty（皮肤状态机）
 - `core/`：UIComponent、Validator、Theme、IViewport 等
-- `exml/`：EXMLParser、EXMLConfig、CodeFactory（依赖 `@heron/exml-parser`）
+- `exml/`：EXMLParser、EXMLConfig、CodeFactory（依赖 `@blakron/exml-parser`）
 
-**依赖**：`@heron/core`（全量）+ `@heron/exml-parser`（皮肤解析）
+**依赖**：`@blakron/core`（全量）+ `@blakron/exml-parser`（皮肤解析）
 
 **工作量估算**：极大（~20天），是所有扩展中最复杂的，建议最后实现。
 
@@ -249,9 +249,9 @@ KTX / ASTC / ETC2 格式。减少 GPU 显存占用和加载时间。老框架有
 | `egret/i18n/`                  | 🚫 不做               | 不做国际化框架                                   |
 | `egret/sensor/`                | 🚫 不做               | 传感器 API                                       |
 | `egret/3d/`                    | 🚫 独立处理           |                                                  |
-| `extension/tween/`             | ⬜ 后续分包           | `@heron/tween`                                   |
-| `extension/game/`              | ⬜ 后续分包           | `@heron/game`（MovieClip/ScrollView/URLLoader）  |
-| `extension/assetsmanager/`     | ⬜ 后续分包           | `@heron/assetsmanager`                           |
-| `extension/eui/`               | ⬜ 后续分包           | `@heron/eui`（最复杂，最后实现）                 |
+| `extension/tween/`             | ⬜ 后续分包           | `@blakron/tween`                                   |
+| `extension/game/`              | ⬜ 后续分包           | `@blakron/game`（MovieClip/ScrollView/URLLoader）  |
+| `extension/assetsmanager/`     | ⬜ 后续分包           | `@blakron/assetsmanager`                           |
+| `extension/eui/`               | ⬜ 后续分包           | `@blakron/eui`（最复杂，最后实现）                 |
 | `extension/socket/`            | 🚫 不做               | 直接用浏览器原生 WebSocket                       |
 | `extension/resource/`          | ⬜ 后续               | 由 assetsmanager 替代                            |

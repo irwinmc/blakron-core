@@ -1,5 +1,5 @@
 {
-	"name": "@heron/core",
+	"name": "@blakron/core",
 	"version": "0.2.4",
 	"description": "Modern rewrite of the Egret game engine — WebGL multi-texture batching, instruction-driven render pipeline, strict TypeScript, Egret-compatible API",
 	"author": "",
@@ -39,7 +39,7 @@
 		"vitest": "^4.1.4"
 	},
 	"keywords": [
-		"heron",
+		"blakron",
 		"h5-game",
 		"webgl",
 		"webgpu",
@@ -47,7 +47,7 @@
 	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/irwinmc/Heron.git"
+		"url": "https://github.com/irwinmc/blakron-core.git"
 	},
 	"packageManager": "pnpm@10.33.0"
 }
