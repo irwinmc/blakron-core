@@ -9,7 +9,7 @@
 Blakron 是对 Egret 游戏引擎的现代化翻新。在保持与 Egret 对外 API 一致性的前提下，
 完成了模块系统现代化、类型安全升级、渲染架构重构三大目标。
 
-| 指标     | 旧 Egret                    | Heron                                     |
+| 指标     | 旧 Egret                    | Blakron                                   |
 | -------- | --------------------------- | ----------------------------------------- |
 | 源文件数 | 166                         | ~97                                       |
 | 代码行数 | 42,340                      | ~13,000                                   |
@@ -18,14 +18,14 @@ Blakron 是对 Egret 游戏引擎的现代化翻新。在保持与 Egret 对外 
 | 编译目标 | ES5/ES3                     | ES2022                                    |
 | 渲染架构 | RenderNode 三阶段           | InstructionSet 指令驱动（借鉴 Pixi.js 8） |
 | 批处理   | 同纹理合并                  | 多纹理批处理（8张/批）                    |
-| 包管理   | 无 package.json（monolith） | `@blakron/core` workspace 包                |
+| 包管理   | 无 package.json（monolith） | `@blakron/core` workspace 包              |
 
 ---
 
 ## 二、模块结构
 
 ```
-packages/core/src/heron/
+packages/core/src/blakron/
 ├── display/          # 显示对象层（场景图）
 │   ├── DisplayObject.ts          # 基类，含 renderDirty/cacheDirty/renderMode
 │   ├── DisplayObjectContainer.ts # 容器，含 isRenderGroup
@@ -100,7 +100,7 @@ Phase B — Execute（每帧）:
   按指令顺序分发到 Pipe → 无场景图遍历
 ```
 
-| 设计点   | Egret RenderNode             | Heron InstructionSet                           | Pixi.js 8                                        |
+| 设计点   | Egret RenderNode             | Blakron InstructionSet                         | Pixi.js 8                                        |
 | -------- | ---------------------------- | ---------------------------------------------- | ------------------------------------------------ |
 | 中间表示 | RenderNode 树                | 扁平 Instruction 数组                          | 扁平 Instruction 数组                            |
 | 缓存粒度 | 每个 DisplayObject 一个 Node | 整棵树/RenderGroup 一个 Set                    | 每个 RenderGroup 一个                            |
@@ -143,7 +143,7 @@ backgroundLayer.isRenderGroup = true;
   Bitmap B (tex2) → drawCall 2
   Bitmap C (tex1) → drawCall 3
 
-Heron：一个 drawCall 绑定多张纹理
+Blakron：一个 drawCall 绑定多张纹理
   Bitmap A (tex1, slot 0) ─┐
   Bitmap B (tex2, slot 1)  ├→ drawCall 1
   Bitmap C (tex1, slot 0) ─┘
@@ -418,13 +418,13 @@ export default defineConfig({
 });
 ```
 
-| 维度      | 旧 Egret                                  | Heron                     |
-| --------- | ----------------------------------------- | ------------------------- |
-| CLI 框架  | 手写参数解析                              | commander.js              |
-| TS 编译器 | typescript-plus（魔改 tsc）               | esbuild                   |
+| 维度      | 旧 Egret                                  | Blakron                     |
+| --------- | ----------------------------------------- | --------------------------- |
+| CLI 框架  | 手写参数解析                              | commander.js                |
+| TS 编译器 | typescript-plus（魔改 tsc）               | esbuild                     |
 | 配置文件  | egretProperties.json + index.html data-\* | blakron.config.ts           |
 | EXML 编译 | 内嵌在 tools/lib/eui/                     | 独立包 @blakron/exml-parser |
-| 模块系统  | CommonJS                                  | ESM                       |
+| 模块系统  | CommonJS                                  | ESM                         |
 
 ---
 

@@ -454,7 +454,7 @@
 
 			// ── Test 7: Gradient fill ───────────────────────────────────────────
 			const gradient = new Shape();
-			const gm = new (await import('../src/heron/geom/Matrix.js')).Matrix();
+			const gm = new (await import('../src/blakron/geom/Matrix.js')).Matrix();
 			gm.createGradientBox(100, 60, 0, 0, 0);
 			gradient.graphics.beginGradientFill('linear', [0xff0000, 0x0000ff], [1, 1], [0, 255], gm);
 			gradient.graphics.drawRect(0, 0, 100, 60);
@@ -571,8 +571,8 @@
 			animated.x = 20;
 			animated.y = 380;
 			root.addChild(animated);
-			const { Event: HeronEvent } = await import('../src/heron/events/Event.js');
-			animated.addEventListener(HeronEvent.ENTER_FRAME, () => {
+			const { Event: BlakronEvent } = await import('../src/blakron/events/Event.js');
+			animated.addEventListener(BlakronEvent.ENTER_FRAME, () => {
 				frame++;
 				animated.x = 20 + Math.sin(frame * 0.05) * 100;
 			});

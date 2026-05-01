@@ -1,8 +1,8 @@
 /** Symbol keys stored on WebGLTexture objects. */
-export const SYM_GL_CONTEXT = '__heronGlContext';
-export const SYM_PREMULTIPLIED = '__heronPremultiplied';
-export const SYM_DEFAULT_EMPTY = '__heronDefaultEmpty';
-export const SYM_SMOOTHING = '__heronSmoothing';
+export const SYM_GL_CONTEXT = '__blakronGlContext';
+export const SYM_PREMULTIPLIED = '__blakronPremultiplied';
+export const SYM_DEFAULT_EMPTY = '__blakronDefaultEmpty';
+export const SYM_SMOOTHING = '__blakronSmoothing';
 
 export function compileShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader {
 	const shader = gl.createShader(type)!;

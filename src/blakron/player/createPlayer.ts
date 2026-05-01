@@ -23,8 +23,8 @@ export interface BlakronApp {
 }
 
 /**
- * Creates and initializes a Heron player from the given options.
- * This is the main entry point for starting a Heron application.
+ * Creates and initializes a Blakron player from the given options.
+ * This is the main entry point for starting a Blakron application.
  *
  * ```ts
  * import { createPlayer, Sprite } from '@blakron/core';

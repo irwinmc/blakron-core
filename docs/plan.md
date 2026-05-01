@@ -105,7 +105,7 @@ TextPipe 已实现 WebGL 文本渲染（offscreen canvas 光栅化 → 纹理上
 
 ### ~~`system/Capabilities` — 系统能力检测~~ ✅ 已完成
 
-新增 `packages/core/src/heron/system/Capabilities.ts`：
+新增 `packages/core/src/blakron/system/Capabilities.ts`：
 
 - `_init()` 在 `createPlayer` 启动时调用，通过 `navigator.userAgent` 检测 `os / isMobile / language`
 - `boundingClientWidth/Height` 由 `ScreenAdapter.updateScreenSize()` 在每次 resize 时同步
@@ -230,28 +230,28 @@ KTX / ASTC / ETC2 格式。减少 GPU 显存占用和加载时间。老框架有
 
 ## 老框架对比总结
 
-| 老框架模块                     | Heron 状态            | 说明                                             |
-| ------------------------------ | --------------------- | ------------------------------------------------ |
-| `egret/display/`               | ✅ 完成               | 全量实现，API 兼容                               |
-| `egret/events/`                | ✅ 完成               | 12 个事件类，移除 Geolocation/Motion/Orientation |
-| `egret/geom/`                  | ✅ 完成               | Matrix/Point/Rectangle + 对象池                  |
-| `egret/filters/`               | ✅ 完成               | 新增 CustomFilter                                |
-| `egret/net/`                   | ✅ 完成               | HttpRequest/ImageLoader                          |
-| `egret/media/`                 | ✅ 完成               | Sound/SoundChannel/Video                         |
-| `egret/text/`                  | ✅ 完成               | 含 TextPipe WebGL 渲染                           |
-| `egret/utils/`                 | ✅ 完成（部分不需要） | 移除反射类，新增 FontManager/DebugLog            |
-| `egret/localStorage/`          | ✅ 完成               |                                                  |
-| `egret/external/`              | ✅ 完成               |                                                  |
-| `egret/player/` + `egret/web/` | ✅ 完成（已重构）     | InstructionSet 替代 RenderNode                   |
-| `egret/system/Capabilities`    | ✅ 完成               | Web 简化实现，`createPlayer` 初始化时检测        |
-| `egret/utils/XML`              | ⬜ 缺失               | 随 exml-parser 实现                              |
-| `egret/player/FPSDisplay`      | 🚫 不做               | Player.perf 替代                                 |
-| `egret/i18n/`                  | 🚫 不做               | 不做国际化框架                                   |
-| `egret/sensor/`                | 🚫 不做               | 传感器 API                                       |
-| `egret/3d/`                    | 🚫 独立处理           |                                                  |
-| `extension/tween/`             | ⬜ 后续分包           | `@blakron/tween`                                   |
-| `extension/game/`              | ⬜ 后续分包           | `@blakron/game`（MovieClip/ScrollView/URLLoader）  |
-| `extension/assetsmanager/`     | ⬜ 后续分包           | `@blakron/assetsmanager`                           |
-| `extension/eui/`               | ⬜ 后续分包           | `@blakron/eui`（最复杂，最后实现）                 |
-| `extension/socket/`            | 🚫 不做               | 直接用浏览器原生 WebSocket                       |
-| `extension/resource/`          | ⬜ 后续               | 由 assetsmanager 替代                            |
+| 老框架模块                     | Blakron 状态          | 说明                                              |
+| ------------------------------ | --------------------- | ------------------------------------------------- |
+| `egret/display/`               | ✅ 完成               | 全量实现，API 兼容                                |
+| `egret/events/`                | ✅ 完成               | 12 个事件类，移除 Geolocation/Motion/Orientation  |
+| `egret/geom/`                  | ✅ 完成               | Matrix/Point/Rectangle + 对象池                   |
+| `egret/filters/`               | ✅ 完成               | 新增 CustomFilter                                 |
+| `egret/net/`                   | ✅ 完成               | HttpRequest/ImageLoader                           |
+| `egret/media/`                 | ✅ 完成               | Sound/SoundChannel/Video                          |
+| `egret/text/`                  | ✅ 完成               | 含 TextPipe WebGL 渲染                            |
+| `egret/utils/`                 | ✅ 完成（部分不需要） | 移除反射类，新增 FontManager/DebugLog             |
+| `egret/localStorage/`          | ✅ 完成               |                                                   |
+| `egret/external/`              | ✅ 完成               |                                                   |
+| `egret/player/` + `egret/web/` | ✅ 完成（已重构）     | InstructionSet 替代 RenderNode                    |
+| `egret/system/Capabilities`    | ✅ 完成               | Web 简化实现，`createPlayer` 初始化时检测         |
+| `egret/utils/XML`              | ⬜ 缺失               | 随 exml-parser 实现                               |
+| `egret/player/FPSDisplay`      | 🚫 不做               | Player.perf 替代                                  |
+| `egret/i18n/`                  | 🚫 不做               | 不做国际化框架                                    |
+| `egret/sensor/`                | 🚫 不做               | 传感器 API                                        |
+| `egret/3d/`                    | 🚫 独立处理           |                                                   |
+| `extension/tween/`             | ⬜ 后续分包           | `@blakron/tween`                                  |
+| `extension/game/`              | ⬜ 后续分包           | `@blakron/game`（MovieClip/ScrollView/URLLoader） |
+| `extension/assetsmanager/`     | ⬜ 后续分包           | `@blakron/assetsmanager`                          |
+| `extension/eui/`               | ⬜ 后续分包           | `@blakron/eui`（最复杂，最后实现）                |
+| `extension/socket/`            | 🚫 不做               | 直接用浏览器原生 WebSocket                        |
+| `extension/resource/`          | ⬜ 后续               | 由 assetsmanager 替代                             |

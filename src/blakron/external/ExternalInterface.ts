@@ -1,7 +1,7 @@
 declare global {
 	interface Window {
 		[key: string]: unknown;
-		__heronCallback?: (name: string, value: string) => void;
+		__blakronCallback?: (name: string, value: string) => void;
 	}
 }
 
@@ -20,11 +20,11 @@ export const ExternalInterface = {
 
 	/**
 	 * Registers a callback that can be invoked from the host page via
-	 * `window.__heronCallback(functionName, value)`.
+	 * `window.__blakronCallback(functionName, value)`.
 	 */
 	addCallback(functionName: string, listener: (value: string) => void): void {
 		_callbacks.set(functionName, listener);
-		window.__heronCallback = (name, value) => {
+		window.__blakronCallback = (name, value) => {
 			_callbacks.get(name)?.(value);
 		};
 	},
