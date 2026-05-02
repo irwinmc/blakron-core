@@ -52,13 +52,6 @@ export class ImageAnalyzer extends AnalyzerBase {
 		});
 	}
 
-	/**
-	 * Get a cached Texture by name.
-	 */
-	public override getRes<T = unknown>(name: string): T | undefined {
-		return this.fileDic.get(name) as T | undefined;
-	}
-
 	protected override onResourceDestroy(resource: unknown): void {
 		if (resource instanceof Texture) {
 			resource.dispose();

@@ -35,6 +35,8 @@ interface SheetConfig {
 export class SheetAnalyzer extends AnalyzerBase {
 	/** Texture map for individual sub-textures accessible by subkey */
 	private textureMap: Map<string, Texture> = new Map<string, Texture>();
+	/** Reverse mapping: sheet name → sub-key names */
+	private sheetSubkeys: Map<string, string[]> = new Map<string, string[]>();
 
 	/**
 	 * Load a sheet resource. This involves two steps:
@@ -88,8 +90,21 @@ export class SheetAnalyzer extends AnalyzerBase {
 	public override destroyRes(name: string): boolean {
 		const sheet = this.fileDic.get(name);
 		if (sheet instanceof SpriteSheet) {
+			// Clean up sub-key textures from the texture map
+			const subkeys = this.sheetSubkeys.get(name);
+			if (subkeys) {
+				for (const texName of subkeys) {
+					this.textureMap.delete(texName);
+				}
+				this.sheetSubkeys.delete(name);
+			}
 			this.fileDic.delete(name);
 			sheet.dispose();
+			return true;
+		}
+		// Also support destroying individual sub-textures by name
+		if (this.textureMap.has(name)) {
+			this.textureMap.delete(name);
 			return true;
 		}
 		return false;
@@ -177,6 +192,7 @@ export class SheetAnalyzer extends AnalyzerBase {
 		if (!frames) return;
 
 		const spriteSheet = new SpriteSheet(texture);
+		const subkeys: string[] = [];
 
 		for (const subkey in frames) {
 			const frame = frames[subkey];
@@ -194,8 +210,10 @@ export class SheetAnalyzer extends AnalyzerBase {
 			if (!this.textureMap.has(subkey)) {
 				this.textureMap.set(subkey, subTexture);
 			}
+			subkeys.push(subkey);
 		}
 
+		this.sheetSubkeys.set(name, subkeys);
 		this.fileDic.set(name, spriteSheet);
 	}
 

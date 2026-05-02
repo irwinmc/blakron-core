@@ -184,7 +184,10 @@ export class Resource {
 	 */
 	public destroy(name: string): boolean {
 		for (const analyzer of this.analyzerMap.values()) {
-			if (analyzer.destroyRes(name)) return true;
+			if (analyzer.destroyRes(name)) {
+				this.loadedNames.delete(name);
+				return true;
+			}
 		}
 		return false;
 	}
@@ -342,6 +345,7 @@ export class Resource {
 
 			this.loader.onComplete = (item: ResourceItem): void => {
 				loadedCount++;
+				this.loadedNames.add(item.name);
 				this.emit({
 					type: ResourceEventType.GROUP_PROGRESS,
 					groupName,
