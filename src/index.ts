@@ -10,3 +10,4 @@ export * from './blakron/text/index.js';
 export * from './blakron/system/index.js';
 export * as localStorage from './blakron/localStorage/localStorage.js';
 export { ExternalInterface } from './blakron/external/ExternalInterface.js';
+export * from './blakron/resource/index.js';
