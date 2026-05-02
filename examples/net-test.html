@@ -4,199 +4,17 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Net Test — HttpRequest / ImageLoader</title>
+		<link rel="stylesheet" href="style.css" />
 		<style>
 			:root {
-				--bg: #0a0b14;
-				--bg-deep: #060710;
-				--glass: rgba(255, 255, 255, 0.035);
-				--glass-border: rgba(255, 255, 255, 0.07);
-				--glass-hover: rgba(255, 255, 255, 0.06);
-				--accent: #6c9cff;
-				--success: #4ade80;
-				--warning: #fbbf24;
-				--error: #f87171;
-				--text: #e0e0e8;
-				--text-muted: #8888a0;
-				--text-dim: #55556a;
 				--sidebar-w: 320px;
-			}
-			* {
-				box-sizing: border-box;
-				margin: 0;
-				padding: 0;
-			}
-			body {
-				background: var(--bg);
-				color: var(--text);
-				font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
-				font-size: 12px;
-				display: flex;
-				flex-direction: column;
-				height: 100vh;
-				overflow: hidden;
-			}
-			body::before {
-				content: '';
-				position: fixed;
-				inset: 0;
-				background:
-					radial-gradient(ellipse 600px 400px at 15% 80%, rgba(108, 156, 255, 0.06) 0%, transparent 70%),
-					radial-gradient(ellipse 500px 500px at 85% 20%, rgba(167, 139, 250, 0.04) 0%, transparent 70%);
-				pointer-events: none;
-				z-index: 0;
-			}
-			.header {
-				display: flex;
-				align-items: center;
-				gap: 16px;
-				padding: 0 20px;
-				height: 48px;
-				border-bottom: 1px solid var(--glass-border);
-				background: rgba(10, 11, 20, 0.85);
-				backdrop-filter: blur(20px);
-				flex-shrink: 0;
-				position: relative;
-				z-index: 10;
-			}
-			.back-link {
-				display: flex;
-				align-items: center;
-				gap: 6px;
-				color: var(--text-muted);
-				text-decoration: none;
-				font-size: 12px;
-				padding: 4px 10px;
-				border-radius: 6px;
-				border: 1px solid transparent;
-				transition: all 0.2s;
-			}
-			.back-link:hover {
-				color: var(--accent);
-				border-color: var(--glass-border);
-				background: var(--glass);
-			}
-			.page-title {
-				font-size: 13px;
-				font-weight: 600;
-				color: var(--text);
-			}
-
-			.main {
-				display: flex;
-				flex: 1;
-				overflow: hidden;
-				position: relative;
-				z-index: 1;
-			}
-			.sidebar {
-				width: var(--sidebar-w);
-				flex-shrink: 0;
-				border-right: 1px solid var(--glass-border);
-				background: rgba(10, 11, 20, 0.5);
-				backdrop-filter: blur(12px);
-				overflow-y: auto;
-				padding: 14px;
-				display: flex;
-				flex-direction: column;
-				gap: 10px;
-			}
-			.sidebar::-webkit-scrollbar {
-				width: 4px;
-			}
-			.sidebar::-webkit-scrollbar-track {
-				background: transparent;
-			}
-			.sidebar::-webkit-scrollbar-thumb {
-				background: rgba(255, 255, 255, 0.08);
-				border-radius: 4px;
-			}
-
-			.glass-card {
-				background: var(--glass);
-				border: 1px solid var(--glass-border);
-				border-radius: 10px;
-				padding: 12px 14px;
-				backdrop-filter: blur(12px);
-			}
-			.glass-card h3 {
-				font-size: 10px;
-				font-weight: 600;
-				color: var(--text-muted);
-				text-transform: uppercase;
-				letter-spacing: 0.08em;
-				margin-bottom: 10px;
-			}
-			.row {
-				display: flex;
-				align-items: center;
-				gap: 8px;
-				margin-bottom: 6px;
-			}
-			.row:last-child {
-				margin-bottom: 0;
 			}
 			.row label {
 				width: 100px;
-				color: var(--text-muted);
-				flex-shrink: 0;
-				font-size: 11px;
-			}
-			input[type='text'],
-			select,
-			textarea {
-				flex: 1;
-				min-width: 0;
-				background: rgba(255, 255, 255, 0.04);
-				border: 1px solid var(--glass-border);
-				color: var(--text);
-				padding: 4px 8px;
-				border-radius: 6px;
-				font-family: inherit;
-				font-size: 11px;
-				outline: none;
-				transition: border-color 0.2s;
-			}
-			input[type='text']:focus,
-			select:focus,
-			textarea:focus {
-				border-color: var(--accent);
 			}
 			textarea {
-				resize: vertical;
 				min-height: 60px;
 			}
-			select {
-				cursor: pointer;
-			}
-			select option {
-				background: #1a1b2e;
-				color: var(--text);
-			}
-
-			button {
-				background: rgba(108, 156, 255, 0.08);
-				border: 1px solid rgba(108, 156, 255, 0.15);
-				color: var(--text);
-				padding: 5px 12px;
-				border-radius: 7px;
-				cursor: pointer;
-				font-family: inherit;
-				font-size: 11px;
-				white-space: nowrap;
-				transition: all 0.2s;
-			}
-			button:hover {
-				background: rgba(108, 156, 255, 0.15);
-				border-color: rgba(108, 156, 255, 0.3);
-			}
-			button.danger {
-				border-color: rgba(248, 113, 113, 0.25);
-				color: rgba(248, 113, 113, 0.9);
-			}
-			button.danger:hover {
-				background: rgba(248, 113, 113, 0.12);
-			}
-
 			.progress-bar {
 				height: 4px;
 				background: rgba(255, 255, 255, 0.04);
@@ -219,89 +37,17 @@
 				border-radius: 6px;
 				display: none;
 			}
-
-			/* ── Right: log + response split ─────────────────────────────── */
-			.right-panel {
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-				overflow: hidden;
-			}
 			.log-panel {
 				flex: 1;
-				display: flex;
-				flex-direction: column;
-				overflow: hidden;
-				background: rgba(6, 7, 16, 0.6);
-				backdrop-filter: blur(12px);
+				height: auto;
+				border-top: none;
 			}
 			.log-header {
 				padding: 8px 14px;
-				border-bottom: 1px solid var(--glass-border);
-				display: flex;
-				align-items: center;
-				gap: 10px;
-				flex-shrink: 0;
-			}
-			.log-header span {
-				font-size: 10px;
-				font-weight: 600;
-				color: var(--text-muted);
-				text-transform: uppercase;
-				letter-spacing: 0.08em;
-			}
-			#log {
-				flex: 1;
-				overflow-y: auto;
-				padding: 8px 14px;
-				line-height: 1.7;
-				font-size: 11px;
-			}
-			#log::-webkit-scrollbar {
-				width: 4px;
-			}
-			#log::-webkit-scrollbar-track {
-				background: transparent;
-			}
-			#log::-webkit-scrollbar-thumb {
-				background: rgba(255, 255, 255, 0.06);
-				border-radius: 4px;
-			}
-			.log-entry {
-				display: flex;
-				gap: 10px;
-				padding: 1px 0;
-				border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-			}
-			.log-time {
-				color: var(--text-dim);
-				flex-shrink: 0;
-				width: 60px;
-				font-variant-numeric: tabular-nums;
-			}
-			.log-tag {
-				flex-shrink: 0;
-				width: 72px;
-				font-weight: 600;
 			}
 			.log-msg {
-				color: var(--text-muted);
 				word-break: break-all;
 			}
-			.tag-event {
-				color: #4ade80;
-			}
-			.tag-action {
-				color: #fbbf24;
-			}
-			.tag-error {
-				color: #f87171;
-			}
-			.tag-info {
-				color: var(--text-dim);
-			}
-
-			/* ── Response preview ─────────────────────────────────────────── */
 			.response-panel {
 				height: 200px;
 				border-top: 1px solid var(--glass-border);

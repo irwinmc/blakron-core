@@ -662,6 +662,13 @@ export class WebGLRenderContext {
 		gl.bufferData(gl.ARRAY_BUFFER, f32, gl.STREAM_DRAW);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
 		gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+		// Restore the GPU vertex buffer to its pre-allocated size so that the
+		// next _flush() call can safely use bufferSubData without overflowing.
+		// _drawFullscreenQuad replaces the buffer with a tiny 80-byte quad;
+		// without this restore, bufferSubData would write past the end of the
+		// GPU allocation and trigger INVALID_VALUE / buffer overflow errors.
+		gl.bufferData(gl.ARRAY_BUFFER, this._gpuVertexBufferSize, gl.DYNAMIC_DRAW);
 		this._bindIndices = false;
 	}
 
