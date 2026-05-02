@@ -84,7 +84,7 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	 * Returns true if a scissor was used (caller must call executePopScissor).
 	 */
 	public executeScrollRectPush(inst: MaskPushInstruction, buffer: WebGLRenderBuffer): boolean {
-		const { renderable, offsetX, offsetY } = inst;
+		const { renderable } = inst;
 		const rect = renderable.internalScrollRect ?? renderable.internalMaskRect;
 		if (!rect || rect.isEmpty()) {
 			return false;
@@ -92,7 +92,9 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 
 		const m = buffer.globalMatrix;
 		if (buffer.hasScissor || m.b !== 0 || m.c !== 0) {
-			buffer.context.pushMask(rect.x + offsetX, rect.y + offsetY, rect.width, rect.height);
+			// Stencil path: offsetX/Y are already baked into m.tx/ty via _applyTransform,
+			// so pass rect coords directly (no extra offset needed).
+			buffer.context.pushMask(rect.x, rect.y, rect.width, rect.height);
 			return false; // stencil path
 		}
 
@@ -100,8 +102,9 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 			d = m.d,
 			tx = m.tx,
 			ty = m.ty;
-		const x = rect.x + offsetX,
-			y = rect.y + offsetY;
+		// offsetX/Y are already in m.tx/ty via _applyTransform — use rect coords only.
+		const x = rect.x,
+			y = rect.y;
 		const xMax = x + rect.width,
 			yMax = y + rect.height;
 		const minX = Math.min(a * x + tx, a * xMax + tx);

@@ -469,7 +469,9 @@ export class WebGLRenderContext {
 	 */
 	public compositeFilterResult(filters: Filter[], offscreen: WebGLRenderBuffer): void {
 		const target = offscreen.rootRenderTarget;
-		if (!target?.texture) return;
+		if (!target?.texture) {
+			return;
+		}
 		const w = target.width;
 		const h = target.height;
 
@@ -493,6 +495,7 @@ export class WebGLRenderContext {
 		// Step 4 — queue a batched drawTexture so the parent buffer's
 		// globalMatrix positions the quad correctly.
 		const nonBlurFilter = filters.find(f => !(f instanceof BlurFilter));
+
 		this.activeFilter = nonBlurFilter;
 		this.drawTexture(target.texture, 0, 0, w, h, 0, 0, w, h, w, h);
 		this.activeFilter = undefined;

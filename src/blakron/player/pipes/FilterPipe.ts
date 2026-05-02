@@ -126,6 +126,10 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		if (bounds.width <= 0 || bounds.height <= 0) return undefined;
 
 		// Inline ColorMatrix optimisation: no offscreen buffer needed.
+		// Flush any pending commands first, then re-activate the current buffer
+		// so the GL FBO + viewport/projection are in a known-good state before
+		// the leaf draw commands are queued.  Without this, the colorTransform
+		// draw may execute against a stale FBO left by a previous filter pass.
 		if (!inst.renderable.internalMask && filters.length === 1 && filters[0] instanceof ColorMatrixFilter) {
 			const hasBlend = inst.renderable.internalBlendMode !== 0;
 			if (hasBlend) {
@@ -134,6 +138,11 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 					BLEND_MODES[inst.renderable.internalBlendMode] ?? 'source-over',
 				);
 			}
+			// Flush pending batched commands so the GL state is clean, then
+			// re-push the current buffer to guarantee an ACT_BUFFER command
+			// precedes the upcoming leaf draw in the next flush.
+			buffer.context.flush();
+			buffer.context.pushBuffer(buffer);
 			buffer.context.activeFilter = filters[0];
 			return undefined; // signal: inline mode, no offscreen
 		}
@@ -158,6 +167,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		// Store padding offsets so the renderer can adjust the offscreen origin.
 		offscreen.filterPadX = padL;
 		offscreen.filterPadY = padT;
+
 		// pushBuffer activates the offscreen FBO so WebGL draws land there.
 		offscreen.context.pushBuffer(offscreen);
 		return offscreen;
@@ -177,8 +187,11 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		const hasBlend = renderable.internalBlendMode !== 0;
 		const blendOp = BLEND_MODES[renderable.internalBlendMode] ?? 'source-over';
 
-		// Inline ColorMatrix path — just clear the filter flag.
+		// Inline ColorMatrix path — clear the filter flag and pop the buffer
+		// that was pushed in executePush to balance the stack.
 		if (!offscreen) {
+			buffer.context.flush();
+			buffer.context.popBuffer();
 			buffer.context.activeFilter = undefined;
 			if (hasBlend) buffer.context.setGlobalCompositeOperation(push.savedBlendMode);
 			return;
@@ -205,6 +218,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		buffer.offsetY = by - padY;
 		buffer.saveTransform();
 		buffer.useOffset();
+
 		buffer.context.compositeFilterResult(filters, offscreen);
 		buffer.restoreTransform();
 

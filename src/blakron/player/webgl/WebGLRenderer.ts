@@ -576,6 +576,7 @@ export class WebGLRenderer {
 					const push = inst as FilterPushInstruction;
 					const pushT = (push as EffectPushInstruction).transform;
 					this._applyTransform(activeBuffer, pushT);
+
 					const offscreen = this._filterPipe.executePush(push, activeBuffer);
 					offscreenStack.push(offscreen);
 					if (offscreen) {
@@ -587,6 +588,7 @@ export class WebGLRenderer {
 				case 'filterPop': {
 					const pop = inst as FilterPopInstruction;
 					const offscreen = offscreenStack.pop();
+
 					if (offscreen)
 						activeBuffer =
 							offscreenStack.length > 0 ? (offscreenStack[offscreenStack.length - 1] ?? buffer) : buffer;
