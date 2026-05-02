@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { InstructionSet, type Instruction } from './InstructionSet.js';
-import type { DisplayObject } from '../display/DisplayObject.js';
+import { InstructionSet, type Instruction } from '../src/blakron/player/InstructionSet.js';
+import type { DisplayObject } from '../src/blakron/display/DisplayObject.js';
 
 function mockObj(id = 1): DisplayObject {
 	return { hashCode: id } as unknown as DisplayObject;

@@ -1,7 +1,7 @@
 export class WebGLRenderTarget {
 	// ── Public fields ─────────────────────────────────────────────────────────
 
-	public texture: WebGLTexture | undefined = undefined;
+	public texture?: WebGLTexture;
 	public width: number;
 	public height: number;
 	public useFrameBuffer = true;
@@ -10,8 +10,8 @@ export class WebGLRenderTarget {
 	// ── Private fields ────────────────────────────────────────────────────────
 
 	private readonly _gl: WebGLRenderingContext;
-	private _frameBuffer: WebGLFramebuffer | undefined = undefined;
-	private _stencilBuffer: WebGLRenderbuffer | undefined = undefined;
+	private _frameBuffer?: WebGLFramebuffer;
+	private _stencilBuffer?: WebGLRenderbuffer;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 

@@ -75,8 +75,8 @@ export class Sound extends EventDispatcher {
 
 	public type: SoundType = SoundType.EFFECT;
 
-	private _audioBuffer: AudioBuffer | undefined = undefined;
-	private _audio: HTMLAudioElement | undefined = undefined;
+	private _audioBuffer?: AudioBuffer;
+	private _audio?: HTMLAudioElement;
 	private _url = '';
 	private _loaded = false;
 

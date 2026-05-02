@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DisplayObject } from './DisplayObject.js';
-import { DisplayObjectContainer } from './DisplayObjectContainer.js';
-import { Event } from '../events/Event.js';
+import { DisplayObject } from '../src/blakron/display/DisplayObject.js';
+import { DisplayObjectContainer } from '../src/blakron/display/DisplayObjectContainer.js';
+import { Event } from '../src/blakron/events/Event.js';
 
 describe('DisplayObjectContainer', () => {
 	it('starts with zero children', () => {

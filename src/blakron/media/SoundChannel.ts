@@ -13,15 +13,15 @@ export class SoundChannel extends EventDispatcher {
 	private _volume = 1;
 
 	// Web Audio API
-	private _context: AudioContext | undefined;
-	private _gainNode: GainNode | undefined;
-	private _bufferSource: AudioBufferSourceNode | undefined;
-	private _audioBuffer: AudioBuffer | undefined;
+	private _context?: AudioContext;
+	private _gainNode?: GainNode;
+	private _bufferSource?: AudioBufferSourceNode;
+	private _audioBuffer?: AudioBuffer;
 	private _webAudioStartTime = 0;
 	private _startOffset = 0;
 
 	// HTMLAudioElement fallback
-	private _audio: HTMLAudioElement | undefined;
+	private _audio?: HTMLAudioElement;
 
 	private _stopped = false;
 

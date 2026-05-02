@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Point } from './Point.js';
+import { Point } from '../src/blakron/geom/Point.js';
 
 describe('Point', () => {
 	it('defaults to (0, 0)', () => {

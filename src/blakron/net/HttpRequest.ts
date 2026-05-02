@@ -12,7 +12,7 @@ export class HttpRequest extends EventDispatcher {
 	public withCredentials = false;
 	public timeout = 0;
 
-	private _xhr: XMLHttpRequest | undefined = undefined;
+	private _xhr?: XMLHttpRequest;
 	private _url = '';
 	private _method: HttpMethod = HttpMethod.GET;
 

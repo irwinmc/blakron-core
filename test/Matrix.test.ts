@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Matrix } from './Matrix.js';
-import { Rectangle } from './Rectangle.js';
+import { Matrix } from '../src/blakron/geom/Matrix.js';
+import { Rectangle } from '../src/blakron/geom/Rectangle.js';
 
 describe('Matrix', () => {
 	it('defaults to identity', () => {

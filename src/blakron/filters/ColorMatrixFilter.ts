@@ -16,7 +16,7 @@ export class ColorMatrixFilter extends Filter {
 			matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
 			colorAdd: { x: 0, y: 0, z: 0, w: 0 },
 		};
-		this.setMatrix(matrix ?? null);
+		this.setMatrix(matrix);
 		this.onPropertyChange();
 	}
 
@@ -37,7 +37,7 @@ export class ColorMatrixFilter extends Filter {
 
 	// ── Private methods ───────────────────────────────────────────────────────
 
-	private setMatrix(value: number[] | null): void {
+	private setMatrix(value?: number[]): void {
 		const src = value ?? IDENTITY;
 		for (let i = 0; i < 20; i++) this._matrix[i] = src[i] ?? 0;
 

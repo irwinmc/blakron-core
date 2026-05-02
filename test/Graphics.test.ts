@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { Graphics } from './Graphics.js';
-import { PathCommandType } from './GraphicsPath.js';
-import { Rectangle } from '../geom/Rectangle.js';
+import { Graphics } from '../src/blakron/display/Graphics.js';
+import { PathCommandType } from '../src/blakron/display/GraphicsPath.js';
+import { Rectangle } from '../src/blakron/geom/Rectangle.js';
 
 describe('Graphics', () => {
 	it('starts with empty commands', () => {

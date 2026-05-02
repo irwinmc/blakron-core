@@ -18,12 +18,12 @@ export class Player implements Renderable {
 	// ── Instance fields ───────────────────────────────────────────────────────
 	public readonly stage: Stage;
 	private _isPlaying = false;
-	private _root: DisplayObject | undefined = undefined;
-	private _canvas2dBuffer: RenderBuffer | undefined;
-	private _canvas2dRenderer: CanvasRenderer | undefined;
-	private _webglBuffer: WebGLRenderBuffer | undefined;
-	private _webglRenderer: WebGLRenderer | undefined;
-	private _webglContext: WebGLRenderContext | undefined;
+	private _root?: DisplayObject;
+	private _canvas2dBuffer?: RenderBuffer;
+	private _canvas2dRenderer?: CanvasRenderer;
+	private _webglBuffer?: WebGLRenderBuffer;
+	private _webglRenderer?: WebGLRenderer;
+	private _webglContext?: WebGLRenderContext;
 	private _unregisterCallbacks: Array<() => void> = [];
 
 	public readonly perf = {

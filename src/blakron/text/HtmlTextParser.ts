@@ -68,8 +68,8 @@ function parseTag(str: string): ITextStyle {
 	if (!header) return info;
 
 	str = str.substring(header[0].length).trim();
-	let titles: RegExpMatchArray | null;
-	while ((titles = str.match(HEAD_REG))) {
+	let titles: RegExpMatchArray | undefined;
+	while ((titles = str.match(HEAD_REG) ?? undefined)) {
 		const title = titles[0];
 		str = str.substring(title.length).trim();
 		let value = '';

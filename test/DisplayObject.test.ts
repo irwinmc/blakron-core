@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DisplayObject, RenderMode, RenderObjectType } from './DisplayObject.js';
-import { Rectangle } from '../geom/Rectangle.js';
-import { BlurFilter } from '../filters/BlurFilter.js';
+import { DisplayObject, RenderMode, RenderObjectType } from '../src/blakron/display/DisplayObject.js';
+import { Rectangle } from '../src/blakron/geom/Rectangle.js';
+import { BlurFilter } from '../src/blakron/filters/BlurFilter.js';
 
 describe('DisplayObject', () => {
 	it('default property values', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Sound, SoundType } from './Sound.js';
-import { SoundChannel } from './SoundChannel.js';
-import { Event } from '../events/Event.js';
+import { Sound, SoundType } from '../src/blakron/media/Sound.js';
+import { SoundChannel } from '../src/blakron/media/SoundChannel.js';
+import { Event } from '../src/blakron/events/Event.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -55,7 +55,7 @@ export class WebGLRenderBuffer {
 	public savedGlobalMatrix: Matrix = new Matrix();
 	public offsetX = 0;
 	public offsetY = 0;
-	public currentTexture: WebGLTexture | undefined = undefined;
+	public currentTexture?: WebGLTexture;
 	public drawCalls = 0;
 
 	public offscreenOriginX = 0;

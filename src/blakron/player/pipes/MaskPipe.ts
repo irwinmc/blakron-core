@@ -128,13 +128,13 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	 * The mask object itself is rendered separately in executeClipPop because
 	 * it is not part of the main InstructionSet.
 	 *
-	 * Returns the offscreen buffer, or null if the object has zero bounds.
+	 * Returns the offscreen buffer, or undefined if the object has zero bounds.
 	 */
 	public executeClipPush(
 		inst: MaskPushInstruction,
 		buffer: WebGLRenderBuffer,
 		renderer: { _drawDisplayObject(obj: DisplayObject, buf: WebGLRenderBuffer, ox: number, oy: number): number },
-	): WebGLRenderBuffer | null {
+	): WebGLRenderBuffer | undefined {
 		const { renderable } = inst;
 		const scrollRect = renderable.internalScrollRect ?? renderable.internalMaskRect;
 
@@ -148,12 +148,12 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 					scrollRect.height,
 				);
 			}
-			return null;
+			return undefined;
 		}
 
 		const bounds = renderable.getOriginalBounds();
 		if (bounds.width <= 0 || bounds.height <= 0) {
-			return null;
+			return undefined;
 		}
 
 		const bw = bounds.width;
@@ -169,7 +169,7 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	public executeClipPop(
 		inst: MaskPopInstruction,
 		buffer: WebGLRenderBuffer,
-		displayBuffer: WebGLRenderBuffer | null,
+		displayBuffer: WebGLRenderBuffer | undefined,
 		renderer: { _drawDisplayObject(obj: DisplayObject, buf: WebGLRenderBuffer, ox: number, oy: number): number },
 	): void {
 		const { renderable, push } = inst;

@@ -77,8 +77,8 @@ export class Event extends HashObject {
 	private _bubbles: boolean;
 	private _cancelable: boolean;
 	private _eventPhase: number = EventPhase.AT_TARGET;
-	private _currentTarget: IEventDispatcher | undefined;
-	private _target: IEventDispatcher | undefined;
+	private _currentTarget?: IEventDispatcher;
+	private _target?: IEventDispatcher;
 	private _isDefaultPrevented = false;
 	private _isPropagationStopped = false;
 	private _isPropagationImmediateStopped = false;

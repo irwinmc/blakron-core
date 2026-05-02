@@ -20,11 +20,11 @@ export class ResourceLoader {
 	// ── Callbacks ──────────────────────────────────────────────────────────
 
 	/** Called for each successfully loaded item */
-	public onComplete: ((item: ResourceItem) => void) | null = null;
+	public onComplete?: (item: ResourceItem) => void;
 	/** Called for each failed item (after retries exhausted) */
-	public onError: ((item: ResourceItem) => void) | null = null;
+	public onError?: (item: ResourceItem) => void;
 	/** Called with (loaded, total) progress */
-	public onProgress: ((loaded: number, total: number) => void) | null = null;
+	public onProgress?: (loaded: number, total: number) => void;
 
 	// ── Internal state ─────────────────────────────────────────────────────
 
@@ -70,20 +70,20 @@ export class ResourceLoader {
 		this.activeCount = 0;
 		if (this._resolve) {
 			this._resolve();
-			this._resolve = null;
+			this._resolve = undefined;
 		}
 	}
 
 	// ── Private methods ────────────────────────────────────────────────────
 
-	private _resolve: (() => void) | null = null;
+	private _resolve?: () => void;
 
 	private next(): void {
 		// All done?
 		if (this.pendingList.length === 0 && this.activeCount === 0) {
 			if (this._resolve) {
 				this._resolve();
-				this._resolve = null;
+				this._resolve = undefined;
 			}
 			return;
 		}

@@ -443,9 +443,9 @@ export class WebGLRenderer {
 		offsetX: number,
 		offsetY: number,
 		buffer: WebGLRenderBuffer,
-	): DisplayListCacheInstruction | null {
+	): DisplayListCacheInstruction | undefined {
 		const displayList = obj.displayList;
-		if (!displayList) return null;
+		if (!displayList) return undefined;
 		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
 		return {
 			renderPipeId: 'displayListCache',
@@ -515,7 +515,7 @@ export class WebGLRenderer {
 
 	private _executeInstructions(set: InstructionSet, buffer: WebGLRenderBuffer): void {
 		// Stack for offscreen buffers opened by filter/mask push instructions.
-		const offscreenStack: (WebGLRenderBuffer | null)[] = [];
+		const offscreenStack: (WebGLRenderBuffer | undefined)[] = [];
 		const scissorStack: boolean[] = [];
 		// Track the currently active buffer — leaf instructions draw into this.
 		let activeBuffer = buffer;
@@ -586,7 +586,7 @@ export class WebGLRenderer {
 				}
 				case 'filterPop': {
 					const pop = inst as FilterPopInstruction;
-					const offscreen = offscreenStack.pop() ?? null;
+					const offscreen = offscreenStack.pop();
 					if (offscreen)
 						activeBuffer =
 							offscreenStack.length > 0 ? (offscreenStack[offscreenStack.length - 1] ?? buffer) : buffer;
@@ -602,7 +602,7 @@ export class WebGLRenderer {
 					if (push.isScrollRect) {
 						const usedScissor = this._maskPipe.executeScrollRectPush(push, activeBuffer);
 						scissorStack.push(usedScissor);
-						offscreenStack.push(null);
+						offscreenStack.push(undefined);
 					} else {
 						const displayBuffer = this._maskPipe.executeClipPush(push, activeBuffer, this);
 						offscreenStack.push(displayBuffer);
@@ -620,7 +620,7 @@ export class WebGLRenderer {
 						offscreenStack.pop();
 						this._maskPipe.executeScrollRectPop(activeBuffer, usedScissor);
 					} else {
-						const displayBuffer = offscreenStack.pop() ?? null;
+						const displayBuffer = offscreenStack.pop();
 						// Restore the parent buffer before compositing.
 						if (displayBuffer)
 							activeBuffer =

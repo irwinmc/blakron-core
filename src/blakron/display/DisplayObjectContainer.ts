@@ -363,7 +363,7 @@ export class DisplayObjectContainer extends DisplayObject {
 	 * The `owner` argument is the container that changed — used to route the
 	 * dirty signal to a RenderGroup's set when applicable.
 	 */
-	static _onContainerStructureChange: ((owner: DisplayObjectContainer) => void) | undefined = undefined;
+	static _onContainerStructureChange?: (owner: DisplayObjectContainer) => void;
 
 	/** @internal Register a structure-change listener. Returns an unregister function. */
 	static addContainerStructureChangeListener(fn: (owner: DisplayObjectContainer) => void): () => void {

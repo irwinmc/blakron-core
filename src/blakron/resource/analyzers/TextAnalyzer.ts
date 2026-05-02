@@ -25,7 +25,7 @@ export class TextAnalyzer extends AnalyzerBase {
 			const onComplete = (): void => {
 				cleanup();
 				const response = request.response as string;
-				if (response !== undefined && response !== null) {
+				if (response !== undefined) {
 					this.fileDic.set(item.name, response);
 					item.loaded = true;
 				} else {

@@ -38,7 +38,7 @@ export type ResourceEventListener = (event: ResourceEvent) => void;
 export class Resource {
 	// ── Singleton ────────────────────────────────────────────────────────────
 
-	private static _instance: Resource | null = null;
+	private static _instance?: Resource;
 
 	public static get instance(): Resource {
 		if (!Resource._instance) {
@@ -374,9 +374,9 @@ export class Resource {
 			};
 
 			this.loader.start().then(() => {
-				this.loader.onComplete = null;
-				this.loader.onError = null;
-				this.loader.onProgress = null;
+				this.loader.onComplete = undefined;
+				this.loader.onError = undefined;
+				this.loader.onProgress = undefined;
 
 				if (hasError) {
 					this.emit({

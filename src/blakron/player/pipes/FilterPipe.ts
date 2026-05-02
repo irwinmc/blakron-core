@@ -109,21 +109,21 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 	 * Called by the renderer when it encounters a filterPush instruction.
 	 *
 	 * Two paths:
-	 * - ColorMatrix inline: sets activeFilter on the main buffer, returns null.
+	 * - ColorMatrix inline: sets activeFilter on the main buffer, returns undefined.
 	 *   Subsequent leaf instructions draw directly to the main buffer with the
 	 *   filter applied per-draw-call.
 	 * - All other filters: allocates an offscreen buffer and activates it via
 	 *   pushBuffer so that ALL subsequent draw calls (until filterPop) land in
 	 *   the offscreen buffer, not the main buffer.
 	 *
-	 * Returns the offscreen buffer (or null for inline path).
+	 * Returns the offscreen buffer (or undefined for inline path).
 	 */
-	public executePush(inst: FilterPushInstruction, buffer: WebGLRenderBuffer): WebGLRenderBuffer | null {
+	public executePush(inst: FilterPushInstruction, buffer: WebGLRenderBuffer): WebGLRenderBuffer | undefined {
 		const filters = inst.filters;
-		if (!filters.length) return null;
+		if (!filters.length) return undefined;
 
 		const bounds = inst.renderable.getOriginalBounds();
-		if (bounds.width <= 0 || bounds.height <= 0) return null;
+		if (bounds.width <= 0 || bounds.height <= 0) return undefined;
 
 		// Inline ColorMatrix optimisation: no offscreen buffer needed.
 		if (!inst.renderable.internalMask && filters.length === 1 && filters[0] instanceof ColorMatrixFilter) {
@@ -135,7 +135,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 				);
 			}
 			buffer.context.activeFilter = filters[0];
-			return null; // signal: inline mode, no offscreen
+			return undefined; // signal: inline mode, no offscreen
 		}
 
 		// Offscreen path: redirect all subsequent draw calls into this buffer.
@@ -170,7 +170,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 	public executePop(
 		inst: FilterPopInstruction,
 		buffer: WebGLRenderBuffer,
-		offscreen: WebGLRenderBuffer | null,
+		offscreen: WebGLRenderBuffer | undefined,
 	): void {
 		const { renderable, push } = inst;
 		const filters = push.filters;

@@ -6,14 +6,14 @@ import { BitmapData } from '../display/texture/BitmapData.js';
 export class ImageLoader extends EventDispatcher {
 	// ── Static fields ─────────────────────────────────────────────────────────
 
-	public static crossOrigin: string | undefined = undefined;
+	public static crossOrigin?: string;
 
 	// ── Instance fields ───────────────────────────────────────────────────────
 
-	public data: BitmapData | undefined = undefined;
-	public crossOrigin: string | undefined = ImageLoader.crossOrigin;
+	public data?: BitmapData;
+	public crossOrigin?: string = ImageLoader.crossOrigin;
 
-	private _img: HTMLImageElement | undefined = undefined;
+	private _img?: HTMLImageElement;
 
 	// ── Public methods ────────────────────────────────────────────────────────
 

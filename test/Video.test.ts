@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Video } from './Video.js';
-import { Event } from '../events/Event.js';
+import { Video } from '../src/blakron/media/Video.js';
+import { Event } from '../src/blakron/events/Event.js';
 
 // ── HTMLVideoElement mock ──────────────────────────────────────────────────────
 

@@ -16,7 +16,7 @@ import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './M
 export class WebGLRenderContext {
 	// ── Static fields ─────────────────────────────────────────────────────────
 
-	private static _instance: WebGLRenderContext | undefined;
+	private static _instance?: WebGLRenderContext;
 
 	public static getInstance(canvas: HTMLCanvasElement): WebGLRenderContext {
 		if (!this._instance) this._instance = new WebGLRenderContext(canvas);
@@ -39,7 +39,7 @@ export class WebGLRenderContext {
 	public contextLost = false;
 	public projectionX = 0;
 	public projectionY = 0;
-	public activeFilter: Filter | undefined;
+	public activeFilter?: Filter;
 	public currentBlendMode = 'source-over';
 
 	// ── Private fields ────────────────────────────────────────────────────────
@@ -47,14 +47,14 @@ export class WebGLRenderContext {
 	private readonly _vao: WebGLVertexArrayObject;
 	private readonly _batcher = new MultiTextureBatcher();
 	private readonly _bufferStack: WebGLRenderBuffer[] = [];
-	private _currentBuffer: WebGLRenderBuffer | undefined;
+	private _currentBuffer?: WebGLRenderBuffer;
 	private readonly _vertexBuffer: WebGLBuffer;
 	private readonly _indexBuffer: WebGLBuffer;
 	private _bindIndices = false;
 	// Track which GPU buffer size is currently allocated so we only re-allocate
 	// when switching between single-texture and multi-texture layouts.
 	private _gpuVertexBufferSize = 0;
-	private _defaultEmptyTexture: WebGLTexture | undefined;
+	private _defaultEmptyTexture?: WebGLTexture;
 	private _maxTextureUnits = MultiTextureBatcher.MAX_TEXTURES;
 	private readonly _contextRestoredCallbacks: Array<() => void> = [];
 	private readonly _trackedBitmapDatas: Set<WeakRef<BitmapData>> = new Set();

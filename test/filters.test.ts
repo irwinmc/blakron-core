@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { BlurFilter } from './BlurFilter.js';
-import { ColorMatrixFilter } from './ColorMatrixFilter.js';
-import { GlowFilter } from './GlowFilter.js';
-import { DropShadowFilter } from './DropShadowFilter.js';
+import { BlurFilter } from '../src/blakron/filters/BlurFilter.js';
+import { ColorMatrixFilter } from '../src/blakron/filters/ColorMatrixFilter.js';
+import { GlowFilter } from '../src/blakron/filters/GlowFilter.js';
+import { DropShadowFilter } from '../src/blakron/filters/DropShadowFilter.js';
 
 describe('BlurFilter', () => {
 	it('default values', () => {

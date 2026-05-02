@@ -130,10 +130,10 @@ export class ResourceConfig {
 	/**
 	 * Get a ResourceItem by key.
 	 */
-	public getResourceItem(key: string): ResourceItem | null {
+	public getResourceItem(key: string): ResourceItem | undefined {
 		const data = this.keyMap.get(key);
 		if (data) return this.parseResourceItem(data);
-		return null;
+		return undefined;
 	}
 
 	/**

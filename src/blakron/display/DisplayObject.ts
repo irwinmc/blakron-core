@@ -51,7 +51,7 @@ export class DisplayObject extends EventDispatcher {
 	 * Injected by Player at startup. Called when renderMode changes (visible,
 	 * filters, mask, blendMode) so the WebGLRenderer can mark its InstructionSet dirty.
 	 */
-	static _onStructureChange: (() => void) | undefined = undefined;
+	static _onStructureChange?: () => void;
 
 	/**
 	 * @internal
@@ -60,7 +60,7 @@ export class DisplayObject extends EventDispatcher {
 	 * The renderer uses this to update the transform snapshot in the InstructionSet
 	 * without doing a full rebuild.
 	 */
-	static _onRenderableDirty: ((obj: DisplayObject) => void) | undefined = undefined;
+	static _onRenderableDirty?: (obj: DisplayObject) => void;
 
 	/**
 	 * @internal Register a structure-change listener. Returns an unregister function.

@@ -11,7 +11,7 @@ export class BitmapText extends DisplayObject {
 	public static EMPTY_FACTOR = 0.33;
 
 	private _text = '';
-	private _font: BitmapFont | undefined = undefined;
+	private _font?: BitmapFont;
 	private _lineSpacing = 0;
 	private _letterSpacing = 0;
 	private _textAlign: HorizontalAlign = HorizontalAlign.LEFT;

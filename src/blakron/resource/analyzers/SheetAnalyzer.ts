@@ -112,7 +112,7 @@ export class SheetAnalyzer extends AnalyzerBase {
 
 	// ── Private helpers ──────────────────────────────────────────────────────
 
-	private loadSheetConfig(item: ResourceItem): Promise<{ config: SheetConfig | null; imageUrl: string }> {
+	private loadSheetConfig(item: ResourceItem): Promise<{ config: SheetConfig | undefined; imageUrl: string }> {
 		return new Promise(resolve => {
 			const request = new HttpRequest();
 			request.responseType = HttpResponseType.TEXT;
@@ -121,7 +121,7 @@ export class SheetAnalyzer extends AnalyzerBase {
 				cleanup();
 				const response = request.response as string;
 				if (!response) {
-					resolve({ config: null, imageUrl: '' });
+					resolve({ config: undefined, imageUrl: '' });
 					return;
 				}
 				try {
@@ -129,13 +129,13 @@ export class SheetAnalyzer extends AnalyzerBase {
 					const imageUrl = this.getRelativePath(item.url, config.file);
 					resolve({ config, imageUrl });
 				} catch {
-					resolve({ config: null, imageUrl: '' });
+					resolve({ config: undefined, imageUrl: '' });
 				}
 			};
 
 			const onError = (): void => {
 				cleanup();
-				resolve({ config: null, imageUrl: '' });
+				resolve({ config: undefined, imageUrl: '' });
 			};
 
 			const cleanup = (): void => {

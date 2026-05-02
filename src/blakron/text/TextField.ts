@@ -47,24 +47,24 @@ export class TextField extends DisplayObject {
 	private _displayAsPassword = false;
 	private _maxChars = 0;
 	private _scrollV = 1;
-	private _restrict: string | undefined = undefined;
-	private _restrictAnd: string | undefined = undefined;
-	private _restrictNot: string | undefined = undefined;
+	private _restrict?: string;
+	private _restrictAnd?: string;
+	private _restrictNot?: string;
 	private _border = false;
 	private _borderColor = 0x000000;
 	private _background = false;
 	private _backgroundColor = 0xffffff;
-	private _textFlow: ITextElement[] | undefined = undefined;
+	private _textFlow?: ITextElement[];
 	private _textWidth = 0;
 	private _textHeight = 0;
 	private _numLines = 0;
-	private _linesArr: ILineElement[] | undefined = undefined;
+	private _linesArr?: ILineElement[];
 	private _textDirty = true;
 	private _fontString = '';
 	private _selectionAnchor = 0;
 	private _selectionActive = 0;
 	private _isTyping = false;
-	private _inputController: InputController | undefined = undefined;
+	private _inputController?: InputController;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 

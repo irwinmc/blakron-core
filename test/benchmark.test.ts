@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { MetricsCollector } from './MetricsCollector.js';
-import { BenchmarkRunner } from './BenchmarkRunner.js';
-import { scenes, getScene } from './SceneRegistry.js';
-import { fpsColorClass, PerfPanel } from './PerfPanel.js';
-import type { PerfPanelElements } from './PerfPanel.js';
-import type { FrameData, Stats } from './types.js';
+import { MetricsCollector } from '../src/blakron/benchmark/MetricsCollector.js';
+import { BenchmarkRunner } from '../src/blakron/benchmark/BenchmarkRunner.js';
+import { scenes, getScene } from '../src/blakron/benchmark/SceneRegistry.js';
+import { fpsColorClass, PerfPanel } from '../src/blakron/benchmark/PerfPanel.js';
+import type { PerfPanelElements } from '../src/blakron/benchmark/PerfPanel.js';
+import type { FrameData, Stats } from '../src/blakron/benchmark/types.js';
 
 function makeFrame(overrides: Partial<FrameData> = {}): FrameData {
 	return {
@@ -448,8 +448,8 @@ describe('PerfPanel', () => {
 
 // ─── ReportExporter ──────────────────────────────────────────────────────────
 
-import { ReportExporter } from './ReportExporter.js';
-import type { ReportData } from './types.js';
+import { ReportExporter } from '../src/blakron/benchmark/ReportExporter.js';
+import type { ReportData } from '../src/blakron/benchmark/types.js';
 
 function makeStats(): Stats {
 	return {

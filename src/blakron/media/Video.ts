@@ -13,10 +13,10 @@ export class Video extends DisplayObject {
 	private _video: HTMLVideoElement;
 	private _src = '';
 	private _poster = '';
-	private _posterData: BitmapData | undefined = undefined;
+	private _posterData?: BitmapData;
 	private _loop = false;
 	private _loaded = false;
-	private _bitmapData: BitmapData | undefined = undefined;
+	private _bitmapData?: BitmapData;
 	private _widthSet = NaN;
 	private _heightSet = NaN;
 	private _waiting = false;

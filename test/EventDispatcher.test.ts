@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { EventDispatcher } from './EventDispatcher.js';
-import { Event } from './Event.js';
+import { EventDispatcher } from '../src/blakron/events/EventDispatcher.js';
+import { Event } from '../src/blakron/events/Event.js';
 
 describe('EventDispatcher', () => {
 	it('addEventListener + dispatchEvent calls listener', () => {
