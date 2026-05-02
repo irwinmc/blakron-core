@@ -4,6 +4,10 @@ import { DisplayObject } from './DisplayObject.js';
 import type { Stage } from './Stage.js';
 
 export class DisplayObjectContainer extends DisplayObject {
+	// ── Declare fields ─────────────────────────────────────────────────────────
+
+	declare children: DisplayObject[];
+
 	// ── Static fields ─────────────────────────────────────────────────────────
 
 	static eventAddToStageList: DisplayObject[] = [];
@@ -32,7 +36,7 @@ export class DisplayObjectContainer extends DisplayObject {
 	// ── Getters / Setters ─────────────────────────────────────────────────────
 
 	public get numChildren(): number {
-		return this.children!.length;
+		return this.children.length;
 	}
 
 	public get touchChildren(): boolean {
@@ -45,14 +49,14 @@ export class DisplayObjectContainer extends DisplayObject {
 	// ── Public methods ────────────────────────────────────────────────────────
 
 	public addChild(child: DisplayObject): DisplayObject {
-		let index = this.children!.length;
+		let index = this.children.length;
 		if (child.internalParent === this) index--;
 		return this.doAddChild(child, index);
 	}
 
 	public addChildAt(child: DisplayObject, index: number): DisplayObject {
 		index = +index | 0;
-		const len = this.children!.length;
+		const len = this.children.length;
 		if (index < 0 || index >= len) {
 			index = len;
 			if (child.internalParent === this) index--;
@@ -73,40 +77,40 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	public getChildAt(index: number): DisplayObject | undefined {
 		index = +index | 0;
-		return this.children![index];
+		return this.children[index];
 	}
 
 	public getChildIndex(child: DisplayObject): number {
-		return this.children!.indexOf(child);
+		return this.children.indexOf(child);
 	}
 
 	public getChildByName(name: string): DisplayObject | undefined {
-		return this.children!.find(c => c.name === name);
+		return this.children.find(c => c.name === name);
 	}
 
 	public removeChild(child: DisplayObject): DisplayObject | undefined {
-		const index = this.children!.indexOf(child);
+		const index = this.children.indexOf(child);
 		if (index >= 0) return this.doRemoveChild(index);
 		return undefined;
 	}
 
 	public removeChildAt(index: number): DisplayObject | undefined {
 		index = +index | 0;
-		if (index >= 0 && index < this.children!.length) {
+		if (index >= 0 && index < this.children.length) {
 			return this.doRemoveChild(index);
 		}
 		return undefined;
 	}
 
 	public removeChildren(): void {
-		for (let i = this.children!.length - 1; i >= 0; i--) {
+		for (let i = this.children.length - 1; i >= 0; i--) {
 			this.doRemoveChild(i);
 		}
 	}
 
 	public setChildIndex(child: DisplayObject, index: number): void {
 		index = +index | 0;
-		const len = this.children!.length;
+		const len = this.children.length;
 		if (index < 0 || index >= len) {
 			index = len - 1;
 		}
@@ -114,8 +118,8 @@ export class DisplayObjectContainer extends DisplayObject {
 	}
 
 	public swapChildren(child1: DisplayObject, child2: DisplayObject): void {
-		const i1 = this.children!.indexOf(child1);
-		const i2 = this.children!.indexOf(child2);
+		const i1 = this.children.indexOf(child1);
+		const i2 = this.children.indexOf(child2);
 		if (i1 !== -1 && i2 !== -1) {
 			this.doSwapChildrenAt(i1, i2);
 		}
@@ -124,7 +128,7 @@ export class DisplayObjectContainer extends DisplayObject {
 	public swapChildrenAt(index1: number, index2: number): void {
 		index1 = +index1 | 0;
 		index2 = +index2 | 0;
-		const len = this.children!.length;
+		const len = this.children.length;
 		if (index1 >= 0 && index1 < len && index2 >= 0 && index2 < len) {
 			this.doSwapChildrenAt(index1, index2);
 		}
@@ -133,7 +137,7 @@ export class DisplayObjectContainer extends DisplayObject {
 	public override sortChildren(): void {
 		super.sortChildren();
 		this.sortDirty = false;
-		const children = this.children!;
+		const children = this.children;
 		let sortRequired = false;
 		for (let i = 0; i < children.length; i++) {
 			children[i].lastSortedIndex = i;
@@ -152,7 +156,7 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	override onAddToStage(stage: Stage, nestLevel: number): void {
 		super.onAddToStage(stage, nestLevel);
-		for (const child of this.children!) {
+		for (const child of this.children) {
 			child.onAddToStage(stage, nestLevel + 1);
 			if (child.maskedObject) {
 				child.maskedObject.updateRenderMode();
@@ -162,13 +166,13 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	override onRemoveFromStage(): void {
 		super.onRemoveFromStage();
-		for (const child of this.children!) {
+		for (const child of this.children) {
 			child.onRemoveFromStage();
 		}
 	}
 
 	override measureChildBounds(bounds: Rectangle): void {
-		const children = this.children!;
+		const children = this.children;
 		if (children.length === 0) return;
 		let xMin = 0,
 			xMax = 0,
@@ -218,7 +222,7 @@ export class DisplayObjectContainer extends DisplayObject {
 			return undefined;
 		}
 
-		const children = this.children!;
+		const children = this.children;
 		let found = false;
 		let target: DisplayObject | undefined;
 		for (let i = children.length - 1; i >= 0; i--) {
@@ -255,7 +259,7 @@ export class DisplayObjectContainer extends DisplayObject {
 			host.removeChild(child);
 		}
 
-		this.children!.splice(index, 0, child);
+		this.children.splice(index, 0, child);
 		child.setParent(this);
 
 		if (this.internalStage) {
@@ -283,7 +287,7 @@ export class DisplayObjectContainer extends DisplayObject {
 	}
 
 	private doRemoveChild(index: number): DisplayObject {
-		const children = this.children!;
+		const children = this.children;
 		const child = children[index];
 		this.childRemoved(child, index);
 		child.dispatchEventWith(Event.REMOVED, true);
@@ -312,13 +316,13 @@ export class DisplayObjectContainer extends DisplayObject {
 	}
 
 	private doSetChildIndex(child: DisplayObject, index: number): void {
-		const lastIndex = this.children!.indexOf(child);
+		const lastIndex = this.children.indexOf(child);
 		if (lastIndex < 0 || lastIndex === index) {
 			return;
 		}
 		this.childRemoved(child, lastIndex);
-		this.children!.splice(lastIndex, 1);
-		this.children!.splice(index, 0, child);
+		this.children.splice(lastIndex, 1);
+		this.children.splice(index, 0, child);
 		this.childAdded(child, index);
 		this.markDirtyInternal();
 	}
@@ -332,7 +336,7 @@ export class DisplayObjectContainer extends DisplayObject {
 		if (index1 === index2) {
 			return;
 		}
-		const list = this.children!;
+		const list = this.children;
 		const child1 = list[index1];
 		const child2 = list[index2];
 		this.childRemoved(child1, index1);
