@@ -481,7 +481,17 @@ export class WebGLRenderer {
 			const obj = set.dirtyRenderables[i];
 			// Look up the instruction index for this object.
 			const idx = set.renderableIndex.get(obj);
-			if (idx === undefined) continue;
+			if (idx === undefined) {
+				// This object has no instruction — it may have been skipped during
+				// _buildInstructions because its graphics commands were empty at the
+				// time (e.g. UI components whose Validator fills commands one frame
+				// later). If it now has graphics content, trigger a full rebuild so
+				// it gets an instruction.
+				if (this._hasGraphicsContent(obj)) {
+					set.structureDirty = true;
+				}
+				continue;
+			}
 			const inst = set.instructions[idx] as LeafInstruction;
 			if (!inst) continue;
 			// Recompute the transform snapshot from the object's current world state.
@@ -509,6 +519,12 @@ export class WebGLRenderer {
 		t.offsetY = 0;
 		t.alpha = obj.worldAlpha;
 		t.tint = obj.worldTint;
+	}
+
+	/** Check if a display object now has graphics content that warrants an instruction. */
+	private _hasGraphicsContent(obj: DisplayObject): boolean {
+		const graphics = obj.graphics;
+		return graphics != null && graphics.commands.length > 0;
 	}
 
 	// ── Phase B: execute ──────────────────────────────────────────────────────

@@ -819,6 +819,10 @@ export class DisplayObject extends EventDispatcher {
 		const bounds = this.getContentBounds();
 		const localX = m.a * stageX + m.c * stageY + m.tx;
 		const localY = m.b * stageX + m.d * stageY + m.ty;
+		const isDebug = this.constructor?.name === 'CheckBox' || this.constructor?.name === 'RadioButton' || this.constructor?.name === 'Button';
+		if (isDebug) {
+			console.log(`[hitTest:DO] ${this.constructor?.name} bounds=${bounds.x.toFixed(1)},${bounds.y.toFixed(1)},${bounds.width.toFixed(1)},${bounds.height.toFixed(1)} localX=${localX.toFixed(1)} localY=${localY.toFixed(1)} contains=${bounds.contains(localX, localY)}`);
+		}
 		if (bounds.contains(localX, localY)) {
 			if (!this.children) {
 				const rect = this.internalScrollRect ?? this.internalMaskRect;

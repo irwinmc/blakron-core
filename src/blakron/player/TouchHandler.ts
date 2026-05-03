@@ -67,6 +67,7 @@ export class TouchHandler {
 			this._touchDownTarget.set(touchPointID, target);
 			this._useTouchesCount++;
 		}
+		console.log(`[TouchHandler] TOUCH_BEGIN → ${target.constructor?.name}`);
 		TouchEvent.dispatchTouchEvent(target, TouchEvent.TOUCH_BEGIN, true, true, x, y, touchPointID, true);
 	}
 
@@ -90,6 +91,7 @@ export class TouchHandler {
 		TouchEvent.dispatchTouchEvent(target, TouchEvent.TOUCH_END, true, true, x, y, touchPointID, false);
 
 		if (oldTarget === target) {
+			console.log(`[TouchHandler] TOUCH_TAP → ${target.constructor?.name}`);
 			TouchEvent.dispatchTouchEvent(target, TouchEvent.TOUCH_TAP, true, true, x, y, touchPointID, false);
 		} else {
 			TouchEvent.dispatchTouchEvent(
@@ -108,7 +110,9 @@ export class TouchHandler {
 	// ── Private methods ───────────────────────────────────────────────────────
 
 	private findTarget(stageX: number, stageY: number): DisplayObject {
-		return this._stage.hitTest(stageX, stageY) ?? this._stage;
+		const result = this._stage.hitTest(stageX, stageY);
+		console.log(`[TouchHandler] findTarget(${stageX.toFixed(1)}, ${stageY.toFixed(1)}) →`, result?.constructor?.name ?? 'Stage(fallback)', result ? '' : '(null → stage)');
+		return result ?? this._stage;
 	}
 
 	private getStageCoords(clientX: number, clientY: number): { x: number; y: number } {
