@@ -148,7 +148,11 @@ export class Event extends HashObject {
 	// ── Internal methods (used by EventDispatcher) ────────────────────────────
 
 	setDispatchContext(target: IEventDispatcher, phase: number): void {
-		this._target = target;
+		// _target is the original dispatch target and must not change during bubbling/capturing.
+		// Only set it at AT_TARGET phase (or when it hasn't been set yet).
+		if (phase === EventPhase.AT_TARGET || this._target === undefined) {
+			this._target = target;
+		}
 		this._currentTarget = target;
 		this._eventPhase = phase;
 	}
