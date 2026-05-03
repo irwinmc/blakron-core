@@ -15,7 +15,7 @@ import { TextField } from '../text/TextField.js';
 import { HorizontalAlign } from '../text/enums/HorizontalAlign.js';
 import { VerticalAlign } from '../text/enums/VerticalAlign.js';
 import { TextFieldType } from '../text/enums/TextFieldType.js';
-import { getFontString } from '../text/TextMeasurer.js';
+import { getFontString, measureVerticalCorrection } from '../text/TextMeasurer.js';
 import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 
 const CAPS_MAP: Record<string, CanvasLineCap> = { none: 'butt', square: 'square', round: 'round' };
@@ -617,11 +617,37 @@ export class CanvasRenderer {
 			verticalOffset = Math.max(0, height - totalTextHeight);
 		}
 
+		// ── Vertical centering correction ─────────────────────────────────────
+		// When textBaseline='top', lineHeight=fontSize centers the em-square, not the
+		// actual glyphs. Measure font metrics to correct the visual offset.
+		let vCorrection = 0;
+		if (tf.verticalAlign === VerticalAlign.MIDDLE) {
+			// Find first non-empty element to measure
+			let sampleText = '';
+			let sampleSize = tf.size;
+			let sampleFont = tf.fontFamily;
+			let sampleBold = tf.bold;
+			let sampleItalic = tf.italic;
+			outer: for (const line of lines) {
+				for (const el of line.elements) {
+					if (el.text) {
+						sampleText = el.text;
+						sampleSize = el.style?.size ?? tf.size;
+						sampleFont = el.style?.fontFamily ?? tf.fontFamily;
+						sampleBold = el.style?.bold ?? tf.bold;
+						sampleItalic = el.style?.italic ?? tf.italic;
+						break outer;
+					}
+				}
+			}
+			vCorrection = measureVerticalCorrection(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
+		}
+
 		// ── ScrollV offset: accumulate actual line heights instead of fixed formula ──
 		const scrollOffset = tf.getScrollYOffset();
 
 		// ── Draw lines ────────────────────────────────────────────────────────
-		let drawY = verticalOffset - scrollOffset;
+		let drawY = verticalOffset - scrollOffset + vCorrection;
 		let drawCalls = 0;
 
 		for (let i = 0; i < lines.length; i++) {

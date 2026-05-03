@@ -4,7 +4,7 @@ import { Rectangle } from '../geom/Rectangle.js';
 import { Event } from '../events/Event.js';
 import { TouchEvent } from '../events/TouchEvent.js';
 import { TextEvent } from '../events/TextEvent.js';
-import { measureText, getFontString } from './TextMeasurer.js';
+import { measureText, getFontString, measureVerticalCorrection } from './TextMeasurer.js';
 import type { ITextElement, ILineElement, IWTextElement } from './types/ITextElement.js';
 import { HorizontalAlign } from './enums/HorizontalAlign.js';
 import { VerticalAlign } from './enums/VerticalAlign.js';
@@ -737,8 +737,31 @@ export class TextField extends DisplayObject {
 		// ScrollV offset
 		const scrollOffset = this.getScrollYOffset();
 
+		// Vertical centering correction (mirrors CanvasRenderer.renderTextField)
+		let vCorrection = 0;
+		if (this._verticalAlign === VerticalAlign.MIDDLE) {
+			let sampleText = '';
+			let sampleSize = this._fontSize;
+			let sampleFont = this._fontFamily;
+			let sampleBold = this._bold;
+			let sampleItalic = this._italic;
+			outer: for (const line of lines) {
+				for (const el of line.elements) {
+					if (el.text) {
+						sampleText = el.text;
+						sampleSize = el.style?.size ?? this._fontSize;
+						sampleFont = el.style?.fontFamily ?? this._fontFamily;
+						sampleBold = el.style?.bold ?? this._bold;
+						sampleItalic = el.style?.italic ?? this._italic;
+						break outer;
+					}
+				}
+			}
+			vCorrection = measureVerticalCorrection(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
+		}
+
 		// Adjust y into text-local space
-		const localY = y - verticalOffset + scrollOffset;
+		const localY = y - verticalOffset - vCorrection + scrollOffset;
 
 		let lineY = 0;
 		for (const line of lines) {
