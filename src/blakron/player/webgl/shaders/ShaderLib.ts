@@ -1,5 +1,9 @@
+/**
+ * GLSL ES 1.00 shaders — used with WebGL1 context.
+ * For WebGL2 (GLSL ES 3.00) shaders see ../webgl2/ShaderLib2.ts
+ */
 export const ShaderLib = {
-	default_vert: /* glsl */ `#version 100
+	default_vert: /* glsl */ `
 attribute vec2 aVertexPosition;
 attribute vec2 aTextureCoord;
 attribute vec4 aColor;
@@ -13,8 +17,7 @@ void main(void) {
    vColor = aColor;
 }`,
 
-	// Multi-texture vertex shader: carries textureId as a float attribute.
-	multi_vert: /* glsl */ `#version 100
+	multi_vert: /* glsl */ `
 attribute vec2 aVertexPosition;
 attribute vec2 aTextureCoord;
 attribute vec4 aColor;
@@ -31,10 +34,7 @@ void main(void) {
    vTextureId = aTextureId;
 }`,
 
-	// Multi-texture fragment shader: samples from one of up to 8 texture units.
-	// WebGL 1 does not support dynamic indexing into sampler arrays, so we use
-	// an if/else chain — the same technique used by Pixi.js for WebGL1.
-	multi_frag: /* glsl */ `#version 100
+	multi_frag: /* glsl */ `
 precision lowp float;
 varying vec2 vTextureCoord;
 varying vec4 vColor;
@@ -54,7 +54,7 @@ void main(void) {
     gl_FragColor = color * vColor;
 }`,
 
-	texture_frag: /* glsl */ `#version 100
+	texture_frag: /* glsl */ `
 precision lowp float;
 varying vec2 vTextureCoord;
 varying vec4 vColor;
@@ -63,7 +63,7 @@ void main(void) {
     gl_FragColor = texture2D(uSampler, vTextureCoord) * vColor;
 }`,
 
-	primitive_frag: /* glsl */ `#version 100
+	primitive_frag: /* glsl */ `
 precision lowp float;
 varying vec2 vTextureCoord;
 varying vec4 vColor;
@@ -71,7 +71,7 @@ void main(void) {
     gl_FragColor = vColor;
 }`,
 
-	blur_frag: /* glsl */ `#version 100
+	blur_frag: /* glsl */ `
 precision mediump float;
 uniform vec2 blur;
 uniform sampler2D uSampler;
@@ -93,8 +93,7 @@ void main() {
     gl_FragColor = color;
 }`,
 
-	// Horizontal blur pass for ping-pong two-pass Gaussian blur.
-	blur_h_frag: /* glsl */ `#version 100
+	blur_h_frag: /* glsl */ `
 precision mediump float;
 uniform float blurX;
 uniform sampler2D uSampler;
@@ -113,8 +112,7 @@ void main() {
     gl_FragColor = color / total;
 }`,
 
-	// Vertical blur pass for ping-pong two-pass Gaussian blur.
-	blur_v_frag: /* glsl */ `#version 100
+	blur_v_frag: /* glsl */ `
 precision mediump float;
 uniform float blurY;
 uniform sampler2D uSampler;
@@ -133,7 +131,7 @@ void main() {
     gl_FragColor = color / total;
 }`,
 
-	glow_frag: /* glsl */ `#version 100
+	glow_frag: /* glsl */ `
 precision highp float;
 varying vec2 vTextureCoord;
 uniform sampler2D uSampler;
@@ -189,7 +187,7 @@ void main(void) {
     gl_FragColor = vec4(mix2 * resultAlpha, resultAlpha);
 }`,
 
-	colorTransform_frag: /* glsl */ `#version 100
+	colorTransform_frag: /* glsl */ `
 precision mediump float;
 varying vec2 vTextureCoord;
 varying vec4 vColor;
@@ -206,20 +204,11 @@ void main(void) {
 }`,
 } as const;
 
-// ── Dynamic blur shader generation ───────────────────────────────────────────
+// ── Dynamic blur shader generation (GLSL ES 1.00) ─────────────────────────────
 
-/**
- * Blur radius tiers. Each tier generates a dedicated shader variant with a
- * loop bound matching the tier value, avoiding the WebGL1 limitation where
- * loop bounds must be compile-time constants.
- *
- * Tier selection: pick the smallest tier >= ceil(blurValue).
- * e.g. blurX=5 → tier 8, blurX=12 → tier 16, blurX=25 → tier 32.
- */
 export const BLUR_TIERS = [4, 8, 16, 32] as const;
 export type BlurTier = (typeof BLUR_TIERS)[number];
 
-/** Returns the smallest tier that can accommodate the given blur radius. */
 export function getBlurTier(radius: number): BlurTier {
 	for (const tier of BLUR_TIERS) {
 		if (radius <= tier) return tier;
@@ -227,12 +216,8 @@ export function getBlurTier(radius: number): BlurTier {
 	return 32;
 }
 
-/**
- * Generates a horizontal blur fragment shader for the given radius tier.
- * The loop bound is a compile-time constant so it is valid in WebGL1 GLSL.
- */
 export function makeBlurHFrag(tier: BlurTier): string {
-	return /* glsl */ `#version 100
+	return /* glsl */ `
 precision mediump float;
 uniform float blurX;
 uniform sampler2D uSampler;
@@ -252,11 +237,8 @@ void main() {
 }`;
 }
 
-/**
- * Generates a vertical blur fragment shader for the given radius tier.
- */
 export function makeBlurVFrag(tier: BlurTier): string {
-	return /* glsl */ `#version 100
+	return /* glsl */ `
 precision mediump float;
 uniform float blurY;
 uniform sampler2D uSampler;

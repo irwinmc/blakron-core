@@ -6,14 +6,24 @@ import { Sprite } from '../../display/Sprite.js';
 import { Mesh } from '../../display/Mesh.js';
 import { Matrix } from '../../geom/Matrix.js';
 import { Rectangle } from '../../geom/Rectangle.js';
-import { CanvasRenderer } from '../CanvasRenderer.js';
-import { InstructionSet } from '../InstructionSet.js';
-import { BitmapPipe, type BitmapInstruction } from '../pipes/BitmapPipe.js';
-import { GraphicsPipe, type GraphicsInstruction } from '../pipes/GraphicsPipe.js';
-import { MeshPipe, type MeshInstruction } from '../pipes/MeshPipe.js';
-import { FilterPipe, type FilterPushInstruction, type FilterPopInstruction } from '../pipes/FilterPipe.js';
-import { MaskPipe, type MaskPushInstruction, type MaskPopInstruction } from '../pipes/MaskPipe.js';
-import { TextPipe, type TextInstruction } from '../pipes/TextPipe.js';
+import { CanvasRenderer } from '../canvas/index.js';
+import { InstructionSet } from './InstructionSet.js';
+import {
+	BitmapPipe,
+	type BitmapInstruction,
+	GraphicsPipe,
+	type GraphicsInstruction,
+	MeshPipe,
+	type MeshInstruction,
+	FilterPipe,
+	type FilterPushInstruction,
+	type FilterPopInstruction,
+	MaskPipe,
+	type MaskPushInstruction,
+	type MaskPopInstruction,
+	TextPipe,
+	type TextInstruction,
+} from './pipes/index.js';
 import { TextField } from '../../text/TextField.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 

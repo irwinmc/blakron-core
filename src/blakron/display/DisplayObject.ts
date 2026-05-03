@@ -4,7 +4,7 @@ import { EventPhase } from '../events/EventPhase.js';
 import { Matrix, sharedMatrix } from '../geom/Matrix.js';
 import { Point } from '../geom/Point.js';
 import { Rectangle, sharedRectangle } from '../geom/Rectangle.js';
-import { DisplayList } from '../player/DisplayList.js';
+import { DisplayList } from '../player/canvas/DisplayList.js';
 import type { Filter } from '../filters/Filter.js';
 import { blendModeToNumber, numberToBlendMode } from './enums/BlendMode.js';
 import type { DisplayObjectContainer } from './DisplayObjectContainer.js';

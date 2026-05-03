@@ -8,8 +8,7 @@ import { Player } from './Player.js';
 import { TouchHandler } from './TouchHandler.js';
 import { ScreenAdapter } from './ScreenAdapter.js';
 import { setupLifecycle } from './SystemTicker.js';
-import { CanvasRenderer } from './CanvasRenderer.js';
-import { RenderBuffer } from './RenderBuffer.js';
+import { CanvasRenderer, RenderBuffer } from './canvas/index.js';
 import type { BlakronOptions } from './BlakronOptions.js';
 import { Capabilities } from '../system/Capabilities.js';
 

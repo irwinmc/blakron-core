@@ -2,8 +2,7 @@ import { Stage } from '../display/Stage.js';
 import { DisplayObject } from '../display/DisplayObject.js';
 import { DisplayObjectContainer } from '../display/DisplayObjectContainer.js';
 import { Matrix } from '../geom/Matrix.js';
-import { RenderBuffer } from './RenderBuffer.js';
-import { CanvasRenderer } from './CanvasRenderer.js';
+import { RenderBuffer, CanvasRenderer } from './canvas/index.js';
 import { ticker, type Renderable } from './SystemTicker.js';
 import { WebGLRenderContext, WebGLRenderBuffer, WebGLRenderer, checkWebGLSupport } from './webgl/index.js';
 

@@ -18,11 +18,9 @@ export {
 } from './SystemTicker.js';
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
-export { InstructionSet, type Instruction } from './InstructionSet.js';
+export { InstructionSet, type Instruction } from './webgl/InstructionSet.js';
 export type { RenderPipe } from './RenderPipe.js';
-export { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
-export { CanvasRenderer } from './CanvasRenderer.js';
-export { DisplayList } from './DisplayList.js';
+export { RenderBuffer, hitTestBuffer, CanvasRenderer, DisplayList } from './canvas/index.js';
 
 // ── Input & Layout ────────────────────────────────────────────────────────────
 export { TouchHandler } from './TouchHandler.js';

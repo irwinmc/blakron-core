@@ -8,7 +8,8 @@ import { Rectangle } from '../../geom/Rectangle.js';
 import { WebGLVertexArrayObject } from './WebGLVertexArrayObject.js';
 import { WebGLDrawCmdManager, DrawCmdType } from './WebGLDrawCmdManager.js';
 import { WebGLProgram } from './WebGLProgram.js';
-import { ShaderLib, getBlurTier, makeBlurHFrag, makeBlurVFrag } from './ShaderLib.js';
+import { ShaderLib, getBlurTier, makeBlurHFrag, makeBlurVFrag } from './shaders/ShaderLib.js';
+import { ShaderLib2, getBlurTier2, makeBlurHFrag2, makeBlurVFrag2 } from './shaders/ShaderLib2.js';
 import { SYM_GL_CONTEXT, SYM_PREMULTIPLIED, SYM_DEFAULT_EMPTY, SYM_SMOOTHING } from './WebGLUtils.js';
 import type { GL } from './WebGLUtils.js';
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
@@ -34,6 +35,12 @@ export class WebGLRenderContext {
 	public readonly isWebGL2: boolean;
 	public readonly surface: HTMLCanvasElement;
 	public readonly drawCmdManager: WebGLDrawCmdManager;
+
+	// ── Shader library (selected at init based on WebGL version) ─────────────
+	public readonly shaders: typeof ShaderLib | typeof ShaderLib2;
+	public readonly blurTierFn: typeof getBlurTier | typeof getBlurTier2;
+	public readonly makeBlurH: typeof makeBlurHFrag | typeof makeBlurHFrag2;
+	public readonly makeBlurV: typeof makeBlurVFrag | typeof makeBlurVFrag2;
 
 	// ── Public mutable fields ─────────────────────────────────────────────────
 
@@ -70,16 +77,28 @@ export class WebGLRenderContext {
 
 		// Prefer WebGL2 (superset of WebGL1, same API surface).
 		// Fall back to WebGL1 / experimental-webgl for older devices.
+		// NOTE: WebGL2 requires GLSL ES 3.00 shaders (#version 300 es).
+		// Current shaders are GLSL ES 1.00 — use WebGL1 until shaders are upgraded.
+		// Prefer WebGL2 — shaders are GLSL ES 3.00 (#version 300 es).
+		// Fall back to WebGL1 / experimental-webgl for older devices.
 		const gl2 = canvas.getContext('webgl2') as WebGL2RenderingContext | null;
 		if (gl2) {
 			this.gl = gl2;
 			this.isWebGL2 = true;
+			this.shaders = ShaderLib2;
+			this.blurTierFn = getBlurTier2;
+			this.makeBlurH = makeBlurHFrag2;
+			this.makeBlurV = makeBlurVFrag2;
 		} else {
 			const gl1 = (canvas.getContext('webgl') ??
 				canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
 			if (!gl1) throw new Error('WebGL not supported');
 			this.gl = gl1;
 			this.isWebGL2 = false;
+			this.shaders = ShaderLib;
+			this.blurTierFn = getBlurTier;
+			this.makeBlurH = makeBlurHFrag;
+			this.makeBlurV = makeBlurVFrag;
 		}
 
 		const gl = this.gl;
@@ -577,13 +596,13 @@ export class WebGLRenderContext {
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
 		// ── Select shader tier based on actual blur radius ────────────────────
-		const hTier = getBlurTier(filter.blurX);
-		const vTier = getBlurTier(filter.blurY);
+		const hTier = this.blurTierFn(filter.blurX);
+		const vTier = this.blurTierFn(filter.blurY);
 		const hKey = `blur_h_${hTier}`;
 		const vKey = `blur_v_${vTier}`;
 
 		// ── Pass 1: horizontal blur → tmpFbo ──────────────────────────────────
-		const hProg = WebGLProgram.get(gl, ShaderLib.default_vert, makeBlurHFrag(hTier), hKey);
+		const hProg = WebGLProgram.get(gl, this.shaders.default_vert, this.makeBlurH(hTier), hKey);
 		this._drawFullscreenQuad(hProg, texture, w, h, prog => {
 			const uBlurX = prog.uniforms['blurX'];
 			const uSize = prog.uniforms['uTextureSize'];
@@ -595,7 +614,7 @@ export class WebGLRenderContext {
 		buffer.rootRenderTarget.activate();
 		this.onResize(w, h);
 
-		const vProg = WebGLProgram.get(gl, ShaderLib.default_vert, makeBlurVFrag(vTier), vKey);
+		const vProg = WebGLProgram.get(gl, this.shaders.default_vert, this.makeBlurV(vTier), vKey);
 		this._drawFullscreenQuad(vProg, tmpEntry.texture, w, h, prog => {
 			const uBlurY = prog.uniforms['blurY'];
 			const uSize = prog.uniforms['uTextureSize'];
@@ -916,7 +935,7 @@ export class WebGLRenderContext {
 
 	private _drawMultiTextureBatch(cmd: MultiTextureDrawCmd, indexOffset: number, count: number): void {
 		const gl = this.gl;
-		const prog = WebGLProgram.get(gl, ShaderLib.multi_vert, ShaderLib.multi_frag, 'multi');
+		const prog = WebGLProgram.get(gl, this.shaders.multi_vert, this.shaders.multi_frag, 'multi');
 		gl.useProgram(prog.id);
 
 		const stride = 6 * 4; // MULTI_VERT_BYTE_SIZE
@@ -961,12 +980,17 @@ export class WebGLRenderContext {
 
 	private _getTextureProgram(filter?: Filter): WebGLProgram {
 		if (filter instanceof ColorMatrixFilter) {
-			return WebGLProgram.get(this.gl, ShaderLib.default_vert, ShaderLib.colorTransform_frag, 'colorTransform');
+			return WebGLProgram.get(
+				this.gl,
+				this.shaders.default_vert,
+				this.shaders.colorTransform_frag,
+				'colorTransform',
+			);
 		}
 		if (filter instanceof BlurFilter || filter instanceof GlowFilter || filter instanceof DropShadowFilter) {
-			return WebGLProgram.get(this.gl, ShaderLib.default_vert, ShaderLib.glow_frag, 'glow');
+			return WebGLProgram.get(this.gl, this.shaders.default_vert, this.shaders.glow_frag, 'glow');
 		}
-		return WebGLProgram.get(this.gl, ShaderLib.default_vert, ShaderLib.texture_frag, 'texture');
+		return WebGLProgram.get(this.gl, this.shaders.default_vert, this.shaders.texture_frag, 'texture');
 	}
 
 	private _drawTextureBatch(
@@ -1064,7 +1088,7 @@ export class WebGLRenderContext {
 
 	private _drawRectBatch(indexOffset: number, count: number): void {
 		const gl = this.gl;
-		const prog = WebGLProgram.get(gl, ShaderLib.default_vert, ShaderLib.primitive_frag, 'primitive');
+		const prog = WebGLProgram.get(gl, this.shaders.default_vert, this.shaders.primitive_frag, 'primitive');
 		gl.useProgram(prog.id);
 
 		const stride = 5 * 4;

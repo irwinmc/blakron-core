@@ -1,5 +1,5 @@
-import { BitmapData } from '../display/texture/BitmapData.js';
-import type { DisplayObject } from '../display/DisplayObject.js';
+import { BitmapData } from '../../display/texture/BitmapData.js';
+import type { DisplayObject } from '../../display/DisplayObject.js';
 import { RenderBuffer } from './RenderBuffer.js';
 
 /**
