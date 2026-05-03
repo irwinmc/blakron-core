@@ -292,12 +292,9 @@ export class Graphics extends HashObject {
 
 	hitTest(localX: number, localY: number): boolean {
 		if (!graphicsHitTest || this.commands.length === 0) {
-			console.log(`[hitTest:Graphics] commands=${this.commands.length} graphicsHitTest=${!!graphicsHitTest} → false`);
 			return false;
 		}
-		const result = graphicsHitTest(this, localX, localY);
-		console.log(`[hitTest:Graphics] pixel test (${localX.toFixed(1)}, ${localY.toFixed(1)}) commands=${this.commands.length} → ${result}`);
-		return result;
+		return graphicsHitTest(this, localX, localY);
 	}
 
 	onRemoveFromStage(): void {

@@ -225,17 +225,10 @@ export class DisplayObjectContainer extends DisplayObject {
 		const children = this.children;
 		let found = false;
 		let target: DisplayObject | undefined;
-		const isDebug = this.constructor?.name === 'CheckBox' || this.constructor?.name === 'RadioButton' || this.constructor?.name === 'Button';
-		if (isDebug) {
-			console.log(`[hitTest:Container] ${this.constructor?.name} touchEnabled=${this.internalTouchEnabled} touchChildren=${this._touchChildren} children=${children?.length ?? 0} localX=${localX.toFixed(1)} localY=${localY.toFixed(1)}`);
-		}
 		for (let i = children.length - 1; i >= 0; i--) {
 			const child = children[i];
 			if (child.maskedObject) continue;
 			target = child.hitTest(stageX, stageY);
-			if (isDebug) {
-				console.log(`  child[${i}] ${child.constructor?.name} hitTest → ${target?.constructor?.name ?? 'undefined'} touchEnabled=${target?.internalTouchEnabled}`);
-			}
 			if (target) {
 				found = true;
 				if (target.internalTouchEnabled) break;
@@ -243,18 +236,12 @@ export class DisplayObjectContainer extends DisplayObject {
 			}
 		}
 		if (target) {
-			if (isDebug) console.log(`  → child target found, touchChildren=${this._touchChildren}, returning ${this._touchChildren ? target.constructor?.name : this.constructor?.name}`);
 			return this._touchChildren ? target : this;
 		}
 		if (found) {
-			if (isDebug) console.log(`  → found but no touchEnabled target, returning self`);
 			return this;
 		}
-		const superResult = super.hitTest(stageX, stageY);
-		if (isDebug) {
-			console.log(`  → no child hit, super.hitTest → ${superResult?.constructor?.name ?? 'undefined'}`);
-		}
-		return superResult;
+		return super.hitTest(stageX, stageY);
 	}
 
 	childAdded(_child: DisplayObject, _index: number): void {}

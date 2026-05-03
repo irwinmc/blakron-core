@@ -513,7 +513,7 @@ export class CanvasRenderer {
 				// Create or resize offscreen canvas
 				if (!graphics.offscreenCanvas) {
 					graphics.offscreenCanvas = document.createElement('canvas');
-					graphics.offscreenCtx = graphics.offscreenCanvas.getContext('2d')!;
+					graphics.offscreenCtx = graphics.offscreenCanvas.getContext('2d', { willReadFrequently: true })!;
 				}
 				const oc = graphics.offscreenCanvas;
 				if (oc.width !== cw || oc.height !== ch) {

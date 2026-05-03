@@ -31,21 +31,14 @@ export class Sprite extends DisplayObjectContainer {
 
 	override hitTest(stageX: number, stageY: number): DisplayObject | undefined {
 		const target = super.hitTest(stageX, stageY);
-		const isDebug = this.constructor?.name === 'CheckBox' || this.constructor?.name === 'RadioButton' || this.constructor?.name === 'Button';
-		if (isDebug) {
-			console.log(`[hitTest:Sprite] ${this.constructor?.name} super.hitTest → ${target?.constructor?.name ?? 'undefined'} (=== this: ${target === this}) graphics.commands=${this.graphics.commands.length}`);
-		}
 		if (target !== this) return target;
 		if (this.graphics.commands.length === 0) {
-			if (isDebug) console.log(`  → no commands, returning this`);
 			return this;
 		}
 		const m = this.getInvertedConcatenatedMatrix();
 		const localX = m.a * stageX + m.c * stageY + m.tx;
 		const localY = m.b * stageX + m.d * stageY + m.ty;
-		const pixelResult = this.graphics.hitTest(localX, localY);
-		if (isDebug) console.log(`  → pixel hitTest(${localX.toFixed(1)}, ${localY.toFixed(1)}) = ${pixelResult}`);
-		return pixelResult ? this : undefined;
+		return this.graphics.hitTest(localX, localY) ? this : undefined;
 	}
 
 	override onRemoveFromStage(): void {
