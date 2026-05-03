@@ -19,6 +19,8 @@ export class RenderTexture extends Texture {
 	// ── Instance fields ───────────────────────────────────────────────────────
 
 	private _canvas?: HTMLCanvasElement;
+	/** Cached context created with willReadFrequently so getPixel32 doesn't trigger warnings. */
+	private _ctx?: CanvasRenderingContext2D;
 
 	// ── Public methods ────────────────────────────────────────────────────────
 
@@ -43,6 +45,9 @@ export class RenderTexture extends Texture {
 		const offsetY = clipBounds ? -clipBounds.y : 0;
 
 		this._canvas = RenderTexture.renderer(displayObject, width, height, offsetX * s, offsetY * s);
+		// Pre-create the context with willReadFrequently so getPixel32 can call
+		// getImageData without triggering browser warnings.
+		this._ctx = this._canvas.getContext('2d', { willReadFrequently: true }) ?? undefined;
 		const bitmapData = new BitmapData(this._canvas);
 		bitmapData.deleteSource = false;
 		bitmapData.width = width;
@@ -57,7 +62,8 @@ export class RenderTexture extends Texture {
 			return [];
 		}
 		const scale = textureScaleFactor;
-		const ctx = this._canvas.getContext('2d');
+		// Use the pre-created context (willReadFrequently) to avoid repeated warnings.
+		const ctx = this._ctx ?? this._canvas.getContext('2d', { willReadFrequently: true });
 		if (!ctx) {
 			return [];
 		}
@@ -68,5 +74,6 @@ export class RenderTexture extends Texture {
 	public override dispose(): void {
 		super.dispose();
 		this._canvas = undefined;
+		this._ctx = undefined;
 	}
 }

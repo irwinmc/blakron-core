@@ -13,7 +13,9 @@ export class RenderBuffer {
 
 	public constructor(width = 0, height = 0) {
 		this.surface = document.createElement('canvas');
-		const ctx = this.surface.getContext('2d');
+		// willReadFrequently: this buffer is used for hit testing and pixel
+		// readback (getImageData), so keeping it in CPU memory avoids GPU round-trips.
+		const ctx = this.surface.getContext('2d', { willReadFrequently: true });
 		if (!ctx) throw new Error('Failed to create Canvas 2D context');
 		this.context = ctx;
 		if (width > 0 && height > 0) this.resize(width, height);
