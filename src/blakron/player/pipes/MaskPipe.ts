@@ -102,15 +102,16 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 			d = m.d,
 			tx = m.tx,
 			ty = m.ty;
-		// offsetX/Y are already in m.tx/ty via _applyTransform — use rect coords only.
-		const x = rect.x,
-			y = rect.y;
-		const xMax = x + rect.width,
-			yMax = y + rect.height;
-		const minX = Math.min(a * x + tx, a * xMax + tx);
-		const maxX = Math.max(a * x + tx, a * xMax + tx);
-		const minY = Math.min(d * y + ty, d * yMax + ty);
-		const maxY = Math.max(d * y + ty, d * yMax + ty);
+		// The scissor rectangle is the viewport's screen-space position and size.
+		// rect.x/y is the content scroll offset (already applied to child offsets
+		// in _buildScrollRect via ox -= rect.x / oy -= rect.y), NOT a screen offset.
+		// So we scissor at (0,0,rect.width,rect.height) in local space.
+		const xMax = rect.width,
+			yMax = rect.height;
+		const minX = Math.min(tx, a * xMax + tx);
+		const maxX = Math.max(tx, a * xMax + tx);
+		const minY = Math.min(ty, d * yMax + ty);
+		const maxY = Math.max(ty, d * yMax + ty);
 		buffer.context.enableScissor(minX, -maxY + buffer.height, maxX - minX, maxY - minY);
 		return true; // scissor path
 	}
