@@ -4,7 +4,14 @@ export const SYM_PREMULTIPLIED = '__blakronPremultiplied';
 export const SYM_DEFAULT_EMPTY = '__blakronDefaultEmpty';
 export const SYM_SMOOTHING = '__blakronSmoothing';
 
-export function compileShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader {
+/**
+ * Unified GL context type.
+ * WebGL2RenderingContext is a strict superset of WebGL1 — all existing API
+ * calls are identical, so no rendering code needs to change.
+ */
+export type GL = WebGL2RenderingContext | WebGLRenderingContext;
+
+export function compileShader(gl: GL, type: number, source: string): WebGLShader {
 	const shader = gl.createShader(type)!;
 	gl.shaderSource(shader, source);
 	gl.compileShader(shader);
@@ -14,7 +21,7 @@ export function compileShader(gl: WebGLRenderingContext, type: number, source: s
 	return shader;
 }
 
-export function createProgram(gl: WebGLRenderingContext, vertSrc: string, fragSrc: string): WebGLProgram {
+export function createProgram(gl: GL, vertSrc: string, fragSrc: string): WebGLProgram {
 	const vert = compileShader(gl, gl.VERTEX_SHADER, vertSrc);
 	const frag = compileShader(gl, gl.FRAGMENT_SHADER, fragSrc);
 	const program = gl.createProgram()!;
@@ -27,7 +34,7 @@ export function createProgram(gl: WebGLRenderingContext, vertSrc: string, fragSr
 	return program;
 }
 
-export function deleteWebGLTexture(gl: WebGLRenderingContext | undefined, texture: WebGLTexture | undefined): void {
+export function deleteWebGLTexture(gl: GL | undefined, texture: WebGLTexture | undefined): void {
 	if (!texture) return;
 	if ((texture as Record<string, unknown>)[SYM_DEFAULT_EMPTY]) return;
 	if (gl) gl.deleteTexture(texture);
@@ -48,8 +55,8 @@ export function checkWebGLSupport(): boolean {
 	try {
 		const canvas = document.createElement('canvas');
 		return !!(
-			window.WebGLRenderingContext &&
-			(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+			(window.WebGL2RenderingContext && canvas.getContext('webgl2')) ||
+			(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')))
 		);
 	} catch {
 		return false;

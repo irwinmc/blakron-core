@@ -1,17 +1,18 @@
 import { createProgram } from './WebGLUtils.js';
+import type { GL } from './WebGLUtils.js';
 
 export type UniformMap = Record<string, WebGLUniformLocation | null>;
 export type AttributeMap = Record<string, number>;
 
 // Alias to avoid name collision with the class itself.
-type NativeWebGLProgram = NonNullable<ReturnType<WebGLRenderingContext['createProgram']>>;
+type NativeWebGLProgram = NonNullable<ReturnType<GL['createProgram']>>;
 
 export class WebGLProgram {
 	// ── Static ────────────────────────────────────────────────────────────────
 
 	private static readonly _cache = new Map<string, WebGLProgram>();
 
-	public static get(gl: WebGLRenderingContext, vertSrc: string, fragSrc: string, key: string): WebGLProgram {
+	public static get(gl: GL, vertSrc: string, fragSrc: string, key: string): WebGLProgram {
 		if (!this._cache.has(key)) {
 			this._cache.set(key, new WebGLProgram(gl, vertSrc, fragSrc));
 		}
@@ -28,7 +29,7 @@ export class WebGLProgram {
 	public readonly uniforms: UniformMap = {};
 	public readonly attributes: AttributeMap = {};
 
-	private constructor(gl: WebGLRenderingContext, vertSrc: string, fragSrc: string) {
+	private constructor(gl: GL, vertSrc: string, fragSrc: string) {
 		this.id = createProgram(gl, vertSrc, fragSrc)!;
 
 		const totalUniforms = gl.getProgramParameter(this.id, gl.ACTIVE_UNIFORMS) as number;

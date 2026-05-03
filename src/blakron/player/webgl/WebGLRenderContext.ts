@@ -10,6 +10,7 @@ import { WebGLDrawCmdManager, DrawCmdType } from './WebGLDrawCmdManager.js';
 import { WebGLProgram } from './WebGLProgram.js';
 import { ShaderLib, getBlurTier, makeBlurHFrag, makeBlurVFrag } from './ShaderLib.js';
 import { SYM_GL_CONTEXT, SYM_PREMULTIPLIED, SYM_DEFAULT_EMPTY, SYM_SMOOTHING } from './WebGLUtils.js';
+import type { GL } from './WebGLUtils.js';
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './MultiTextureBatcher.js';
 
@@ -29,7 +30,8 @@ export class WebGLRenderContext {
 
 	// ── Public readonly fields ────────────────────────────────────────────────
 
-	public readonly gl: WebGLRenderingContext;
+	public readonly gl: GL;
+	public readonly isWebGL2: boolean;
 	public readonly surface: HTMLCanvasElement;
 	public readonly drawCmdManager: WebGLDrawCmdManager;
 
@@ -65,9 +67,22 @@ export class WebGLRenderContext {
 
 	private constructor(canvas: HTMLCanvasElement) {
 		this.surface = canvas;
-		const gl = (canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl')) as WebGLRenderingContext;
-		if (!gl) throw new Error('WebGL not supported');
-		this.gl = gl;
+
+		// Prefer WebGL2 (superset of WebGL1, same API surface).
+		// Fall back to WebGL1 / experimental-webgl for older devices.
+		const gl2 = canvas.getContext('webgl2') as WebGL2RenderingContext | null;
+		if (gl2) {
+			this.gl = gl2;
+			this.isWebGL2 = true;
+		} else {
+			const gl1 = (canvas.getContext('webgl') ??
+				canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+			if (!gl1) throw new Error('WebGL not supported');
+			this.gl = gl1;
+			this.isWebGL2 = false;
+		}
+
+		const gl = this.gl;
 
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.CULL_FACE);

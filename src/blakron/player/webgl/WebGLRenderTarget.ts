@@ -1,3 +1,5 @@
+import type { GL } from './WebGLUtils.js';
+
 export class WebGLRenderTarget {
 	// ── Public fields ─────────────────────────────────────────────────────────
 
@@ -9,13 +11,13 @@ export class WebGLRenderTarget {
 
 	// ── Private fields ────────────────────────────────────────────────────────
 
-	private readonly _gl: WebGLRenderingContext;
+	private readonly _gl: GL;
 	private _frameBuffer?: WebGLFramebuffer;
 	private _stencilBuffer?: WebGLRenderbuffer;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 
-	public constructor(gl: WebGLRenderingContext, width: number, height: number) {
+	public constructor(gl: GL, width: number, height: number) {
 		this._gl = gl;
 		this.width = Math.max(width, 1);
 		this.height = Math.max(height, 1);
