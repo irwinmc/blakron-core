@@ -75,10 +75,12 @@ export function measureVerticalCorrection(
 	const fbbDescent = metrics.fontBoundingBoxDescent;
 	const abbAscent = metrics.actualBoundingBoxAscent;
 	const abbDescent = metrics.actualBoundingBoxDescent;
-	// Glyph visual center from top of em-square:
-	//   fbbAscent + (abbDescent - abbAscent) / 2
+	// Glyph visual center from top of em-square (with textBaseline='top'):
+	//   fbbAscent is the distance from baseline to em-square top.
+	//   Actual glyph spans from (fbbAscent - abbAscent) to (fbbAscent + abbDescent).
+	//   Glyph visual center = fbbAscent - abbAscent/2 + abbDescent/2
 	// Em-square center from top:
 	//   fontSize / 2
-	// Correction = emSquareCenter - glyphVisualCenter (positive → shift down)
-	return fontSize / 2 - fbbAscent - abbDescent / 2 + abbAscent / 2;
+	// Correction = glyphVisualCenter - emSquareCenter (positive → shift text down)
+	return fbbAscent - abbAscent / 2 + abbDescent / 2 - fontSize / 2;
 }
