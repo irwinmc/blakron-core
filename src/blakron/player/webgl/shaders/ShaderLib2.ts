@@ -54,7 +54,9 @@ void main(void) {
 }`,
 
 	// Multi-texture fragment shader.
-	// GLSL ES 3.00 supports dynamic indexing into sampler arrays natively.
+	// Each branch uses a constant integer to index the sampler array, which
+	// satisfies GLSL ES 3.00's requirement that sampler indices be constant or
+	// dynamically uniform. (Direct variable indexing is NOT allowed.)
 	multi_frag: /* glsl */ `#version 300 es
 precision lowp float;
 in vec2 vTextureCoord;
@@ -63,7 +65,17 @@ in float vTextureId;
 uniform sampler2D uSamplers[8];
 out vec4 fragColor;
 void main(void) {
-    fragColor = texture(uSamplers[int(vTextureId + 0.5)], vTextureCoord) * vColor;
+    vec4 color;
+    int id = int(vTextureId + 0.5);
+    if (id == 0)      color = texture(uSamplers[0], vTextureCoord);
+    else if (id == 1) color = texture(uSamplers[1], vTextureCoord);
+    else if (id == 2) color = texture(uSamplers[2], vTextureCoord);
+    else if (id == 3) color = texture(uSamplers[3], vTextureCoord);
+    else if (id == 4) color = texture(uSamplers[4], vTextureCoord);
+    else if (id == 5) color = texture(uSamplers[5], vTextureCoord);
+    else if (id == 6) color = texture(uSamplers[6], vTextureCoord);
+    else              color = texture(uSamplers[7], vTextureCoord);
+    fragColor = color * vColor;
 }`,
 
 	texture_frag: /* glsl */ `#version 300 es
