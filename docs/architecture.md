@@ -1,6 +1,6 @@
 # Blakron Core 架构文档
 
-> 版本：0.2.4 | 更新日期：2026-05-01
+> 版本：0.5.2 | 更新日期：2026-07-15
 
 ---
 
@@ -11,14 +11,15 @@ Blakron 是对 Egret 游戏引擎的现代化翻新。在保持与 Egret 对外 
 
 | 指标     | 旧 Egret                    | Blakron                                   |
 | -------- | --------------------------- | ----------------------------------------- |
-| 源文件数 | 166                         | ~97                                       |
-| 代码行数 | 42,340                      | ~13,000                                   |
+| 源文件数 | 166                         | ~110                                      |
+| 代码行数 | 42,340                      | ~15,000                                   |
 | 模块系统 | `namespace egret`           | ES Module                                 |
 | 类型系统 | `strict` 未开启，大量 `any` | `strict: true`，全量类型安全              |
 | 编译目标 | ES5/ES3                     | ES2022                                    |
 | 渲染架构 | RenderNode 三阶段           | InstructionSet 指令驱动（借鉴 Pixi.js 8） |
 | 批处理   | 同纹理合并                  | 多纹理批处理（8张/批）                    |
 | 包管理   | 无 package.json（monolith） | `@blakron/core` workspace 包              |
+| 资源管理 | 无独立模块                  | Resource 完整资源生命周期                 |
 
 ---
 
@@ -27,9 +28,9 @@ Blakron 是对 Egret 游戏引擎的现代化翻新。在保持与 Egret 对外 
 ```
 packages/core/src/blakron/
 ├── display/          # 显示对象层（场景图）
-│   ├── DisplayObject.ts          # 基类，含 renderDirty/cacheDirty/renderMode
-│   ├── DisplayObjectContainer.ts # 容器，含 isRenderGroup
-│   ├── Bitmap.ts                 # 位图显示
+│   ├── DisplayObject.ts          # 基类，含 renderDirty/cacheDirty/renderMode/bounds 缓存
+│   ├── DisplayObjectContainer.ts # 容器，含 isRenderGroup/sortableChildren/zIndex 排序
+│   ├── Bitmap.ts                 # 位图显示（含 scale9Grid 九宫格）
 │   ├── Sprite.ts                 # 精灵（容器 + Graphics）
 │   ├── Shape.ts                  # 矢量图形
 │   ├── Mesh.ts                   # 网格（vertices/indices/uvs）
@@ -39,26 +40,18 @@ packages/core/src/blakron/
 │   ├── enums/                    # BlendMode, BitmapFillMode 等
 │   └── texture/                  # BitmapData, Texture, SpriteSheet, RenderTexture
 ├── player/           # 渲染管线 + 游戏循环
-│   ├── Player.ts                 # 播放器（Stage + Renderer 绑定）
+│   ├── Player.ts                 # 播放器（Stage + Renderer 绑定，含 perf 性能指标）
 │   ├── SystemTicker.ts           # 帧循环（RAF + ENTER_FRAME）
-│   ├── CanvasRenderer.ts         # Canvas 2D 渲染器
 │   ├── RenderPipe.ts             # RenderPipe 接口定义
-│   ├── InstructionSet.ts         # 指令集
-│   ├── InstructionSet.test.ts    # 指令集单元测试
-│   ├── DisplayList.ts            # cacheAsBitmap 离屏缓存
-│   ├── RenderBuffer.ts           # Canvas 2D 缓冲区
 │   ├── TouchHandler.ts           # 触摸/鼠标输入
 │   ├── ScreenAdapter.ts          # 屏幕适配（7种缩放模式）
 │   ├── createPlayer.ts           # 统一创建入口
-│   ├── BlakronOptions.ts           # 配置接口
-│   ├── pipes/                    # RenderPipe 实现
-│   │   ├── BitmapPipe.ts
-│   │   ├── GraphicsPipe.ts
-│   │   ├── MeshPipe.ts
-│   │   ├── FilterPipe.ts
-│   │   ├── MaskPipe.ts
-│   │   └── TextPipe.ts           # 文本 WebGL 渲染（offscreen canvas → 纹理上传）
-│   └── webgl/                    # WebGL 渲染后端
+│   ├── BlakronOptions.ts         # 配置接口
+│   ├── canvas/                   # Canvas 2D 渲染后端（降级方案）
+│   │   ├── CanvasRenderer.ts     # 直接遍历渲染器
+│   │   ├── DisplayList.ts        # cacheAsBitmap 离屏缓存
+│   │   └── RenderBuffer.ts       # Canvas 2D 缓冲区
+│   └── webgl/                    # WebGL 渲染后端（主渲染器）
 │       ├── WebGLRenderer.ts      # 两阶段渲染器（build + execute）
 │       ├── WebGLRenderContext.ts  # WebGL 状态管理 + draw 调度
 │       ├── WebGLRenderBuffer.ts  # WebGL 缓冲区（含对象池）
@@ -66,15 +59,42 @@ packages/core/src/blakron/
 │       ├── WebGLVertexArrayObject.ts
 │       ├── WebGLDrawCmdManager.ts
 │       ├── WebGLProgram.ts
-│       ├── ShaderLib.ts          # GLSL 着色器源码
-│       ├── MultiTextureBatcher.ts # 多纹理批处理
-│       └── WebGLUtils.ts
-├── events/           # 事件系统（完整保留 Egret API）
+│       ├── WebGLUtils.ts
+│       ├── InstructionSet.ts     # 指令集
+│       ├── MultiTextureBatcher.ts # 多纹理批处理（8张/批）
+│       ├── pipes/                # RenderPipe 实现
+│       │   ├── BitmapPipe.ts     # 位图渲染指令
+│       │   ├── GraphicsPipe.ts   # 矢量图形指令（Canvas光栅化 → 纹理上传）
+│       │   ├── MeshPipe.ts       # 网格渲染指令
+│       │   ├── FilterPipe.ts     # 滤镜 push/pop 指令
+│       │   ├── MaskPipe.ts       # 遮罩 push/pop 指令
+│       │   └── TextPipe.ts       # 文本 WebGL 渲染（offscreen canvas → 纹理上传）
+│       └── shaders/              # GLSL 着色器
+│           ├── ShaderLib.ts      # 基础着色器库
+│           └── ShaderLib2.ts     # 扩展着色器
+├── events/           # 事件系统（12 个事件类，完整保留 Egret API）
 ├── geom/             # 几何工具（Matrix, Point, Rectangle）
 ├── filters/          # 滤镜（Blur, Glow, DropShadow, ColorMatrix, Custom）
-├── text/             # 文本渲染（TextField, BitmapText, BitmapFont, StageText）
+├── text/             # 文本渲染
+│   ├── TextField.ts              # 核心文本字段
+│   ├── BitmapText.ts             # 位图文本
+│   ├── BitmapFont.ts             # 位图字体
+│   ├── StageText.ts              # INPUT 模式 DOM 输入框
+│   ├── HtmlTextParser.ts         # HTML 文本解析
+│   ├── InputController.ts        # 输入控制器
+│   ├── TextMeasurer.ts           # 文本测量
+│   ├── WordWrap.ts               # 自动换行
 │   ├── enums/                    # HorizontalAlign, VerticalAlign, TextFieldType, TextFieldInputType
 │   └── types/                    # ITextElement 等类型定义
+├── resource/         # 资源管理（🆕 v0.3.2）
+│   ├── Resource.ts               # 资源核心（加载/缓存/生命周期）
+│   ├── ResourceConfig.ts         # 资源配置
+│   ├── ResourceEvent.ts          # 资源事件
+│   ├── ResourceItem.ts           # 资源项
+│   ├── ResourceLoader.ts         # 资源加载器
+│   └── analyzers/                # 资源分析器
+├── system/           # 系统能力（🆕 v0.3.2）
+│   └── Capabilities.ts           # 运行时 WebGL 扩展/平台能力检测
 ├── net/              # 网络加载（HttpRequest, ImageLoader）
 ├── media/            # 媒体（Sound, SoundChannel, Video）
 ├── benchmark/        # 性能基准（MetricsCollector, BenchmarkRunner, SceneRegistry, PerfPanel, ReportExporter）
@@ -430,76 +450,78 @@ export default defineConfig({
 
 ## 十二、变更日志
 
-### 0.2.4（2026-05-01）
+### 0.5.2（当前版本）
 
-**TextPipe 完成**
+**目录结构重组**
 
-- 新增 `player/pipes/TextPipe.ts`，实现 TextField WebGL 渲染（offscreen canvas 光栅化 → WebGLTexture 上传 → `drawTexture()`）
-- `WebGLRenderer` 注册 TextPipe，按 `renderObjectType` 路由
-- 支持 `_textDirty` / `renderDirty` 脏检测，静态文本不重上传
+- `player/` 下新增 `canvas/` 和 `webgl/` 子目录，将两种渲染后端物理隔离
+- `pipes/` 移入 `webgl/pipes/`，`InstructionSet`、`MultiTextureBatcher` 等移入 `webgl/`
+- `shaders/` 独立为子目录，新增 `ShaderLib2.ts` 扩展着色器
 
-**text 模块结构完善**
+**text 模块扩展**
 
-- 新增 `text/enums/`：`HorizontalAlign`、`VerticalAlign`、`TextFieldType`、`TextFieldInputType`
-- 新增 `text/types/`：`ITextElement` 等类型定义
-- 新增 `text/StageText.ts`：INPUT 模式 DOM 输入框管理
-
-**InstructionSet 单元测试**
-
-- 新增 `player/InstructionSet.test.ts`，7 个测试用例覆盖指令集核心行为
-
-**版本升级**
-
-- `@blakron/core` 版本从 0.2.3 升至 0.2.4
+- 新增 `HtmlTextParser.ts`：HTML 文本解析
+- 新增 `InputController.ts`：输入控制器
+- 新增 `TextMeasurer.ts`：文本测量
+- 新增 `WordWrap.ts`：自动换行
 
 ---
 
-### 0.2.3（2026-04-11）
+### 0.3.3
 
-**WebGL Context Lost 恢复完善**
+**GL 状态管理修复**
 
-- `WebGLRenderContext` 通过 `_trackedBitmapDatas` 追踪所有 BitmapData，context restored 时清除 `webGLTexture` 引用，下次 `getWebGLTexture()` 自动重建
-- `Player` 注册 context restored 回调，调用 `markStructureDirty()` 触发全量重建（含所有 RenderGroup）
+- `FilterPipe` / `MaskPipe`：修正 GL 状态管理，防止滤镜和遮罩 pass 之间 blend state 泄漏
 
-**FilterPipe / MaskPipe blend mode 恢复**
+**代码风格**
 
-- `WebGLRenderContext` 新增 `currentBlendMode` 追踪当前 blend 状态
-- `FilterPipe.executePush()` 保存当前 blend mode 到 `savedBlendMode`，`executePop()` 恢复
-- `MaskPipe.executeClipPop()` 同步修复
+- 全量替换显式 `undefined` 赋值为 optional property 语法
+- `DisplayObjectContainer` 显式声明 `children` 字段，移除非空断言
 
-**Bounds 计算缓存**
+---
 
-- `DisplayObject` 新增 `_boundsDirty` + `_cachedBounds`，`getOriginalBounds()` 命中缓存时直接返回
-- `markDirty()` 标脏自身，`cacheDirtyUp()` 向上传播标脏父级 bounds
+### 0.3.2
 
-**FilterPipe / MaskPipe 指令对象池**
+**Resource 资源管理模块**
 
-- `FilterPipe` 新增 `_pushPool` / `_popPool`，`makePush()` / `makePop()` 优先从池中复用
-- `MaskPipe` 同步实现
-- `WebGLRenderer._releaseInstructions()` 在 `set.reset()` 前回收指令到池中
+- 新增 `resource/` 模块：`Resource`、`ResourceConfig`、`ResourceEvent`、`ResourceItem`、`ResourceLoader`、`analyzers/`
+- 支持完整的资源加载、缓存、生命周期管理
 
-**Video 帧渲染修复**
+**Capabilities 系统能力检测**
 
-- `WebGLRenderContext.getWebGLTexture()` 检测 `HTMLVideoElement` source 时每帧重新 `texImage2D` 上传，修复视频黑屏问题
-- `updateTexture()` 参数类型扩展支持 `HTMLVideoElement`
+- 新增 `system/Capabilities.ts`：运行时 WebGL 扩展和平台能力检测 API
 
-**Benchmark 模块**
+**命名空间迁移**
 
-- 新增 `benchmark/` 模块：`MetricsCollector`、`BenchmarkRunner`、`PerfPanel`、`ReportExporter`、`SceneRegistry`
-- 5 种压测场景：Sprite Batch / Mixed Texture / Filter Heavy / Dynamic Transform / Deep Container
-- 支持 JSON 导出、Markdown 复制、warmup/measuring/paused 三阶段状态机
+- 内部命名空间从 `Heron` 全面迁移至 `Blakron`
 
-**测试页面**
+**TextPipe 集成**
 
-- 新增 7 个交互式测试页面（`examples/`）：Visual Test、Bitmap Test、Mesh Test、Sound Test、Video Test、Net Test、Benchmark
-- 统一 glassmorphism UI 设计：左侧 sidebar + 右侧 canvas + 底部 log panel
-- 通过 `pnpm benchmark` 启动 Vite dev server 访问
+- TextPipe 正式集成到 player 渲染管线
 
-**测试补充**
+---
 
-- 新增 media（Sound / SoundChannel / Video）和 benchmark 测试文件
-- 测试文件从 14 个增至 18 个
+### 0.2.4
 
-### 0.2.1（2026-04-10）
+**TextPipe 完成**
+
+- 实现 TextField WebGL 渲染（offscreen canvas 光栅化 → WebGLTexture 上传）
+- `WebGLRenderer` 注册 TextPipe，按 `renderObjectType` 路由
+- text 模块结构完善（enums/types/StageText）
+- InstructionSet 单元测试
+
+---
+
+### 0.2.3
+
+- WebGL Context Lost 恢复完善
+- FilterPipe / MaskPipe blend mode 状态恢复 + 指令对象池
+- DisplayObject bounds 计算缓存
+- Video 帧渲染修复
+- Benchmark 模块（5 种压测场景）
+
+---
+
+### 0.2.1
 
 - 初始架构文档版本
