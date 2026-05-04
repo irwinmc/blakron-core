@@ -205,6 +205,13 @@ export class WebGLRenderContext {
 		this.projectionX = w / 2;
 		this.projectionY = -h / 2;
 		this.gl.viewport(0, 0, w, h);
+
+		// Keep the UBO projectionVector in sync with the active buffer dimensions.
+		// Without this, offscreen filter buffers read stale root-canvas projection
+		// from the UBO, causing the rendered image to shrink to a tiny area.
+		if (this.ubo) {
+			this.ubo.updateProjection(this.projectionX, this.projectionY);
+		}
 	}
 
 	// ── Stencil / Scissor ─────────────────────────────────────────────────────

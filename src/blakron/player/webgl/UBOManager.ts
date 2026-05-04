@@ -60,6 +60,22 @@ export class UBOManager {
 		gl.bufferSubData(gl.UNIFORM_BUFFER, 64, d.subarray(16, 19));
 	}
 
+	/**
+	 * Update only the projectionVector in the frame UBO.
+	 * Must be called whenever the active render buffer changes (e.g. switching
+	 * to an offscreen filter buffer) so that vertex positions are projected
+	 * correctly for the new buffer dimensions.
+	 */
+	public updateProjection(projectionX: number, projectionY: number): void {
+		const d = this._frameData;
+		d[16] = projectionX;
+		d[17] = projectionY;
+
+		const gl = this._gl;
+		gl.bindBuffer(gl.UNIFORM_BUFFER, this._frameUBO);
+		gl.bufferSubData(gl.UNIFORM_BUFFER, 64, d.subarray(16, 18));
+	}
+
 	// ── Program binding ───────────────────────────────────────────────────────
 
 	/**
