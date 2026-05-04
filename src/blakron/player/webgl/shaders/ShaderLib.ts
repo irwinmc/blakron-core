@@ -14,11 +14,13 @@ const vec2 center = vec2(-1.0, 1.0);
 void main(void) {
    gl_Position = vec4((aVertexPosition / projectionVector) + center, 0.0, 1.0);
    vTextureCoord = aTextureCoord;
-   	vColor = aColor;
+   vColor = aColor;
    }`,
 
-	// Same as default_vert — used by filter blits so callers don't need to
-	// branch on WebGL version.
+	// Standalone vertex shader for fullscreen quad blits (filters, blur passes).
+	// Identical to default_vert but kept separate so filter passes can be
+	// paired with their own fragment shaders without colliding with the
+	// batched-texture program cache key.
 	fullscreen_vert: /* glsl */ `
    attribute vec2 aVertexPosition;
    attribute vec2 aTextureCoord;

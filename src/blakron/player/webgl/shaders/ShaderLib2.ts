@@ -4,15 +4,10 @@
  */
 export const ShaderLib2 = {
 	default_vert: /* glsl */ `#version 300 es
-layout(std140) uniform FrameUniforms {
-    mat4 projectionMatrix;
-    vec2 projectionVector;
-    float uTime;
-};
-
 in vec2 aVertexPosition;
 in vec2 aTextureCoord;
 in vec4 aColor;
+uniform vec2 projectionVector;
 out vec2 vTextureCoord;
 out vec4 vColor;
 const vec2 center = vec2(-1.0, 1.0);
@@ -23,7 +18,9 @@ void main(void) {
 }`,
 
 	// Standalone vertex shader for fullscreen quad blits (filters, blur passes).
-	// Uses a plain uniform instead of UBO so each pass can set its own projection.
+	// Identical to default_vert but kept separate so filter passes can be
+	// paired with their own fragment shaders without colliding with the
+	// batched-texture program cache key.
 	fullscreen_vert: /* glsl */ `#version 300 es
 in vec2 aVertexPosition;
 in vec2 aTextureCoord;
@@ -40,15 +37,11 @@ void main(void) {
 
 	// Multi-texture vertex shader: carries textureId as a float attribute.
 	multi_vert: /* glsl */ `#version 300 es
-layout(std140) uniform FrameUniforms {
-    mat4 projectionMatrix;
-    vec2 projectionVector;
-    float uTime;
-};
 in vec2 aVertexPosition;
 in vec2 aTextureCoord;
 in vec4 aColor;
 in float aTextureId;
+uniform vec2 projectionVector;
 out vec2 vTextureCoord;
 out vec4 vColor;
 out float vTextureId;
@@ -61,7 +54,7 @@ void main(void) {
 }`,
 
 	// Multi-texture fragment shader.
-	// WebGL2 / GLSL ES 3.00 supports dynamic indexing into sampler arrays natively.
+	// GLSL ES 3.00 supports dynamic indexing into sampler arrays natively.
 	multi_frag: /* glsl */ `#version 300 es
 precision lowp float;
 in vec2 vTextureCoord;
@@ -70,17 +63,7 @@ in float vTextureId;
 uniform sampler2D uSamplers[8];
 out vec4 fragColor;
 void main(void) {
-    vec4 color;
-    int id = int(vTextureId + 0.5);
-    if (id == 0)      color = texture(uSamplers[0], vTextureCoord);
-    else if (id == 1) color = texture(uSamplers[1], vTextureCoord);
-    else if (id == 2) color = texture(uSamplers[2], vTextureCoord);
-    else if (id == 3) color = texture(uSamplers[3], vTextureCoord);
-    else if (id == 4) color = texture(uSamplers[4], vTextureCoord);
-    else if (id == 5) color = texture(uSamplers[5], vTextureCoord);
-    else if (id == 6) color = texture(uSamplers[6], vTextureCoord);
-    else              color = texture(uSamplers[7], vTextureCoord);
-    fragColor = color * vColor;
+    fragColor = texture(uSamplers[int(vTextureId + 0.5)], vTextureCoord) * vColor;
 }`,
 
 	texture_frag: /* glsl */ `#version 300 es
