@@ -22,6 +22,22 @@ void main(void) {
    vColor = aColor;
 }`,
 
+	// Standalone vertex shader for fullscreen quad blits (filters, blur passes).
+	// Uses a plain uniform instead of UBO so each pass can set its own projection.
+	fullscreen_vert: /* glsl */ `#version 300 es
+in vec2 aVertexPosition;
+in vec2 aTextureCoord;
+in vec4 aColor;
+uniform vec2 projectionVector;
+out vec2 vTextureCoord;
+out vec4 vColor;
+const vec2 center = vec2(-1.0, 1.0);
+void main(void) {
+   gl_Position = vec4((aVertexPosition / projectionVector) + center, 0.0, 1.0);
+   vTextureCoord = aTextureCoord;
+   vColor = aColor;
+}`,
+
 	// Multi-texture vertex shader: carries textureId as a float attribute.
 	multi_vert: /* glsl */ `#version 300 es
 layout(std140) uniform FrameUniforms {

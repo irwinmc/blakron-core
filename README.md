@@ -1,69 +1,69 @@
 # @blakron/core
 
-Blakron 是基于 Egret 游戏引擎 API 的现代化重写。保持与 Egret 一致的显示对象模型和事件体系，同时在渲染架构、类型安全和工程规范上全面升级。
+A modern rewrite of the Egret game engine. Maintains Egret-compatible display object and event APIs while upgrading the rendering architecture, type safety, and tooling.
 
-## 特性
+## Features
 
-**渲染引擎**
+**Rendering Engine**
 
-- WebGL 优先 + Canvas 2D 自动降级
-- InstructionSet 指令驱动渲染，借鉴 Pixi.js 8 两阶段架构（Build → Execute）
-- 多纹理批处理（8 张/批），减少 draw call
-- RenderGroup 分层，静态子树零遍历开销
-- 滤镜：Blur（双 pass ping-pong）、Glow、DropShadow、ColorMatrix、自定义着色器
-- 遮罩：scissor / stencil / 离屏合成三种策略自动选择
-- WebGL Context Lost 恢复
+- WebGL-first with automatic Canvas 2D fallback
+- InstructionSet-driven pipeline (Build → Execute two-phase, inspired by Pixi.js 8)
+- Multi-texture batching (up to 8 textures per draw call)
+- RenderGroup layers — zero traversal cost for static subtrees
+- Filters: Blur (ping-pong dual-pass), Glow, DropShadow, ColorMatrix, custom shaders
+- Masks: automatic selection between scissor / stencil / offscreen compositing
+- WebGL Context Lost recovery
 
-**显示对象**
+**Display Objects**
 
-- 完整的场景图：DisplayObject → Container → Sprite → Stage
-- Bitmap（含 scale9Grid 九宫格）、Shape、Mesh、TextField、BitmapText、Video
-- Graphics 矢量绘图（rect、circle、ellipse、arc、bezier、渐变填充、虚线等）
-- 离屏缓存（cacheAsBitmap）、tint 着色、skew 斜切、zIndex 排序
+- Full scene graph: DisplayObject → Container → Sprite → Stage
+- Bitmap (with scale9Grid), Shape, Mesh, TextField, BitmapText, Video
+- Graphics vector drawing (rect, circle, ellipse, arc, bezier, gradients, dashed lines)
+- cacheAsBitmap, tint, skew, zIndex sorting
 
-**事件系统**
+**Event System**
 
-- 与 Egret 一致的事件类：Event、TouchEvent、TimerEvent、ProgressEvent 等
-- 捕获/冒泡两阶段分发、事件池、`once()` 一级支持
-- 触摸/鼠标统一处理，支持多触点
+- Egret-compatible event classes: Event, TouchEvent, TimerEvent, ProgressEvent, etc.
+- Capture / bubble two-phase dispatch, object pooling, `once()` built-in
+- Unified touch + mouse handling, multi-touch support
 
-**其他**
+**Other**
 
-- 7 种屏幕适配模式（showAll / noScale / exactFit / noBorder 等）
-- Resource 资源管理器 — async/await 加载、按组批量加载、5 种内置解析器（Image/Json/Text/Sound/Sheet）
-- HttpRequest / ImageLoader 网络加载
-- Sound（Web Audio + HTML Audio 降级）/ Video 媒体播放
+- 7 screen scale modes (showAll / noScale / exactFit / noBorder, etc.)
+- Resource manager — async/await loading, group-based batching, 5 built-in parsers (Image / Json / Text / Sound / Sheet)
+- HttpRequest / ImageLoader networking
+- Sound (Web Audio + HTML Audio fallback) / Video playback
 - ByteArray / Timer / Logger / FontManager / LocalStorage
-- 全量 `strict: true` TypeScript，零 `any`
+- Full `strict: true` TypeScript, zero `any`
 
-**与 Egret 对比**
+**vs. Egret**
 
-| 维度     | Egret             | Blakron             |
-| -------- | ----------------- | ------------------- |
-| 代码量   | 42,340 行         | ~13,000 行          |
-| 模块系统 | `namespace egret` | ES Module           |
-| 类型安全 | 大量 `any`        | `strict: true`      |
-| 编译目标 | ES5               | ES2022              |
-| 渲染架构 | RenderNode 树     | 扁平 InstructionSet |
-| 批处理   | 同纹理            | 多纹理（8 张/批）   |
+| Aspect     | Egret             | Blakron               |
+| ---------- | ----------------- | --------------------- |
+| Code size  | 42,340 lines      | ~13,000 lines         |
+| Modules    | `namespace egret` | ES Module             |
+| Type safety| pervasive `any`   | `strict: true`        |
+| Target     | ES5               | ES2022                |
+| Pipeline   | RenderNode tree   | Flat InstructionSet   |
+| Batching   | same-texture      | multi-texture (8/batch) |
 
-**设计参考**
+**Design Credits**
 
-渲染管线借鉴了 Pixi.js 8 的若干设计，同时保持 Egret 的 API 和显示对象模型不变：
+The rendering pipeline borrows concepts from Pixi.js 8 while keeping the Egret display object model and API intact:
 
-| 维度                                   | 来源      | 说明                                                            |
-| -------------------------------------- | --------- | --------------------------------------------------------------- |
-| InstructionSet + RenderPipe 两阶段渲染 | Pixi.js 8 | Build 生成扁平指令数组，Execute 按 `renderPipeId` 分发到各 Pipe |
-| RenderGroup 分层                       | Pixi.js 8 | `isRenderGroup` 让子树拥有独立指令集，结构变化不触发父级重建    |
-| 多纹理批处理                           | Pixi.js   | 顶点携带 `aTextureId`，一次 draw call 绑定 8 张纹理             |
-| tint 着色                              | Pixi.js   | `displayObject.tint` 通过顶点颜色预乘传入 shader                |
-| 脏标记分离                             | Pixi.js 8 | `structureDirty`（全量重建）与 `renderDirty`（局部刷新）分离    |
-| 显示对象 / 事件 / API                  | Egret     | 完整保留，迁移成本最小化                                        |
-| 滤镜 shader                            | Egret     | 沿用原有 GLSL，blur 改为 ping-pong 双 pass                      |
-| WebGL 状态管理                         | Egret     | 沿用 DrawCmdManager 批处理命令队列                              |
-| 遮罩策略                               | Egret     | scissor / stencil / 离屏合成三选一                              |
+| Aspect                                 | Source    | Notes                                                          |
+| -------------------------------------- | --------- | -------------------------------------------------------------- |
+| InstructionSet + RenderPipe two-phase  | Pixi.js 8 | Build → flat instructions, Execute → dispatch by `renderPipeId`|
+| RenderGroup layers                     | Pixi.js 8 | `isRenderGroup` isolates subtree instruction sets              |
+| Multi-texture batching                 | Pixi.js   | `aTextureId` per vertex, up to 8 textures per draw call        |
+| Tint                                   | Pixi.js   | `displayObject.tint` passed as premultiplied vertex color      |
+| Dirty flag separation                  | Pixi.js 8 | `structureDirty` (rebuild) vs `renderDirty` (patch)            |
+| Display objects / events / API         | Egret     | Fully preserved for minimal migration cost                     |
+| Filter shaders                         | Egret     | Original GLSL, blur upgraded to ping-pong dual-pass            |
+| WebGL state management                 | Egret     | DrawCmdManager batching command queue                          |
+| Mask strategies                        | Egret     | scissor / stencil / offscreen compositing                      |
 
-## 快速开始
+## Quick Start
 
 ```typescript
 import { createPlayer, Sprite, Shape } from '@blakron/core';
@@ -88,38 +88,39 @@ rect.y = 100;
 root.addChild(rect);
 ```
 
-## 开发
+## Development
 
 ```bash
 pnpm install
-pnpm run build        # 编译
-pnpm run test         # 运行测试（225 用例）
-pnpm run dev          # watch 模式
+pnpm run build        # compile
+pnpm run test         # run tests (225 cases)
+pnpm run dev          # watch mode
 ```
 
-## 文档
+## Documentation
 
-- [架构文档](docs/architecture.md) — 渲染管线、API 对比和 Breaking Changes
-- [资源管理器](docs/resource.md) — Resource 模块 API 参考、配置格式、自定义解析器
+- [Architecture](docs/architecture.md) — rendering pipeline, API comparison, breaking changes
+- [Resource Manager](docs/resource.md) — Resource API reference, config format, custom parsers
+- [WebGL2 Upgrade Plan](docs/webgl2-upgrade.md) — UBO, instancing, texture arrays roadmap
 
-## 测试页面
+## Test Pages
 
-`examples/` 目录包含交互式测试页面，需要通过 HTTP dev server 访问（ES Module 不支持 `file://` 协议）：
+Interactive test pages in `examples/` require an HTTP dev server (ES Modules don't work over `file://`):
 
 ```bash
 pnpm benchmark
 ```
 
-| 页面            | 说明                                                                          |
-| --------------- | ----------------------------------------------------------------------------- |
-| **Visual Test** | 渲染验证：Shape、Graphics、滤镜、Mask、RenderGroup、动画等 18 个用例          |
-| **Bitmap Test** | Bitmap 渲染：缩放、旋转、SpriteSheet、scale9Grid、批处理                      |
-| **Mesh Test**   | Mesh 顶点变形：Quad / Fan / Grid 预设，Wave / Ripple / Twist 动画             |
-| **Sound Test**  | Sound / SoundChannel：加载、播放、音量、循环、错误处理                        |
-| **Video Test**  | Video 播放：加载、播放/暂停、seek、音量、尺寸调整                             |
-| **Net Test**    | HttpRequest / ImageLoader：GET / POST、responseType、timeout、abort           |
-| **Benchmark**   | WebGL 性能基准：5 种场景压力测试，含 FPS / Draw Calls / Batch Efficiency 指标 |
+| Page           | Description                                                               |
+| -------------- | ------------------------------------------------------------------------- |
+| **Visual Test**| 18 cases: Shape, Graphics, Filters, Mask, RenderGroup, Animation          |
+| **Bitmap Test**| Bitmap rendering: scale, rotation, SpriteSheet, scale9Grid, batching      |
+| **Mesh Test**  | Mesh deformation: Quad / Fan / Grid presets, Wave / Ripple / Twist        |
+| **Sound Test** | Sound / SoundChannel: load, play, volume, loop, error handling            |
+| **Video Test** | Video: load, play/pause, seek, volume, resize                             |
+| **Net Test**   | HttpRequest / ImageLoader: GET / POST, responseType, timeout, abort       |
+| **Benchmark**  | WebGL perf: 5 stress scenes with FPS / Draw Calls / Batch Efficiency      |
 
-## 许可证
+## License
 
 MIT

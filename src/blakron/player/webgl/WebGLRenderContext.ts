@@ -601,7 +601,7 @@ export class WebGLRenderContext {
 		const vKey = `blur_v_${vTier}`;
 
 		// ── Pass 1: horizontal blur → tmpFbo ──────────────────────────────────
-		const hProg = WebGLProgram.get(gl, this.shaders.default_vert, this.makeBlurH(hTier), hKey);
+		const hProg = WebGLProgram.get(gl, this.shaders.fullscreen_vert, this.makeBlurH(hTier), hKey);
 		this._drawFullscreenQuad(hProg, texture, w, h, prog => {
 			const uBlurX = prog.uniforms['blurX'];
 			const uSize = prog.uniforms['uTextureSize'];
@@ -613,7 +613,7 @@ export class WebGLRenderContext {
 		buffer.rootRenderTarget.activate();
 		this.onResize(w, h);
 
-		const vProg = WebGLProgram.get(gl, this.shaders.default_vert, this.makeBlurV(vTier), vKey);
+		const vProg = WebGLProgram.get(gl, this.shaders.fullscreen_vert, this.makeBlurV(vTier), vKey);
 		this._drawFullscreenQuad(vProg, tmpEntry.texture, w, h, prog => {
 			const uBlurY = prog.uniforms['blurY'];
 			const uSize = prog.uniforms['uTextureSize'];
@@ -657,8 +657,6 @@ export class WebGLRenderContext {
 			gl.vertexAttribPointer(aColor, 4, gl.UNSIGNED_BYTE, true, stride, 16);
 		}
 
-		// _drawFullscreenQuad needs its own projection (filter texture size),
-		// not the frame-level projection from UBO.
 		const uProj = prog.uniforms['projectionVector'];
 		if (uProj) gl.uniform2f(uProj, w / 2, -h / 2);
 

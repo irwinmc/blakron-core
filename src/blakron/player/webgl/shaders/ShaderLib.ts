@@ -14,8 +14,24 @@ const vec2 center = vec2(-1.0, 1.0);
 void main(void) {
    gl_Position = vec4((aVertexPosition / projectionVector) + center, 0.0, 1.0);
    vTextureCoord = aTextureCoord;
-   vColor = aColor;
-}`,
+   	vColor = aColor;
+   }`,
+
+	// Same as default_vert — used by filter blits so callers don't need to
+	// branch on WebGL version.
+	fullscreen_vert: /* glsl */ `
+   attribute vec2 aVertexPosition;
+   attribute vec2 aTextureCoord;
+   attribute vec4 aColor;
+   uniform vec2 projectionVector;
+   varying vec2 vTextureCoord;
+   varying vec4 vColor;
+   const vec2 center = vec2(-1.0, 1.0);
+   void main(void) {
+      gl_Position = vec4((aVertexPosition / projectionVector) + center, 0.0, 1.0);
+      vTextureCoord = aTextureCoord;
+      vColor = aColor;
+   }`,
 
 	multi_vert: /* glsl */ `
 attribute vec2 aVertexPosition;
