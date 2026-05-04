@@ -144,7 +144,7 @@ export class WebGLRenderer {
 
 		// Update shared FrameUBO once per frame (WebGL2 only, no-op on WebGL1)
 		if (ctx.ubo) {
-			ctx.ubo.updateFrame(ctx.projectionX, ctx.projectionY, 0, 0, performance.now() / 1000);
+			ctx.ubo.updateFrame(ctx.projectionX, ctx.projectionY, performance.now() / 1000);
 		}
 
 		ctx.pushBuffer(buffer);

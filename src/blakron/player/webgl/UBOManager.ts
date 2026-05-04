@@ -9,11 +9,10 @@ type GL2 = WebGL2RenderingContext;
  * Layout (std140):
  *   mat4  projectionMatrix  — offset 0,   size 64
  *   vec2  projectionVector  — offset 64,  size 8
- *   vec2  uTextureSize      — offset 72,  size 8
- *   float uTime             — offset 80,  size 4
- *   // implicit padding to vec4 alignment = total 96 bytes
+ *   float uTime             — offset 72,  size 4
+ *   // implicit padding to vec4 alignment = total 80 bytes
  */
-const FRAME_UBO_SIZE = 96;
+const FRAME_UBO_SIZE = 80;
 const FRAME_UBO_BINDING = 0;
 
 /**
@@ -50,23 +49,15 @@ export class UBOManager {
 	// ── Frame UBO update ──────────────────────────────────────────────────────
 
 	/** Update the frame-level UBO. Call once per frame. */
-	public updateFrame(
-		projectionX: number,
-		projectionY: number,
-		textureSizeW: number,
-		textureSizeH: number,
-		time: number,
-	): void {
+	public updateFrame(projectionX: number, projectionY: number, time: number): void {
 		const d = this._frameData;
 		d[16] = projectionX;
 		d[17] = projectionY;
-		d[18] = textureSizeW;
-		d[19] = textureSizeH;
-		d[20] = time;
+		d[18] = time;
 
 		const gl = this._gl;
 		gl.bindBuffer(gl.UNIFORM_BUFFER, this._frameUBO);
-		gl.bufferSubData(gl.UNIFORM_BUFFER, 64, d.subarray(16, 21));
+		gl.bufferSubData(gl.UNIFORM_BUFFER, 64, d.subarray(16, 19));
 	}
 
 	// ── Program binding ───────────────────────────────────────────────────────
