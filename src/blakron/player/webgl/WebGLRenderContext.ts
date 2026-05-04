@@ -75,11 +75,7 @@ export class WebGLRenderContext {
 	private constructor(canvas: HTMLCanvasElement) {
 		this.surface = canvas;
 
-		// Prefer WebGL2 (superset of WebGL1, same API surface).
-		// Fall back to WebGL1 / experimental-webgl for older devices.
-		// NOTE: WebGL2 requires GLSL ES 3.00 shaders (#version 300 es).
-		// Current shaders are GLSL ES 1.00 — use WebGL1 until shaders are upgraded.
-		// Prefer WebGL2 — shaders are GLSL ES 3.00 (#version 300 es).
+		// Prefer WebGL2 with GLSL ES 3.00 shaders.
 		// Fall back to WebGL1 / experimental-webgl for older devices.
 		const gl2 = canvas.getContext('webgl2') as WebGL2RenderingContext | null;
 		if (gl2) {

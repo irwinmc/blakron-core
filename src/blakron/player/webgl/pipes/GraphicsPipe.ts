@@ -7,9 +7,21 @@ import type { InstructionSet } from '../InstructionSet.js';
 import type { RenderPipe } from '../../RenderPipe.js';
 import type { CanvasRenderer } from '../../canvas/index.js';
 import { RenderBuffer } from '../../canvas/index.js';
+import type { GL } from '../WebGLUtils.js';
 
 // Shared scratch rectangle — avoids per-execute allocation.
 const _scratchBounds = new Rectangle();
+
+// ── Texture GC registry ───────────────────────────────────────────────────────
+
+/**
+ * When a Graphics object is GC'd, automatically release its WebGL texture.
+ * This prevents GPU memory leaks when Shapes are created and discarded without
+ * an explicit destroyRenderable() call.
+ */
+const _textureRegistry = new FinalizationRegistry<{ gl: GL; texture: WebGLTexture }>(({ gl, texture }) => {
+	gl.deleteTexture(texture);
+});
 
 // ── Instruction ───────────────────────────────────────────────────────────────
 
@@ -51,6 +63,8 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 	// ── Instance fields ───────────────────────────────────────────────────────
 	private readonly _canvasRenderer: CanvasRenderer;
 	private readonly _cache = new WeakMap<Graphics, GraphicsCache>();
+	private readonly _registryTokens = new WeakMap<Graphics, object>();
+	private _gl?: GL;
 
 	// ── Constructor ───────────────────────────────────────────────────────────
 	public constructor(canvasRenderer: CanvasRenderer) {
@@ -93,7 +107,18 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 
 	public destroyRenderable(renderable: DisplayObject): void {
 		const graphics = renderable.graphics;
-		if (graphics) this._cache.delete(graphics);
+		if (!graphics) return;
+		const cache = this._cache.get(graphics);
+		if (cache?.texture) {
+			// Unregister from GC registry and delete texture immediately.
+			const token = this._registryTokens.get(graphics);
+			if (token) {
+				_textureRegistry.unregister(token);
+				this._registryTokens.delete(graphics);
+			}
+			if (this._gl) this._gl.deleteTexture(cache.texture);
+		}
+		this._cache.delete(graphics);
 	}
 
 	// ── Execute ───────────────────────────────────────────────────────────────
@@ -103,6 +128,9 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 		if (graphics.commands.length === 0) {
 			return;
 		}
+
+		// Cache the GL context for use in destroyRenderable.
+		if (!this._gl) this._gl = buffer.context.gl;
 
 		const bounds = _scratchBounds;
 		bounds.setEmpty();
@@ -152,8 +180,18 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 			const surface = cache.renderBuffer.surface;
 			if (!cache.texture) {
 				cache.texture = buffer.context.createTexture(surface);
+				// Register for GC-based cleanup.
+				const token = {};
+				_textureRegistry.register(graphics, { gl: buffer.context.gl, texture: cache.texture }, token);
+				this._registryTokens.set(graphics, token);
 			} else {
+				// Unregister old texture, create new registration for updated texture.
+				const oldToken = this._registryTokens.get(graphics);
+				if (oldToken) _textureRegistry.unregister(oldToken);
 				buffer.context.updateTexture(cache.texture, surface);
+				const token = {};
+				_textureRegistry.register(graphics, { gl: buffer.context.gl, texture: cache.texture }, token);
+				this._registryTokens.set(graphics, token);
 			}
 			cache.textureWidth = w;
 			cache.textureHeight = h;

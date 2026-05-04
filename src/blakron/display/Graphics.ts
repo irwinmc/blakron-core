@@ -298,7 +298,8 @@ export class Graphics extends HashObject {
 	}
 
 	onRemoveFromStage(): void {
-		this.commands.length = 0;
+		// Do not clear commands — the Shape may be re-added to the display list
+		// and needs its graphics to remain intact for re-rendering.
 	}
 
 	// ── Private methods ───────────────────────────────────────────────────────
