@@ -4,10 +4,16 @@
  */
 export const ShaderLib2 = {
 	default_vert: /* glsl */ `#version 300 es
+layout(std140, binding = 0) uniform FrameUniforms {
+    mat4 projectionMatrix;
+    vec2 projectionVector;
+    vec2 uTextureSize;
+    float uTime;
+};
+
 in vec2 aVertexPosition;
 in vec2 aTextureCoord;
 in vec4 aColor;
-uniform vec2 projectionVector;
 out vec2 vTextureCoord;
 out vec4 vColor;
 const vec2 center = vec2(-1.0, 1.0);
@@ -19,11 +25,16 @@ void main(void) {
 
 	// Multi-texture vertex shader: carries textureId as a float attribute.
 	multi_vert: /* glsl */ `#version 300 es
+layout(std140, binding = 0) uniform FrameUniforms {
+    mat4 projectionMatrix;
+    vec2 projectionVector;
+    vec2 uTextureSize;
+    float uTime;
+};
 in vec2 aVertexPosition;
 in vec2 aTextureCoord;
 in vec4 aColor;
 in float aTextureId;
-uniform vec2 projectionVector;
 out vec2 vTextureCoord;
 out vec4 vColor;
 out float vTextureId;

@@ -14,6 +14,7 @@ import { SYM_GL_CONTEXT, SYM_PREMULTIPLIED, SYM_DEFAULT_EMPTY, SYM_SMOOTHING } f
 import type { GL } from './WebGLUtils.js';
 import type { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 import { MultiTextureBatcher, makeMultiCmd, type MultiTextureDrawCmd } from './MultiTextureBatcher.js';
+import { UBOManager } from './UBOManager.js';
 
 export class WebGLRenderContext {
 	// ── Static fields ─────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ export class WebGLRenderContext {
 	public readonly isWebGL2: boolean;
 	public readonly surface: HTMLCanvasElement;
 	public readonly drawCmdManager: WebGLDrawCmdManager;
+	public readonly ubo?: UBOManager;
 
 	// ── Shader library (selected at init based on WebGL version) ─────────────
 	public readonly shaders: typeof ShaderLib | typeof ShaderLib2;
@@ -81,6 +83,7 @@ export class WebGLRenderContext {
 		if (gl2) {
 			this.gl = gl2;
 			this.isWebGL2 = true;
+			this.ubo = new UBOManager(gl2);
 			this.shaders = ShaderLib2;
 			this.blurTierFn = getBlurTier2;
 			this.makeBlurH = makeBlurHFrag2;
@@ -654,8 +657,11 @@ export class WebGLRenderContext {
 			gl.vertexAttribPointer(aColor, 4, gl.UNSIGNED_BYTE, true, stride, 16);
 		}
 
-		const uProj = prog.uniforms['projectionVector'];
-		if (uProj) gl.uniform2f(uProj, w / 2, -h / 2);
+		// projectionVector is now in FrameUBO when WebGL2 UBO is active
+		if (!this.ubo) {
+			const uProj = prog.uniforms['projectionVector'];
+			if (uProj) gl.uniform2f(uProj, w / 2, -h / 2);
+		}
 
 		const uSampler = prog.uniforms['uSampler'];
 		if (uSampler) gl.uniform1i(uSampler, 0);
@@ -933,6 +939,7 @@ export class WebGLRenderContext {
 		const gl = this.gl;
 		const prog = WebGLProgram.get(gl, this.shaders.multi_vert, this.shaders.multi_frag, 'multi');
 		gl.useProgram(prog.id);
+		if (this.ubo) this.ubo.ensureBound(prog.id);
 
 		const stride = 6 * 4; // MULTI_VERT_BYTE_SIZE
 		const aPos = prog.attributes['aVertexPosition'];
@@ -956,8 +963,11 @@ export class WebGLRenderContext {
 			gl.vertexAttribPointer(aTid, 1, gl.FLOAT, false, stride, 20);
 		}
 
-		const uProj = prog.uniforms['projectionVector'];
-		if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
+		// projectionVector is now in FrameUBO when WebGL2 UBO is active
+		if (!this.ubo) {
+			const uProj = prog.uniforms['projectionVector'];
+			if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
+		}
 
 		// Bind each texture to its unit and set the sampler uniform array.
 		const uSamplers = prog.uniforms['uSamplers[0]'];
@@ -1000,6 +1010,7 @@ export class WebGLRenderContext {
 		const gl = this.gl;
 		const prog = this._getTextureProgram(filter);
 		gl.useProgram(prog.id);
+		if (this.ubo) this.ubo.ensureBound(prog.id);
 
 		// Vertex attributes: x,y (2f), uv (2f), color (4ub)
 		const stride = 5 * 4;
@@ -1019,8 +1030,11 @@ export class WebGLRenderContext {
 			gl.vertexAttribPointer(aColor, 4, gl.UNSIGNED_BYTE, true, stride, 16);
 		}
 
-		const uProj = prog.uniforms['projectionVector'];
-		if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
+		// projectionVector is now in FrameUBO when WebGL2 UBO is active
+		if (!this.ubo) {
+			const uProj = prog.uniforms['projectionVector'];
+			if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
+		}
 
 		const uSampler = prog.uniforms['uSampler'];
 		if (uSampler) gl.uniform1i(uSampler, 0);
@@ -1086,6 +1100,7 @@ export class WebGLRenderContext {
 		const gl = this.gl;
 		const prog = WebGLProgram.get(gl, this.shaders.default_vert, this.shaders.primitive_frag, 'primitive');
 		gl.useProgram(prog.id);
+		if (this.ubo) this.ubo.ensureBound(prog.id);
 
 		const stride = 5 * 4;
 		const aPos = prog.attributes['aVertexPosition'];
@@ -1099,8 +1114,11 @@ export class WebGLRenderContext {
 			gl.vertexAttribPointer(aColor, 4, gl.UNSIGNED_BYTE, true, stride, 16);
 		}
 
-		const uProj = prog.uniforms['projectionVector'];
-		if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
+		// projectionVector is now in FrameUBO when WebGL2 UBO is active
+		if (!this.ubo) {
+			const uProj = prog.uniforms['projectionVector'];
+			if (uProj) gl.uniform2f(uProj, this.projectionX, this.projectionY);
+		}
 
 		gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, indexOffset * 6);
 	}
