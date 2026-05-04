@@ -657,11 +657,10 @@ export class WebGLRenderContext {
 			gl.vertexAttribPointer(aColor, 4, gl.UNSIGNED_BYTE, true, stride, 16);
 		}
 
-		// projectionVector is now in FrameUBO when WebGL2 UBO is active
-		if (!this.ubo) {
-			const uProj = prog.uniforms['projectionVector'];
-			if (uProj) gl.uniform2f(uProj, w / 2, -h / 2);
-		}
+		// _drawFullscreenQuad needs its own projection (filter texture size),
+		// not the frame-level projection from UBO.
+		const uProj = prog.uniforms['projectionVector'];
+		if (uProj) gl.uniform2f(uProj, w / 2, -h / 2);
 
 		const uSampler = prog.uniforms['uSampler'];
 		if (uSampler) gl.uniform1i(uSampler, 0);
