@@ -10,10 +10,4 @@ export { measureText, getFontString, measureVerticalCorrection } from './TextMea
 export { TextField } from './TextField.js';
 export { StageText } from './StageText.js';
 export { InputController } from './InputController.js';
-export {
-	addLanguageWordWrapRegex,
-	cancelLanguageWordWrapRegex,
-	getAllSupportLanguageWordWrap,
-	getUsingWordWrap,
-	getWordWrapRegex,
-} from './WordWrap.js';
+export { tokenize, splitGraphemes } from './WordWrap.js';

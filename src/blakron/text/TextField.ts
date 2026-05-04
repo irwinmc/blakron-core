@@ -11,7 +11,7 @@ import { VerticalAlign } from './enums/VerticalAlign.js';
 import { TextFieldType } from './enums/TextFieldType.js';
 import { TextFieldInputType } from './enums/TextFieldInputType.js';
 import { InputController } from './InputController.js';
-import { getWordWrapRegex } from './WordWrap.js';
+import { tokenize, splitGraphemes } from './WordWrap.js';
 
 /**
  * TextField displays text content. Supports single-line, multi-line, word wrap,
@@ -626,21 +626,14 @@ export class TextField extends DisplayObject {
 						lineCharNum += seg.length;
 						if (!isLastSeg) flushLine(true);
 					} else {
-						// Need to break — split by word or character
-						let words: string[];
-						if (this._wordWrap) {
-							words = seg.split(getWordWrapRegex());
-						} else {
-							words = seg.match(/[\s\S]/gu) ?? seg.split('');
-						}
+						// Need to break — tokenize into words/spaces, then wrap by width
+						const tokenTexts = this._wordWrap ? tokenize(seg) : (seg.match(/[\s\S]/gu) ?? seg.split(''));
 
 						let ww = 0;
 						let charNum = 0;
 
-						for (let k = 0; k < words.length; k++) {
-							const word = words[k];
-							if (!word) continue;
-							const w = measureText(word, fontFamily, fontSize, bold, italic);
+						for (const token of tokenTexts) {
+							const w = measureText(token, fontFamily, fontSize, bold, italic);
 
 							if (lineWidth !== 0 && lineWidth + w > maxWidth) {
 								// Flush current line and start new one
@@ -648,8 +641,8 @@ export class TextField extends DisplayObject {
 							}
 
 							if (w > maxWidth) {
-								// Single word wider than field — break char by char
-								const chars = word.match(/[\s\S]/gu) ?? word.split('');
+								// Single token wider than field — break char by char
+								const chars = splitGraphemes(token);
 								for (const ch of chars) {
 									const cw = measureText(ch, fontFamily, fontSize, bold, italic);
 									if (lineWidth !== 0 && lineWidth + cw > maxWidth) {
@@ -662,11 +655,11 @@ export class TextField extends DisplayObject {
 									charNum++;
 								}
 							} else {
-								currentLine.push({ text: word, width: w, style: element.style });
+								currentLine.push({ text: token, width: w, style: element.style });
 								lineWidth += w;
 								if (!isInput) lineHeight = Math.max(lineHeight, fontSize);
-								lineCharNum += word.length;
-								charNum += word.length;
+								lineCharNum += token.length;
+								charNum += token.length;
 								ww += w;
 							}
 						}
