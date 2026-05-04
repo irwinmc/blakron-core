@@ -91,6 +91,7 @@ precision mediump float;
 uniform vec2 blur;
 uniform sampler2D uSampler;
 in vec2 vTextureCoord;
+uniform vec2 uTextureSize;
 out vec4 fragColor;
 void main() {
     const int sampleRadius = 5;
@@ -114,6 +115,7 @@ precision mediump float;
 uniform float blurX;
 uniform sampler2D uSampler;
 in vec2 vTextureCoord;
+uniform vec2 uTextureSize;
 out vec4 fragColor;
 void main() {
     float step = 1.0 / uTextureSize.x;
@@ -134,6 +136,7 @@ precision mediump float;
 uniform float blurY;
 uniform sampler2D uSampler;
 in vec2 vTextureCoord;
+uniform vec2 uTextureSize;
 out vec4 fragColor;
 void main() {
     float step = 1.0 / uTextureSize.y;
@@ -162,6 +165,7 @@ uniform float strength;
 uniform float inner;
 uniform float knockout;
 uniform float hideObject;
+uniform vec2 uTextureSize;
 out vec4 fragColor;
 float random(vec2 scale) {
     return fract(sin(dot(gl_FragCoord.xy, scale)) * 43758.5453);
@@ -240,6 +244,7 @@ precision mediump float;
 uniform float blurX;
 uniform sampler2D uSampler;
 in vec2 vTextureCoord;
+uniform vec2 uTextureSize;
 out vec4 fragColor;
 void main() {
     float step = 1.0 / uTextureSize.x;
@@ -261,6 +266,7 @@ precision mediump float;
 uniform float blurY;
 uniform sampler2D uSampler;
 in vec2 vTextureCoord;
+uniform vec2 uTextureSize;
 out vec4 fragColor;
 void main() {
     float step = 1.0 / uTextureSize.y;
