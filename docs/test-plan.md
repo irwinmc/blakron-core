@@ -1,7 +1,7 @@
 # Blakron Core 测试规划
 
-> 最后更新：2025-07-17
-> 当前状态：27 test files, 479 tests, all passing
+> 最后更新：2026-05-05 (P0 第二轮)
+> 当前状态：33 test files, 564 tests, all passing
 
 ---
 
@@ -11,20 +11,20 @@
 
 | 指标 | 数值 |
 |---|---|
-| 测试文件数 | 27 |
-| 测试用例数 | 479 |
+| 测试文件数 | 33 |
+| 测试用例数 | 564 |
 | 源文件总数（含类型/枚举/索引） | ~120 |
 | 有实际逻辑的源文件 | ~60 |
-| 测试覆盖率（按文件） | ~45% |
-| 测试覆盖率（按核心逻辑） | ~65% |
+| 测试覆盖率（按文件） | ~55% |
+| 测试覆盖率（按核心逻辑） | ~75% |
 
 ### 1.2 已有测试按模块分布
 
 | 模块 | 测试文件 | 覆盖内容 |
 |---|---|---|
 | `geom/` | `Point.test.ts`, `Rectangle.test.ts`, `Matrix.test.ts` | 所有公开方法、边界条件、对象池、chaining |
-| `events/` | `Event.test.ts`, `EventDispatcher.test.ts`, `EventPropagation.test.ts` | 事件创建/池化、监听器管理、capture→bubble传播链 |
-| `display/` | `DisplayObject.test.ts`, `DisplayObjectContainer.test.ts`, `DisplayObjectIntegration.test.ts`, `Shape.test.ts`, `Sprite.test.ts`, `Stage.test.ts`, `Graphics.test.ts`, `BlendMode.test.ts` | 基础属性、容器管理、空间变换、图形绘制 |
+| `events/` | `Event.test.ts`, `EventDispatcher.test.ts`, `EventPropagation.test.ts`, `TouchEvent.test.ts` | 事件创建/池化、监听器管理、capture→bubble 传播链、触摸事件 |
+| `display/` | `DisplayObject.test.ts`, `DisplayObjectContainer.test.ts`, `DisplayObjectIntegration.test.ts`, `Bitmap.test.ts`, `Shape.test.ts`, `Sprite.test.ts`, `Stage.test.ts`, `Graphics.test.ts`, `BlendMode.test.ts`, `Mesh.test.ts`, `Texture.test.ts`, `BitmapData.test.ts`, `SpriteSheet.test.ts` | 基础属性、容器管理、空间变换、Bitmap 核心渲染、纹理管理、图集、图形绘制 |
 | `filters/` | `filters.test.ts`, `CustomFilter.test.ts` | 五种滤镜的基本参数 |
 | `utils/` | `Base64Util.test.ts`, `ByteArray.test.ts`, `NumberUtils.test.ts`, `toColorString.test.ts`, `HashObject.test.ts`, `Logger.test.ts` | 工具函数全覆盖 |
 | `media/` | `Sound.test.ts`, `SoundChannel.test.ts`, `Video.test.ts` | 音频加载/播放、视频基本操作 |
@@ -35,18 +35,20 @@
 
 ## 2. 测试缺口分析
 
-### 2.1 🔴 P0 — 核心渲染对象（极高优先级）
+### 2.1 🔴 P0 — 核心渲染对象
 
-这些是引擎的核心渲染类，当前**完全无测试**。
+> **✅ 第二轮已全部解决（+85 tests）**
 
-| 文件 | 代码行数 | 关键待测行为 |
-|---|---|---|
-| **`display/Bitmap.ts`** | ~200 | texture 绑定/解绑、fillMode 切换、scale9Grid、pixelHitTest、smoothing、explicitWidth/Height override、`measureContentBounds`、`onAddToStage`/`onRemoveFromStage` 的 BitmapData 引用计数联动 |
-| **`display/texture/Texture.ts`** | ~90 | `initData` 参数计算（含 textureScaleFactor）、`setBitmapData`、`dispose`、`scaleBitmapWidth/Height` |
-| **`display/texture/BitmapData.ts`** | ~170 | 静态方法 `addDisplayObject`/`removeDisplayObject`/`invalidate`/`dispose` 的引用计数逻辑、`create()` 工厂方法、压缩纹理管理、`dispose` 清理 |
-| **`display/Mesh.ts`** | ~70 | vertices/indices/uvs 管理、`updateVertices`、`measureContentBounds` 的边界计算、空顶点数组处理 |
+| 文件 | 测试文件 | 测试数 | 覆盖要点 |
+|---|---|---|---|
+| `display/Bitmap.ts` | `Bitmap.test.ts` | 20 | 纹理绑定/解绑、fillMode、scale9Grid、pixelHitTest、smoothing、width/height override、measureContentBounds、hitTest |
+| `display/texture/Texture.ts` | `Texture.test.ts` | 14 | initData、setBitmapData、dispose、scaleBitmapWidth/Height、弃用方法异常 |
+| `display/texture/BitmapData.ts` | `BitmapData.test.ts` | 15 | 构造、source、引用计数 add/remove/invalidate/dispose、压缩纹理管理 |
+| `display/Mesh.ts` | `Mesh.test.ts` | 8 | vertices/indices/uvs、updateVertices、measureContentBounds、边界缓存 |
+| `events/TouchEvent.ts` | `TouchEvent.test.ts` | 10 | localX/Y fallback、setDispatchContext、initTo、dispatchTouchEvent、对象池 |
+| `display/texture/SpriteSheet.ts` | `SpriteSheet.test.ts` | 10 | createTexture 坐标偏移、bitmapData 共享、尺寸计算、dispose 级联 |
 
-### 2.2 🔴 P0 — 核心渲染对象 DisplayObject 遗漏方法
+### 2.2 🔴 P0 — DisplayObject 遗漏方法
 
 `DisplayObject.test.ts` 和 `DisplayObjectIntegration.test.ts` 已覆盖大部分，但以下关键方法仍缺：
 
@@ -71,18 +73,11 @@
 | `hitTest()` | 容器级命中检测 — 子节点逆序遍历、touchChildren=false、mask 拦截 |
 | `measureChildBounds()` | 多子节点包围盒合并计算 |
 
-### 2.4 🔴 P0 — 输入事件系统
-
-| 文件 | 说明 |
-|---|---|
-| **`events/TouchEvent.ts`** | `localX`/`localY` 的惰性计算（`computeLocalXY`）、`setDispatchContext` 标记 `_targetChanged`、`initTo` 重置、`updateAfterEvent` |
-
-### 2.5 🟡 P1 — 中等优先级
+### 2.4 🟡 P1 — 中等优先级
 
 | 文件 | 说明 |
 |---|---|
 | **`display/texture/RenderTexture.ts`** | `drawToTexture`（需 mock renderer）、`getPixel32` |
-| **`display/texture/SpriteSheet.ts`** | `createTexture` 坐标偏移计算、`getTexture`、`dispose` |
 | **`display/Graphics.ts`** | 遗漏：`beginGradientFill`、`drawArc` anticlockwise、`lineStyle` cap/joint/miterLimit/lineDash 参数、`hitTest` |
 | **`utils/Timer.ts`** | Timer 已写但依赖 SystemTicker mock（需完善 mock 策略） |
 | **`utils/DebugLog.ts`** | enable/active/tickFrame 帧计数自停逻辑 |
@@ -95,13 +90,13 @@
 | **`player/ScreenAdapter.ts`** | 屏幕适配计算逻辑 |
 | **`resource/*`** | ResourceLoader、ResourceConfig、ResourceItem 资源加载管线 |
 
-### 2.6 🟢 P2 — 低优先级（简单常量/枚举/接口）
+### 2.5 🟢 P2 — 低优先级（简单常量/枚举/接口）
 
 以下文件主要是类型定义、常量枚举或纯接口，手动测试价值较低（类型系统即可保证）：
 
 `CapsStyle.ts`, `GradientType.ts`, `JointStyle.ts`, `BitmapFillMode.ts`, `OrientationMode.ts`, `StageScaleMode.ts`, `HttpMethod.ts`, `HttpResponseType.ts`, `EventPhase.ts`, `IEventDispatcher.ts`, `FocusEvent.ts`, `StageOrientationEvent.ts`, `TextEvent.ts`, `ITextElement.ts`, `HorizontalAlign.ts`, `VerticalAlign.ts`, `TextFieldInputType.ts`, `TextFieldType.ts`, `BlakronOptions.ts`, `Capabilities.ts`, `ExternalInterface.ts`, `localStorage.ts`
 
-### 2.7 ⬜ P3 — 需要完整运行时环境
+### 2.6 ⬜ P3 — 需要完整运行时环境
 
 这些模块深度依赖 WebGL Context、Canvas、DOM 或完整的 Player 初始化，单元测试成本极高，更适合集成/E2E 测试：
 
@@ -132,8 +127,8 @@
 
 | 层级 | 当前 | 目标 |
 |---|---|---|
-| 纯逻辑单元测试 | ~400 tests | 500+ |
-| 依赖 Mock 的单元测试 | ~50 tests | 200+ |
+| 纯逻辑单元测试 | ~450 tests | 500+ |
+| 依赖 Mock 的单元测试 | ~100 tests | 200+ |
 | E2E/集成测试 | 0 | 50+ |
 
 ### 3.3 Mock 策略
@@ -153,17 +148,17 @@
 
 ## 4. 实施计划
 
-### Phase 1 — 补齐核心逻辑（目标：+100 tests）
+### Phase 1 — 补齐核心渲染对象 ✅ 已完成
 
-| # | 任务 | 新增测试 | 预估工作量 |
-|---|---|---|---|
-| 1.1 | `Bitmap.test.ts` | ~25 | 2h |
-| 1.2 | `Texture.test.ts` | ~15 | 1h |
-| 1.3 | `BitmapData.test.ts` | ~20 | 1.5h |
-| 1.4 | `Mesh.test.ts` | ~10 | 0.5h |
-| 1.5 | `TouchEvent.test.ts` | ~12 | 1h |
-| 1.6 | `SpriteSheet.test.ts` | ~10 | 0.5h |
-| 1.7 | `RenderTexture.test.ts` | ~8 | 0.5h |
+| # | 任务 | 状态 |
+|---|---|---|
+| 1.1 | `Bitmap.test.ts` | ✅ 20 tests |
+| 1.2 | `Texture.test.ts` | ✅ 14 tests |
+| 1.3 | `BitmapData.test.ts` | ✅ 15 tests |
+| 1.4 | `Mesh.test.ts` | ✅ 8 tests |
+| 1.5 | `TouchEvent.test.ts` | ✅ 10 tests |
+| 1.6 | `SpriteSheet.test.ts` | ✅ 10 tests |
+| 1.7 | `RenderTexture.test.ts` | ⏳ 待定 |
 
 ### Phase 2 — 补齐遗漏方法（目标：+80 tests）
 
@@ -238,6 +233,8 @@ describe('ClassName', () => {
 test/
 ├── Base64Util.test.ts          ✅ 充分
 ├── benchmark.test.ts           ✅ 充分
+├── Bitmap.test.ts              ✅ 新增 P0
+├── BitmapData.test.ts          ✅ 新增 P0
 ├── BlendMode.test.ts           ✅ 充分
 ├── ByteArray.test.ts           ✅ 充分
 ├── CustomFilter.test.ts        ✅ 充分
@@ -253,6 +250,7 @@ test/
 ├── InstructionSet.test.ts      ✅ 充分
 ├── Logger.test.ts              ✅ 充分
 ├── Matrix.test.ts              ✅ 充分
+├── Mesh.test.ts                ✅ 新增 P0
 ├── NumberUtils.test.ts         ✅ 充分
 ├── Point.test.ts               ✅ 充分
 ├── Rectangle.test.ts           ✅ 充分
@@ -260,22 +258,19 @@ test/
 ├── Sound.test.ts               ✅ 充分
 ├── SoundChannel.test.ts        ✅ 充分
 ├── Sprite.test.ts              ✅ 基础
+├── SpriteSheet.test.ts         ✅ 新增 P0
 ├── Stage.test.ts               ✅ 基础
+├── Texture.test.ts             ✅ 新增 P0
 ├── toColorString.test.ts       ✅ 充分
+├── TouchEvent.test.ts          ✅ 新增 P0
 ├── Video.test.ts               ✅ 充分
 │
-├── (待创建) Bitmap.test.ts
-├── (待创建) BitmapData.test.ts
 ├── (待创建) DebugLog.test.ts
 ├── (待创建) HttpRequest.test.ts
 ├── (待创建) ImageLoader.test.ts
-├── (待创建) Mesh.test.ts
 ├── (待创建) RenderTexture.test.ts
-├── (待创建) SpriteSheet.test.ts
 ├── (待创建) SystemTicker.test.ts
-├── (待创建) Texture.test.ts
-├── (待创建) Timer.test.ts
-└── (待创建) TouchEvent.test.ts
+└── (待创建) Timer.test.ts
 ```
 
 ---
@@ -284,4 +279,6 @@ test/
 
 | 日期 | 变更 |
 |---|---|
-| 2025-07-17 | 初始版本，记录当前 27 files / 479 tests 状态，规划 Phase 1-4 |
+| 2026-05-05 | 初始版本，记录当前 18 files / ~200 tests 状态，规划 Phase 1-4 |
+| 2026-05-05 | 第一轮：新增 DisplayObjectIntegration、EventPropagation、Shape、Sprite、Stage、HashObject、Logger、BlendMode、CustomFilter 等 9 个文件，提升至 27 files / 479 tests |
+| 2026-05-05 | P0 第二轮：新增 Bitmap / Texture / BitmapData / Mesh / TouchEvent / SpriteSheet 共 6 个测试文件，+85 tests，总计 33 files / 564 tests。覆盖率从 ~45% 提升至 ~55%（按文件）/ ~75%（按核心逻辑） |
