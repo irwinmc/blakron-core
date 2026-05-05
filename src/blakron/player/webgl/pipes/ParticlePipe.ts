@@ -69,19 +69,16 @@ export class ParticlePipe implements RenderPipe<DisplayObject> {
 		const savedMatrix = Matrix.create();
 		savedMatrix.copyFrom(buffer.globalMatrix);
 
+		const baseAlpha = buffer.globalAlpha;
+
 		for (let i = 0; i < ps.numParticles; i++) {
 			const particle = ps.particles[i];
 			const matrix = particle.getMatrix(regX, regY);
 
 			buffer.globalMatrix.copyFrom(savedMatrix);
-			buffer.globalMatrix.append(
-				matrix.a,
-				matrix.b,
-				matrix.c,
-				matrix.d,
-				inst.offsetX + matrix.tx,
-				inst.offsetY + matrix.ty,
-			);
+			buffer.globalMatrix.append(matrix.a, matrix.b, matrix.c, matrix.d, matrix.tx, matrix.ty);
+
+			buffer.globalAlpha = baseAlpha * particle.alpha;
 
 			buffer.context.drawImage(
 				bd,
@@ -101,6 +98,7 @@ export class ParticlePipe implements RenderPipe<DisplayObject> {
 		}
 
 		buffer.globalMatrix.copyFrom(savedMatrix);
+		buffer.globalAlpha = baseAlpha;
 		Matrix.release(savedMatrix);
 	}
 }
