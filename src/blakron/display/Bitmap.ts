@@ -166,6 +166,15 @@ export class Bitmap extends DisplayObject {
 
 		if (value) {
 			this.refreshImageData();
+			// When already on stage, update BitmapData reference counting.
+			if (this.internalStage) {
+				if (old?.bitmapData && old.bitmapData !== value.bitmapData) {
+					BitmapData.removeDisplayObject(this, old.bitmapData);
+				}
+				if (value.bitmapData) {
+					BitmapData.addDisplayObject(this, value.bitmapData);
+				}
+			}
 		} else {
 			if (old?.bitmapData) {
 				BitmapData.removeDisplayObject(this, old.bitmapData);

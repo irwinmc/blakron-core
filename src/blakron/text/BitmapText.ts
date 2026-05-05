@@ -1,4 +1,4 @@
-import { DisplayObject } from '../display/DisplayObject.js';
+import { DisplayObject, RenderObjectType } from '../display/DisplayObject.js';
 import { Rectangle } from '../geom/Rectangle.js';
 import { HorizontalAlign } from './enums/HorizontalAlign.js';
 import { VerticalAlign } from './enums/VerticalAlign.js';
@@ -16,6 +16,21 @@ export class BitmapText extends DisplayObject {
 	private _letterSpacing = 0;
 	private _textAlign: HorizontalAlign = HorizontalAlign.LEFT;
 	private _verticalAlign: VerticalAlign = VerticalAlign.TOP;
+
+	// Width/Height affect line-breaking, so invalidate text when they change.
+	public override set width(value: number) {
+		const v = isNaN(value) ? NaN : value;
+		if (this.explicitWidth === v) return;
+		this.explicitWidth = v;
+		this._invalidate();
+	}
+
+	public override set height(value: number) {
+		const v = isNaN(value) ? NaN : value;
+		if (this.explicitHeight === v) return;
+		this.explicitHeight = v;
+		this._invalidate();
+	}
 	private _smoothing = true;
 
 	private _textLinesChanged = false;
