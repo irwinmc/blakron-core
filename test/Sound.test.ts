@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Sound, SoundType } from '../src/blakron/media/Sound.js';
-import { SoundChannel } from '../src/blakron/media/SoundChannel.js';
 import { Event } from '../src/blakron/events/Event.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -97,9 +95,60 @@ function installXhrMock(status = 200): { xhr: XhrMock; restore: () => void } {
 	};
 }
 
+function installAudioMock() {
+	const OrigAudio = globalThis.Audio;
+	const instances: Array<{
+		src: string;
+		listeners: Record<string, Array<(...args: unknown[]) => void>>;
+	}> = [];
+
+	globalThis.Audio = class MockAudio {
+		src = '';
+		listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
+		preload = '';
+		addEventListener(event: string, fn: (...args: unknown[]) => void, _opts?: unknown) {
+			(this.listeners[event] ??= []).push(fn);
+		}
+		removeEventListener() {
+			// no-op
+		}
+		load() {
+			// no-op: prevent real network requests
+		}
+		cloneNode() {
+			const clone = new (globalThis.Audio as unknown as new () => HTMLAudioElement)();
+			return clone;
+		}
+		constructor() {
+			instances.push({ src: '', listeners: this.listeners });
+		}
+	} as unknown as typeof Audio;
+
+	return {
+		instances,
+		restore: () => {
+			globalThis.Audio = OrigAudio;
+		},
+	};
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('Sound', () => {
+	let Sound: typeof import('../src/blakron/media/Sound.js').Sound;
+	let SoundType: typeof import('../src/blakron/media/Sound.js').SoundType;
+	let SoundChannel: typeof import('../src/blakron/media/SoundChannel.js').SoundChannel;
+
+	beforeEach(async () => {
+		// Reset module state so sharedContext in Sound.ts is re-initialized
+		vi.resetModules();
+		const soundModule = await import('../src/blakron/media/Sound.js');
+		Sound = soundModule.Sound;
+		SoundType = soundModule.SoundType;
+		const channelModule = await import('../src/blakron/media/SoundChannel.js');
+		SoundChannel = channelModule.SoundChannel;
+	});
+
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -124,7 +173,7 @@ describe('Sound', () => {
 	});
 
 	it('load via Web Audio dispatches COMPLETE and sets length', async () => {
-		const { restore } = installAudioContextMock();
+		const { restore: restoreCtx } = installAudioContextMock();
 		const { xhr, restore: restoreXhr } = installXhrMock(200);
 
 		try {
@@ -138,13 +187,13 @@ describe('Sound', () => {
 			await vi.waitFor(() => expect(completeFn).toHaveBeenCalledOnce());
 			expect(sound.length).toBe(2);
 		} finally {
-			restore();
+			restoreCtx();
 			restoreXhr();
 		}
 	});
 
-	it('load dispatches IOErrorEvent on XHR network error', async () => {
-		const { restore } = installAudioContextMock();
+	it('load dispatches IOErrorEvent on XHR network error', () => {
+		const { restore: restoreCtx } = installAudioContextMock();
 		const { xhr, restore: restoreXhr } = installXhrMock(200);
 
 		try {
@@ -157,13 +206,13 @@ describe('Sound', () => {
 
 			expect(errorFn).toHaveBeenCalledOnce();
 		} finally {
-			restore();
+			restoreCtx();
 			restoreXhr();
 		}
 	});
 
-	it('load dispatches IOErrorEvent on HTTP 404', async () => {
-		const { restore } = installAudioContextMock();
+	it('load dispatches IOErrorEvent on HTTP 404', () => {
+		const { restore: restoreCtx } = installAudioContextMock();
 		const { xhr, restore: restoreXhr } = installXhrMock(404);
 
 		try {
@@ -176,13 +225,13 @@ describe('Sound', () => {
 
 			expect(errorFn).toHaveBeenCalledOnce();
 		} finally {
-			restore();
+			restoreCtx();
 			restoreXhr();
 		}
 	});
 
 	it('play after Web Audio load returns SoundChannel', async () => {
-		const { restore } = installAudioContextMock();
+		const { restore: restoreCtx } = installAudioContextMock();
 		const { xhr, restore: restoreXhr } = installXhrMock(200);
 
 		try {
@@ -195,13 +244,13 @@ describe('Sound', () => {
 			const channel = sound.play();
 			expect(channel).toBeInstanceOf(SoundChannel);
 		} finally {
-			restore();
+			restoreCtx();
 			restoreXhr();
 		}
 	});
 
 	it('close resets state and play dispatches error', async () => {
-		const { restore } = installAudioContextMock();
+		const { restore: restoreCtx } = installAudioContextMock();
 		const { xhr, restore: restoreXhr } = installXhrMock(200);
 
 		try {
@@ -218,25 +267,43 @@ describe('Sound', () => {
 			sound.play();
 			expect(errorFn).toHaveBeenCalledOnce();
 		} finally {
-			restore();
+			restoreCtx();
 			restoreXhr();
 		}
 	});
 
-	it('falls back gracefully when AudioContext unavailable', () => {
+	it('falls back to HTMLAudioElement when AudioContext unavailable', () => {
 		const win = window as unknown as Record<string, unknown>;
 		const prevAC = win['AudioContext'];
 		const prevWK = win['webkitAudioContext'];
 		win['AudioContext'] = undefined;
 		win['webkitAudioContext'] = undefined;
 
+		const { instances: audioInstances, restore: restoreAudio } = installAudioMock();
+
 		try {
 			const sound = new Sound();
-			// Should not throw — falls back to HTMLAudioElement path
-			expect(() => sound.load('test.mp3')).not.toThrow();
+			sound.load('test.mp3');
+
+			// Verify an Audio was created with the correct src
+			expect(audioInstances.length).toBeGreaterThanOrEqual(1);
+
+			// Not loaded yet (canplaythrough hasn't fired)
+			expect(sound.length).toBe(0);
+
+			// Simulate canplaythrough to complete the load
+			const completeFn = vi.fn();
+			sound.addEventListener(Event.COMPLETE, completeFn);
+			const lastAudio = audioInstances[audioInstances.length - 1];
+			const canPlayHandlers = lastAudio.listeners['canplaythrough'];
+			expect(canPlayHandlers).toBeDefined();
+			canPlayHandlers![0]();
+			expect(completeFn).toHaveBeenCalledOnce();
+			expect(sound.length).toBe(0); // HTML audio duration is 0 without real load
 		} finally {
 			win['AudioContext'] = prevAC;
 			win['webkitAudioContext'] = prevWK;
+			restoreAudio();
 		}
 	});
 });
