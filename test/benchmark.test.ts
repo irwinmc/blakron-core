@@ -16,10 +16,6 @@ function makeFrame(overrides: Partial<FrameData> = {}): FrameData {
 	};
 }
 
-describe('benchmark infrastructure', () => {
-	it('placeholder', () => {});
-});
-
 describe('MetricsCollector', () => {
 	it('空窗口时 getStats() 返回全零', () => {
 		const collector = new MetricsCollector();

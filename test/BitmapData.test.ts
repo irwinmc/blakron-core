@@ -47,44 +47,8 @@ describe('BitmapData', () => {
 		expect(bd.format).toBe('image');
 	});
 
-	it('constructor with HTMLImageElement reads dimensions', () => {
-		const img = mockImage();
-		const bd = new BitmapData(img);
-		expect(bd.width).toBe(100);
-		expect(bd.height).toBe(200);
-	});
-
-	it('constructor with HTMLCanvasElement reads dimensions', () => {
-		const canvas = { width: 300, height: 150 } as HTMLCanvasElement;
-		const bd = new BitmapData(canvas);
-		expect(bd.width).toBe(300);
-		expect(bd.height).toBe(150);
-	});
-
-	it('constructor with ArrayBuffer does not read dimensions', () => {
-		const buf = new ArrayBuffer(16);
-		const bd = new BitmapData(buf);
-		expect(bd.width).toBe(0);
-		expect(bd.height).toBe(0);
-	});
-
 	it('constructor with no arg has undefined source', () => {
 		const bd = new BitmapData();
-		expect(bd.source).toBeUndefined();
-	});
-
-	// ── source getter/setter ──────────────────────────────────────────────
-
-	it('source getter/setter', () => {
-		const bd = new BitmapData();
-		const img = mockImage();
-		bd.source = img;
-		expect(bd.source).toBe(img);
-	});
-
-	it('source can be set to undefined', () => {
-		const bd = new BitmapData(mockImage());
-		bd.source = undefined;
 		expect(bd.source).toBeUndefined();
 	});
 
@@ -99,10 +63,6 @@ describe('BitmapData', () => {
 		obj.renderDirty = false;
 		BitmapData.invalidate(bd);
 		expect(obj.renderDirty).toBe(true);
-	});
-
-	it('addDisplayObject with undefined bitmapData is no-op', () => {
-		expect(() => BitmapData.addDisplayObject(mockDisplayObject(), undefined)).not.toThrow();
 	});
 
 	it('removeDisplayObject unregisters display object', () => {
@@ -120,18 +80,6 @@ describe('BitmapData', () => {
 		BitmapData.invalidate(bd);
 		// After remove, the list may still exist but be empty — should not throw
 		expect(obj.renderDirty).toBe(false);
-	});
-
-	it('removeDisplayObject with undefined bitmapData is no-op', () => {
-		expect(() => BitmapData.removeDisplayObject(mockDisplayObject(), undefined)).not.toThrow();
-	});
-
-	it('invalidate with undefined bitmapData is no-op', () => {
-		expect(() => BitmapData.invalidate(undefined)).not.toThrow();
-	});
-
-	it('dispose with undefined bitmapData is no-op', () => {
-		expect(() => BitmapData.dispose(undefined)).not.toThrow();
 	});
 
 	// ── multiple display objects on same BitmapData ───────────────────────

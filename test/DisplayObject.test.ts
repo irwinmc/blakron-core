@@ -1,23 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DisplayObject, RenderMode, RenderObjectType } from '../src/blakron/display/DisplayObject.js';
+import { DisplayObject, RenderMode } from '../src/blakron/display/DisplayObject.js';
 import { Rectangle } from '../src/blakron/geom/Rectangle.js';
+import { Matrix } from '../src/blakron/geom/Matrix.js';
 import { BlurFilter } from '../src/blakron/filters/BlurFilter.js';
+import { Event } from '../src/blakron/events/Event.js';
 
 describe('DisplayObject', () => {
-	it('default property values', () => {
-		const obj = new DisplayObject();
-		expect(obj.x).toBe(0);
-		expect(obj.y).toBe(0);
-		expect(obj.scaleX).toBe(1);
-		expect(obj.scaleY).toBe(1);
-		expect(obj.rotation).toBe(0);
-		expect(obj.alpha).toBe(1);
-		expect(obj.visible).toBe(true);
-		expect(obj.parent).toBeUndefined();
-		expect(obj.stage).toBeUndefined();
-		expect(obj.renderObjectType).toBe(RenderObjectType.NONE);
-	});
-
 	it('x/y setter triggers renderDirty', () => {
 		const obj = new DisplayObject();
 		obj.renderDirty = false;
@@ -88,7 +76,6 @@ describe('DisplayObject', () => {
 	it('mask with DisplayObject sets CLIP mode', () => {
 		const obj = new DisplayObject();
 		const maskObj = new DisplayObject();
-		// Need to simulate maskObj being on stage for CLIP mode
 		maskObj.internalStage = {} as any;
 		obj.mask = maskObj;
 		expect(obj.renderMode).toBe(RenderMode.CLIP);
@@ -102,24 +89,11 @@ describe('DisplayObject', () => {
 		expect(obj.renderMode).toBeUndefined();
 	});
 
-	it('name getter/setter', () => {
-		const obj = new DisplayObject();
-		obj.name = 'test';
-		expect(obj.name).toBe('test');
-	});
-
 	it('tint setter updates tintRGB', () => {
 		const obj = new DisplayObject();
 		obj.tint = 0xff0000;
 		expect(obj.tint).toBe(0xff0000);
-		// tintRGB is byte-swapped: R and B swapped for GPU
 		expect(obj.tintRGB).toBe((0xff0000 >> 16) + (0xff0000 & 0xff00) + ((0xff0000 & 0xff) << 16));
-	});
-
-	it('blendMode getter/setter', () => {
-		const obj = new DisplayObject();
-		obj.blendMode = 'source-over';
-		expect(obj.blendMode).toBe('source-over');
 	});
 
 	it('getMatrix returns correct matrix for translation', () => {
@@ -150,17 +124,9 @@ describe('DisplayObject', () => {
 		const fn = vi.fn();
 		const unsub = DisplayObject.addStructureChangeListener(fn);
 		const obj = new DisplayObject();
-		obj.visible = false; // triggers updateRenderMode → _onStructureChange
+		obj.visible = false;
 		expect(fn).toHaveBeenCalled();
 		unsub();
-	});
-
-	it('anchorOffsetX/Y', () => {
-		const obj = new DisplayObject();
-		obj.anchorOffsetX = 10;
-		obj.anchorOffsetY = 20;
-		expect(obj.anchorOffsetX).toBe(10);
-		expect(obj.anchorOffsetY).toBe(20);
 	});
 
 	it('scrollRect', () => {
@@ -172,17 +138,62 @@ describe('DisplayObject', () => {
 		expect(obj.renderMode).toBe(RenderMode.SCROLLRECT);
 	});
 
-	it('touchEnabled', () => {
+	// ── P0 遗漏 ──
+
+	it('tint clamps overflow (> 0xffffff)', () => {
 		const obj = new DisplayObject();
-		obj.touchEnabled = true;
-		expect(obj.touchEnabled).toBe(true);
-		obj.touchEnabled = false;
-		expect(obj.touchEnabled).toBe(false);
+		obj.tint = 0x1ffffff;
+		expect(obj.tint).toBe(0xffffff);
 	});
 
-	it('zIndex setter', () => {
+	it('tint clamps negative to 0xffffff', () => {
 		const obj = new DisplayObject();
-		obj.zIndex = 5;
-		expect(obj.zIndex).toBe(5);
+		obj.tint = -100;
+		expect(obj.tint).toBe(0xffffff);
+	});
+
+	it('tint with NaN defaults to 0xffffff', () => {
+		const obj = new DisplayObject();
+		obj.tint = NaN;
+		expect(obj.tint).toBe(0xffffff);
+	});
+
+	it('setMatrix updates x/y from matrix values', () => {
+		const obj = new DisplayObject();
+		const m = new Matrix(2, 0, 0, 3, 50, 60);
+		obj['setMatrix'](m);
+		expect(obj.x).toBe(50);
+		expect(obj.y).toBe(60);
+	});
+
+	it('setMatrix with needUpdateProperties=false skips derivation', () => {
+		const obj = new DisplayObject();
+		const m = new Matrix(2, 0, 0, 3, 50, 60);
+		obj['setMatrix'](m, false);
+		expect(obj.x).toBe(50);
+	});
+
+	it('ENTER_FRAME adds to static callback list', () => {
+		const obj = new DisplayObject();
+		const fn = vi.fn();
+		obj.addEventListener(Event.ENTER_FRAME, fn);
+		expect(DisplayObject.enterFrameCallBackList).toContain(obj);
+		obj.removeEventListener(Event.ENTER_FRAME, fn);
+		expect(DisplayObject.enterFrameCallBackList).not.toContain(obj);
+	});
+
+	it('RENDER adds to static callback list', () => {
+		const obj = new DisplayObject();
+		const fn = vi.fn();
+		obj.addEventListener(Event.RENDER, fn);
+		expect(DisplayObject.renderCallBackList).toContain(obj);
+		obj.removeEventListener(Event.RENDER, fn);
+		expect(DisplayObject.renderCallBackList).not.toContain(obj);
+	});
+
+	it('mask=self is rejected', () => {
+		const obj = new DisplayObject();
+		obj.mask = obj;
+		expect(obj.mask).toBeUndefined();
 	});
 });

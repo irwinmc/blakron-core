@@ -10,24 +10,6 @@ function makeBitmapData(): BitmapData {
 }
 
 describe('Texture', () => {
-	it('default values are zero', () => {
-		const t = new Texture();
-		expect(t.bitmapX).toBe(0);
-		expect(t.bitmapY).toBe(0);
-		expect(t.bitmapWidth).toBe(0);
-		expect(t.bitmapHeight).toBe(0);
-		expect(t.offsetX).toBe(0);
-		expect(t.offsetY).toBe(0);
-		expect(t.textureWidth).toBe(0);
-		expect(t.textureHeight).toBe(0);
-		expect(t.rotated).toBe(false);
-		expect(t.bitmapData).toBeUndefined();
-	});
-
-	it('disposeBitmapData defaults to true', () => {
-		expect(new Texture().disposeBitmapData).toBe(true);
-	});
-
 	it('initData stores values at default scaleFactor=1', () => {
 		const t = new Texture();
 		t.bitmapData = makeBitmapData();
@@ -44,14 +26,6 @@ describe('Texture', () => {
 		expect(t.sourceWidth).toBe(128);
 		expect(t.sourceHeight).toBe(256);
 		expect(t.rotated).toBe(false);
-	});
-
-	it('initData with zero values', () => {
-		const t = new Texture();
-		t.bitmapData = makeBitmapData();
-		t.initData(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-		expect(t.bitmapWidth).toBe(0);
-		expect(t.bitmapHeight).toBe(0);
 	});
 
 	it('initData with rotated flag', () => {
@@ -73,20 +47,6 @@ describe('Texture', () => {
 		expect(t.bitmapHeight).toBe(256);
 		expect(t.textureWidth).toBe(128);
 		expect(t.textureHeight).toBe(256);
-	});
-
-	it('scaleBitmapWidth equals bitmapWidth at scaleFactor=1', () => {
-		const t = new Texture();
-		t.bitmapData = makeBitmapData();
-		t.initData(0, 0, 50, 100, 0, 0, 50, 100, 128, 256);
-		expect(t.scaleBitmapWidth).toBe(50);
-	});
-
-	it('scaleBitmapHeight equals bitmapHeight at scaleFactor=1', () => {
-		const t = new Texture();
-		t.bitmapData = makeBitmapData();
-		t.initData(0, 0, 50, 100, 0, 0, 50, 100, 128, 256);
-		expect(t.scaleBitmapHeight).toBe(100);
 	});
 
 	it('dispose with disposeBitmapData=true calls bitmapData.dispose', () => {

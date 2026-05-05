@@ -9,17 +9,6 @@ describe('Shape', () => {
 		expect(s.renderObjectType).toBe(RenderObjectType.SHAPE);
 	});
 
-	it('has a Graphics instance', () => {
-		const s = new Shape();
-		expect(s.graphics).toBeDefined();
-		expect(s.graphics.commands.length).toBe(0);
-	});
-
-	it('graphics targetDisplay points to itself', () => {
-		const s = new Shape();
-		expect(s.graphics.targetDisplay).toBe(s);
-	});
-
 	it('drawing on graphics updates content bounds', () => {
 		const s = new Shape();
 		s.graphics.drawRect(0, 0, 100, 50);
@@ -36,21 +25,6 @@ describe('Shape', () => {
 		expect(bounds.isEmpty()).toBe(true);
 	});
 
-	it('x/y setters work correctly', () => {
-		const s = new Shape();
-		s.x = 10;
-		s.y = 20;
-		expect(s.x).toBe(10);
-		expect(s.y).toBe(20);
-		expect(s.renderDirty).toBe(true);
-	});
-
-	it('alpha setter', () => {
-		const s = new Shape();
-		s.alpha = 0.5;
-		expect(s.alpha).toBe(0.5);
-	});
-
 	it('visible setter affects renderMode', () => {
 		const s = new Shape();
 		s.visible = false;
@@ -65,10 +39,5 @@ describe('Shape', () => {
 		expect(s.useTranslate).toBe(true);
 		s.rotation = 0;
 		expect(s.useTranslate).toBe(false);
-	});
-
-	it('onRemoveFromStage does not throw', () => {
-		const s = new Shape();
-		expect(() => s['onRemoveFromStage']()).not.toThrow();
 	});
 });

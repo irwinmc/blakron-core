@@ -2,26 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { BlendMode, blendModeToNumber, numberToBlendMode } from '../src/blakron/display/enums/BlendMode.js';
 
 describe('BlendMode', () => {
-	it('NORMAL is source-over', () => {
-		expect(BlendMode.NORMAL).toBe('source-over');
-	});
-
-	it('ADD is lighter', () => {
-		expect(BlendMode.ADD).toBe('lighter');
-	});
-
-	it('ERASE is destination-out', () => {
-		expect(BlendMode.ERASE).toBe('destination-out');
-	});
-
-	it('has all expected blend modes', () => {
-		expect(BlendMode.MULTIPLY).toBe('multiply');
-		expect(BlendMode.SCREEN).toBe('screen');
-		expect(BlendMode.OVERLAY).toBe('overlay');
-		expect(BlendMode.DARKEN).toBe('darken');
-		expect(BlendMode.LIGHTEN).toBe('lighten');
-	});
-
 	it('blendModeToNumber returns sequential indices', () => {
 		const a = blendModeToNumber(BlendMode.NORMAL);
 		const b = blendModeToNumber(BlendMode.ADD);

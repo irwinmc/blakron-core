@@ -189,9 +189,95 @@ describe('DisplayObjectContainer', () => {
 		const b = new DisplayObject();
 		parent.addChild(a);
 		parent.addChild(b);
-		parent.addChild(a); // move a to end
+		parent.addChild(a);
 		expect(parent.numChildren).toBe(2);
 		expect(parent.getChildAt(0)).toBe(b);
 		expect(parent.getChildAt(1)).toBe(a);
+	});
+
+	// ── P0 遗漏 ──
+
+	it('addChildAt out-of-bounds appends to end', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		parent.addChild(a);
+		parent.addChildAt(new DisplayObject(), 99);
+		expect(parent.numChildren).toBe(2);
+	});
+
+	it('addChildAt negative index defaults to end', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		parent.addChild(a);
+		parent.addChildAt(new DisplayObject(), -5);
+		expect(parent.numChildren).toBe(2);
+	});
+
+	it('removeChildAt out-of-bounds returns undefined', () => {
+		const parent = new DisplayObjectContainer();
+		parent.addChild(new DisplayObject());
+		expect(parent.removeChildAt(99)).toBeUndefined();
+		expect(parent.removeChildAt(-1)).toBeUndefined();
+	});
+
+	it('setChildIndex out-of-bounds clamps to last', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		parent.addChild(a);
+		parent.setChildIndex(a, 99);
+		expect(parent.getChildIndex(a)).toBe(0);
+	});
+
+	it('swapChildren with non-child is no-op', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		parent.addChild(a);
+		expect(() => parent.swapChildren(a, new DisplayObject())).not.toThrow();
+		expect(parent.getChildAt(0)).toBe(a);
+	});
+
+	it('swapChildrenAt with same index is no-op', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		const b = new DisplayObject();
+		parent.addChild(a);
+		parent.addChild(b);
+		parent.swapChildrenAt(0, 0);
+		expect(parent.getChildAt(0)).toBe(a);
+	});
+
+	it('swapChildrenAt with invalid indices is ignored', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		parent.addChild(a);
+		expect(() => parent.swapChildrenAt(-1, 99)).not.toThrow();
+	});
+
+	it('sortChildren with z-index reorders', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		const b = new DisplayObject();
+		const c = new DisplayObject();
+		a.zIndex = 3;
+		b.zIndex = 1;
+		c.zIndex = 2;
+		parent.addChild(a);
+		parent.addChild(b);
+		parent.addChild(c);
+		parent['sortChildren']();
+		expect(parent.getChildAt(0)).toBe(b); // z=1
+		expect(parent.getChildAt(1)).toBe(c); // z=2
+		expect(parent.getChildAt(2)).toBe(a); // z=3
+	});
+
+	it('sortChildren stable when zIndex equal', () => {
+		const parent = new DisplayObjectContainer();
+		const a = new DisplayObject();
+		const b = new DisplayObject();
+		parent.addChild(a);
+		parent.addChild(b);
+		parent.sortChildren();
+		expect(parent.getChildAt(0)).toBe(a);
+		expect(parent.getChildAt(1)).toBe(b);
 	});
 });

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Graphics } from '../src/blakron/display/Graphics.js';
 import { PathCommandType } from '../src/blakron/display/GraphicsPath.js';
 import { Rectangle } from '../src/blakron/geom/Rectangle.js';
+import { Matrix } from '../src/blakron/geom/Matrix.js';
 
 describe('Graphics', () => {
 	it('starts with empty commands', () => {
@@ -27,7 +28,6 @@ describe('Graphics', () => {
 		g.drawCircle(50, 50, 30);
 		const bounds = new Rectangle();
 		g.measureContentBounds(bounds);
-		// Circle bounds include -1/+2 padding
 		expect(bounds.x).toBeLessThanOrEqual(50 - 30);
 		expect(bounds.y).toBeLessThanOrEqual(50 - 30);
 		expect(bounds.width).toBeGreaterThanOrEqual(60);
@@ -79,7 +79,6 @@ describe('Graphics', () => {
 		g.lineTo(100, 50);
 		const bounds = new Rectangle();
 		g.measureContentBounds(bounds);
-		// Stroke width 10 → 5px padding each side
 		expect(bounds.y).toBeLessThan(50);
 		expect(bounds.height).toBeGreaterThan(0);
 	});
@@ -145,10 +144,68 @@ describe('Graphics', () => {
 		expect(g.commands.length).toBe(0);
 	});
 
+	it('drawArc with equal start/end angle is no-op', () => {
+		const g = new Graphics();
+		g.drawArc(50, 50, 30, Math.PI / 2, Math.PI / 2);
+		expect(g.commands.length).toBe(0);
+	});
+
+	it('drawArc anticlockwise', () => {
+		const g = new Graphics();
+		g.drawArc(50, 50, 30, 0, Math.PI, true);
+		expect(g.commands.length).toBe(1);
+		expect(g.commands[0].type).toBe(PathCommandType.DrawArc);
+	});
+
+	it('lineStyle with cap/joint params', () => {
+		const g = new Graphics();
+		g.lineStyle(3, 0xff0000, 1, false, 'normal', 'round', 'miter', 5);
+		expect(g.commands.length).toBe(1);
+		const cmd = g.commands[0] as { caps?: string; joints?: string; miterLimit?: number };
+		expect(cmd.caps).toBe('round');
+		expect(cmd.joints).toBe('miter');
+		expect(cmd.miterLimit).toBe(5);
+	});
+
+	it('lineStyle with lineDash', () => {
+		const g = new Graphics();
+		g.lineStyle(3, 0, 1, false, 'normal', undefined, undefined, 3, [5, 10]);
+		expect(g.commands.length).toBe(1);
+	});
+
+	it('lineStyle with thickness <= 0 is no-op', () => {
+		const g = new Graphics();
+		g.lineStyle(0);
+		expect(g.commands.length).toBe(0);
+	});
+
+	it('beginGradientFill adds command', () => {
+		const g = new Graphics();
+		g.beginGradientFill('linear', [0xff0000, 0x0000ff], [1, 1], [0, 255], new Matrix());
+		expect(g.commands.length).toBe(1);
+		expect(g.commands[0].type).toBe(PathCommandType.BeginGradientFill);
+	});
+
 	it('empty graphics measureContentBounds returns empty rect', () => {
 		const g = new Graphics();
 		const bounds = new Rectangle();
 		g.measureContentBounds(bounds);
 		expect(bounds.isEmpty()).toBe(true);
+	});
+
+	it('drawRoundRect with single ellipse param', () => {
+		const g = new Graphics();
+		g.drawRoundRect(0, 0, 100, 50, 10);
+		// When ellipseHeight not provided, it uses ellipseWidth
+		const cmd = g.commands[0] as { ew: number; eh: number };
+		expect(cmd.eh).toBe(10); // same as ew
+	});
+
+	it('drawRoundRect with separate ellipse dimensions', () => {
+		const g = new Graphics();
+		g.drawRoundRect(0, 0, 100, 50, 10, 8);
+		const cmd = g.commands[0] as { ew: number; eh: number };
+		expect(cmd.ew).toBe(10);
+		expect(cmd.eh).toBe(8);
 	});
 });
