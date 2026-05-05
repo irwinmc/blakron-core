@@ -74,6 +74,21 @@ export class TextField extends DisplayObject {
 		this.invalidateFontString();
 	}
 
+	// Width/Height affect line-breaking, so invalidate text when they change.
+	public override set width(value: number) {
+		const v = isNaN(value) ? NaN : value;
+		if (this.explicitWidth === v) return;
+		this.explicitWidth = v;
+		this.invalidateText();
+	}
+
+	public override set height(value: number) {
+		const v = isNaN(value) ? NaN : value;
+		if (this.explicitHeight === v) return;
+		this.explicitHeight = v;
+		this.invalidateText();
+	}
+
 	// ── Getters / Setters ─────────────────────────────────────────────────────
 
 	public get fontFamily(): string {
