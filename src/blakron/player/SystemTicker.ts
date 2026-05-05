@@ -100,7 +100,7 @@ export class SystemTicker {
 	public start(): void {
 		if (this._running) return;
 		this._running = true;
-		this._lastTimeStamp = Date.now();
+		this._lastTimeStamp = getTimer();
 		this._rafId = requestAnimationFrame(this.onFrame);
 	}
 
@@ -134,7 +134,7 @@ export class SystemTicker {
 
 	private tick(forceUpdate: boolean): void {
 		const t1 = Date.now();
-		const timeStamp = t1;
+		const timeStamp = getTimer();
 
 		if (this._isPaused) {
 			this._lastTimeStamp = timeStamp;

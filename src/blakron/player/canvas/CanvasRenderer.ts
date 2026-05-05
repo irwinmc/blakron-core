@@ -12,6 +12,7 @@ import { ColorMatrixFilter } from '../../filters/ColorMatrixFilter.js';
 import { GlowFilter } from '../../filters/GlowFilter.js';
 import { DropShadowFilter } from '../../filters/DropShadowFilter.js';
 import { TextField } from '../../text/TextField.js';
+import { Texture } from '../../display/texture/Texture.js';
 import { HorizontalAlign } from '../../text/enums/HorizontalAlign.js';
 import { VerticalAlign } from '../../text/enums/VerticalAlign.js';
 import { TextFieldType } from '../../text/enums/TextFieldType.js';
@@ -441,9 +442,33 @@ export class CanvasRenderer {
 				return this.renderGraphics((displayObject as Sprite).graphics, ctx, offsetX, offsetY);
 			case RenderObjectType.TEXT:
 				return this.renderTextField(displayObject as TextField, ctx, offsetX, offsetY);
+			case RenderObjectType.PARTICLE:
+				return this.renderParticleSystem(displayObject, ctx, offsetX, offsetY);
 			default:
 				return 0;
 		}
+	}
+
+	private renderMesh(mesh: Mesh, ctx: CanvasRenderingContext2D, offsetX: number, offsetY: number): number {
+		const bd = mesh.bitmapData;
+		if (!bd?.source || mesh.vertices.length === 0) return 0;
+
+		// Canvas 2D doesn't natively support mesh rendering.
+		// Fall back to drawing the full texture as a simple bitmap.
+		const destW = !isNaN(mesh.width) ? mesh.width : mesh.textureWidth;
+		const destH = !isNaN(mesh.height) ? mesh.height : mesh.textureHeight;
+		ctx.drawImage(
+			bd.source as CanvasImageSource,
+			mesh.bitmapX,
+			mesh.bitmapY,
+			mesh.bitmapWidth,
+			mesh.bitmapHeight,
+			offsetX + mesh.bitmapOffsetX,
+			offsetY + mesh.bitmapOffsetY,
+			destW,
+			destH,
+		);
+		return 1;
 	}
 
 	private renderBitmap(bitmap: Bitmap, ctx: CanvasRenderingContext2D, offsetX: number, offsetY: number): number {
@@ -463,28 +488,6 @@ export class CanvasRenderer {
 			bitmap.bitmapHeight,
 			offsetX + bitmap.bitmapOffsetX,
 			offsetY + bitmap.bitmapOffsetY,
-			destW,
-			destH,
-		);
-		return 1;
-	}
-
-	private renderMesh(mesh: Mesh, ctx: CanvasRenderingContext2D, offsetX: number, offsetY: number): number {
-		const bd = mesh.bitmapData;
-		if (!bd?.source || mesh.vertices.length === 0) return 0;
-
-		// Canvas 2D doesn't natively support mesh rendering.
-		// Fall back to drawing the full texture as a simple bitmap.
-		const destW = !isNaN(mesh.width) ? mesh.width : mesh.textureWidth;
-		const destH = !isNaN(mesh.height) ? mesh.height : mesh.textureHeight;
-		ctx.drawImage(
-			bd.source as CanvasImageSource,
-			mesh.bitmapX,
-			mesh.bitmapY,
-			mesh.bitmapWidth,
-			mesh.bitmapHeight,
-			offsetX + mesh.bitmapOffsetX,
-			offsetY + mesh.bitmapOffsetY,
 			destW,
 			destH,
 		);
@@ -735,6 +738,58 @@ export class CanvasRenderer {
 
 		ctx.restore();
 		return drawCalls > 0 ? 1 : 0;
+	}
+
+	private renderParticleSystem(
+		obj: DisplayObject,
+		ctx: CanvasRenderingContext2D,
+		offsetX: number,
+		offsetY: number,
+	): number {
+		const ps = obj as unknown as {
+			readonly particles: readonly {
+				x: number;
+				y: number;
+				scale: number;
+				rotation: number;
+				alpha: number;
+				blendMode: number;
+				getMatrix(regX: number, regY: number): Matrix;
+			}[];
+			texture: Texture;
+			numParticles: number;
+		};
+
+		if (ps.numParticles === 0) return 0;
+
+		const texture = ps.texture;
+		const bd = texture.bitmapData;
+		if (!bd?.source) return 0;
+
+		const source = bd.source as CanvasImageSource;
+		const bitmapX = texture.bitmapX;
+		const bitmapY = texture.bitmapY;
+		const bitmapWidth = texture.bitmapWidth;
+		const bitmapHeight = texture.bitmapHeight;
+		const texW = texture.textureWidth;
+		const texH = texture.textureHeight;
+		const regX = texW / 2;
+		const regY = texH / 2;
+
+		for (let i = 0; i < ps.numParticles; i++) {
+			const particle = ps.particles[i];
+			const matrix = particle.getMatrix(regX, regY);
+
+			ctx.save();
+			ctx.globalAlpha *= particle.alpha;
+			ctx.transform(matrix.a, matrix.b, matrix.c, matrix.d, offsetX + matrix.tx, offsetY + matrix.ty);
+
+			ctx.drawImage(source, bitmapX, bitmapY, bitmapWidth, bitmapHeight, 0, 0, texW, texH);
+
+			ctx.restore();
+		}
+
+		return ps.numParticles;
 	}
 
 	private flushOpenPath(ctx: CanvasRenderingContext2D): void {

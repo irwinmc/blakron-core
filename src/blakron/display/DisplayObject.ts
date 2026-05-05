@@ -37,6 +37,7 @@ export const enum RenderObjectType {
 	SHAPE = 3,
 	SPRITE = 4,
 	TEXT = 5,
+	PARTICLE = 6,
 }
 
 export class DisplayObject extends EventDispatcher {

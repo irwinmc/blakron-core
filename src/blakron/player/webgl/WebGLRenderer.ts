@@ -6,24 +6,15 @@ import { Sprite } from '../../display/Sprite.js';
 import { Mesh } from '../../display/Mesh.js';
 import { Matrix } from '../../geom/Matrix.js';
 import { Rectangle } from '../../geom/Rectangle.js';
-import { CanvasRenderer } from '../canvas/index.js';
+import { CanvasRenderer } from '../canvas/CanvasRenderer.js';
 import { InstructionSet } from './InstructionSet.js';
-import {
-	BitmapPipe,
-	type BitmapInstruction,
-	GraphicsPipe,
-	type GraphicsInstruction,
-	MeshPipe,
-	type MeshInstruction,
-	FilterPipe,
-	type FilterPushInstruction,
-	type FilterPopInstruction,
-	MaskPipe,
-	type MaskPushInstruction,
-	type MaskPopInstruction,
-	TextPipe,
-	type TextInstruction,
-} from './pipes/index.js';
+import { BitmapPipe, type BitmapInstruction } from './pipes/BitmapPipe.js';
+import { GraphicsPipe, type GraphicsInstruction } from './pipes/GraphicsPipe.js';
+import { MeshPipe, type MeshInstruction } from './pipes/MeshPipe.js';
+import { FilterPipe, type FilterPushInstruction, type FilterPopInstruction } from './pipes/FilterPipe.js';
+import { MaskPipe, type MaskPushInstruction, type MaskPopInstruction } from './pipes/MaskPipe.js';
+import { TextPipe, type TextInstruction } from './pipes/TextPipe.js';
+import { ParticlePipe, type ParticleInstruction } from './pipes/ParticlePipe.js';
 import { TextField } from '../../text/TextField.js';
 import { WebGLRenderBuffer } from './WebGLRenderBuffer.js';
 
@@ -48,7 +39,13 @@ interface TransformState {
 
 // ── Augmented instruction types ───────────────────────────────────────────────
 
-type LeafInstruction = (BitmapInstruction | GraphicsInstruction | MeshInstruction | TextInstruction) & {
+type LeafInstruction = (
+	| BitmapInstruction
+	| GraphicsInstruction
+	| MeshInstruction
+	| TextInstruction
+	| ParticleInstruction
+) & {
 	transform: TransformState;
 };
 
@@ -108,6 +105,7 @@ export class WebGLRenderer {
 	private readonly _textPipe: TextPipe;
 	private readonly _filterPipe = new FilterPipe();
 	private readonly _maskPipe = new MaskPipe();
+	private readonly _particlePipe = new ParticlePipe();
 
 	// ── Instruction set ───────────────────────────────────────────────────────
 	private readonly _instructionSet = new InstructionSet();
@@ -342,6 +340,15 @@ export class WebGLRenderer {
 				}
 				break;
 			}
+			case RenderObjectType.PARTICLE:
+				set.addLeaf({
+					renderPipeId: 'particle',
+					renderable: obj,
+					offsetX,
+					offsetY,
+					transform,
+				} as LeafInstruction);
+				break;
 		}
 	}
 
@@ -573,6 +580,12 @@ export class WebGLRenderer {
 					const leaf = inst as LeafInstruction & TextInstruction;
 					this._applyTransform(activeBuffer, leaf.transform);
 					this._textPipe.execute(leaf, activeBuffer);
+					break;
+				}
+				case 'particle': {
+					const leaf = inst as LeafInstruction & ParticleInstruction;
+					this._applyTransform(activeBuffer, leaf.transform);
+					this._particlePipe.execute(leaf, activeBuffer);
 					break;
 				}
 
@@ -811,6 +824,17 @@ export class WebGLRenderer {
 					this._graphicsPipe.execute(inst, buffer);
 					drawCalls++;
 				}
+				break;
+			}
+			case RenderObjectType.PARTICLE: {
+				const inst: ParticleInstruction = {
+					renderPipeId: 'particle',
+					renderable: obj,
+					offsetX: 0,
+					offsetY: 0,
+				};
+				this._particlePipe.execute(inst, buffer);
+				drawCalls++;
 				break;
 			}
 		}
