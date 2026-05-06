@@ -6,7 +6,7 @@ export type { ITextStyle, ITextElement, IWTextElement, ILineElement, IHitTextEle
 export { HtmlTextParser } from './HtmlTextParser.js';
 export { BitmapFont } from './BitmapFont.js';
 export { BitmapText } from './BitmapText.js';
-export { measureText, getFontString, measureVerticalCorrection } from './TextMeasurer.js';
+export { measureText, getFontString, measureBaselineOffset, measureAscentOffset } from './TextMeasurer.js';
 export { TextField } from './TextField.js';
 export { StageText } from './StageText.js';
 export { InputController } from './InputController.js';

@@ -1,6 +1,6 @@
 {
 	"name": "@blakron/core",
-	"version": "0.5.16",
+	"version": "0.5.17",
 	"description": "Modern rewrite of the Egret game engine — WebGL multi-texture batching, instruction-driven render pipeline, strict TypeScript, Egret-compatible API",
 	"author": "",
 	"license": "MIT",

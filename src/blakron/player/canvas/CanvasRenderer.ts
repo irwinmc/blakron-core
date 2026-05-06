@@ -16,7 +16,7 @@ import { Texture } from '../../display/texture/Texture.js';
 import { HorizontalAlign } from '../../text/enums/HorizontalAlign.js';
 import { VerticalAlign } from '../../text/enums/VerticalAlign.js';
 import { TextFieldType } from '../../text/enums/TextFieldType.js';
-import { getFontString, measureVerticalCorrection } from '../../text/TextMeasurer.js';
+import { getFontString, measureBaselineOffset, measureAscentOffset } from '../../text/TextMeasurer.js';
 import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 
 const CAPS_MAP: Record<string, CanvasLineCap> = { none: 'butt', square: 'square', round: 'round' };
@@ -620,11 +620,17 @@ export class CanvasRenderer {
 			verticalOffset = Math.max(0, height - totalTextHeight);
 		}
 
-		// ── Vertical centering correction ─────────────────────────────────────
-		// When textBaseline='top', lineHeight=fontSize centers the em-square, not the
-		// actual glyphs. Measure font metrics to correct the visual offset.
-		let vCorrection = 0;
-		if (tf.verticalAlign === VerticalAlign.MIDDLE) {
+		// ── Baseline offset for alphabetic rendering ──────────────────────────
+		// Using textBaseline='alphabetic' so that the baseline position is computed
+		// from consistent actualBoundingBox metrics (not fontBoundingBoxAscent which
+		// varies across browsers/OS when the font is substituted, e.g. Arial → SF Pro
+		// on iOS).
+		//
+		// For verticalAlign='middle': baseline = lineTop + lineHeight/2 + (abbA - abbD)/2
+		//   so that the glyph visual center lands at lineHeight/2.
+		// For other alignments: baseline = lineTop + abbA (glyph top = line top).
+		let baselineOffset = 0;
+		{
 			// Find first non-empty element to measure
 			let sampleText = '';
 			let sampleSize = tf.size;
@@ -643,14 +649,18 @@ export class CanvasRenderer {
 					}
 				}
 			}
-			vCorrection = measureVerticalCorrection(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
+			if (tf.verticalAlign === VerticalAlign.MIDDLE) {
+				baselineOffset = measureBaselineOffset(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
+			} else {
+				baselineOffset = measureAscentOffset(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
+			}
 		}
 
 		// ── ScrollV offset: accumulate actual line heights instead of fixed formula ──
 		const scrollOffset = tf.getScrollYOffset();
 
 		// ── Draw lines ────────────────────────────────────────────────────────
-		let drawY = verticalOffset - scrollOffset + vCorrection;
+		let drawY = verticalOffset - scrollOffset;
 		let drawCalls = 0;
 
 		for (let i = 0; i < lines.length; i++) {
@@ -681,20 +691,22 @@ export class CanvasRenderer {
 
 				const fontStr = getFontString(fontSize, fontFamily, bold, italic);
 				ctx.font = fontStr;
-				ctx.textBaseline = 'top';
+				ctx.textBaseline = 'alphabetic';
+
+				const textY = drawY + baselineOffset;
 
 				// Stroke
 				if (stroke > 0) {
 					ctx.strokeStyle = colorToString(strokeColor);
 					ctx.lineWidth = stroke * 2;
 					ctx.lineJoin = 'round';
-					ctx.strokeText(el.text, lineX, drawY);
+					ctx.strokeText(el.text, lineX, textY);
 					drawCalls++;
 				}
 
 				// Fill
 				ctx.fillStyle = colorToString(textColor);
-				ctx.fillText(el.text, lineX, drawY);
+				ctx.fillText(el.text, lineX, textY);
 				drawCalls++;
 
 				lineX += el.width;
@@ -709,7 +721,7 @@ export class CanvasRenderer {
 			const caretIndex = tf.caretIndex;
 			const fontStr = getFontString(tf.size, tf.fontFamily, tf.bold, tf.italic);
 			ctx.font = fontStr;
-			ctx.textBaseline = 'top';
+			ctx.textBaseline = 'alphabetic';
 
 			// Calculate cursor x by measuring text up to caretIndex
 			let cursorX = 0;
