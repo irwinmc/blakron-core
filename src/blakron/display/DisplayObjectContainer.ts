@@ -8,11 +8,6 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	declare children: DisplayObject[];
 
-	// ── Static fields ─────────────────────────────────────────────────────────
-
-	static eventAddToStageList: DisplayObject[] = [];
-	static eventRemoveFromStageList: DisplayObject[] = [];
-
 	// ── Instance fields ───────────────────────────────────────────────────────
 
 	private _touchChildren = true;
@@ -269,7 +264,7 @@ export class DisplayObjectContainer extends DisplayObject {
 		child.dispatchEventWith(Event.ADDED, true);
 
 		if (this.internalStage) {
-			const list = DisplayObjectContainer.eventAddToStageList;
+			const list = DisplayObject.eventAddToStageList;
 			while (list.length) {
 				const added = list.shift()!;
 				if (added.internalStage) {
@@ -294,7 +289,7 @@ export class DisplayObjectContainer extends DisplayObject {
 
 		if (this.internalStage) {
 			child.onRemoveFromStage();
-			const list = DisplayObjectContainer.eventRemoveFromStageList;
+			const list = DisplayObject.eventRemoveFromStageList;
 			while (list.length) {
 				const removed = list.shift()!;
 				if (removed.hasAddToStage) {

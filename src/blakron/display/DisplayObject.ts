@@ -46,6 +46,8 @@ export class DisplayObject extends EventDispatcher {
 	static defaultTouchEnabled = false;
 	static enterFrameCallBackList: DisplayObject[] = [];
 	static renderCallBackList: DisplayObject[] = [];
+	static eventAddToStageList: DisplayObject[] = [];
+	static eventRemoveFromStageList: DisplayObject[] = [];
 
 	/**
 	 * @internal
@@ -500,11 +502,13 @@ export class DisplayObject extends EventDispatcher {
 		this.internalStage = stage;
 		this.nestLevel = nestLevel;
 		this.hasAddToStage = true;
+		DisplayObject.eventAddToStageList.push(this);
 	}
 
 	onRemoveFromStage(): void {
 		this.nestLevel = 0;
 		this.internalStage = undefined;
+		DisplayObject.eventRemoveFromStageList.push(this);
 	}
 
 	getMatrix(): Matrix {
