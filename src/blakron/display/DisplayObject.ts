@@ -110,53 +110,53 @@ export class DisplayObject extends EventDispatcher {
 	// ── Instance fields ───────────────────────────────────────────────────────
 
 	// 场景图
-	hasAddToStage = false;
-	children?: DisplayObject[];
-	internalParent?: DisplayObjectContainer;
-	internalStage?: Stage;
-	nestLevel = 0;
+	protected _hasAddToStage = false;
+	protected _children?: DisplayObject[];
+	private _parent?: DisplayObjectContainer;
+	protected _stage?: Stage;
+	protected _nestLevel = 0;
 
 	// 变换
-	internalX = 0;
-	internalY = 0;
-	internalAnchorOffsetX = 0;
-	internalAnchorOffsetY = 0;
-	explicitWidth: number = NaN;
-	explicitHeight: number = NaN;
-	useTranslate = false;
+	private _x = 0;
+	private _y = 0;
+	private _anchorOffsetX = 0;
+	private _anchorOffsetY = 0;
+	protected _explicitWidth: number = NaN;
+	protected _explicitHeight: number = NaN;
+	private _useTranslate = false;
 
 	// 外观
-	internalVisible = true;
-	internalAlpha = 1;
-	internalBlendMode = 0;
-	internalFilters: Filter[] = [];
-	internalCacheAsBitmap = false;
-	internalTouchEnabled: boolean = DisplayObject.defaultTouchEnabled;
+	private _visible = true;
+	private _alpha = 1;
+	private _blendMode = 0;
+	private _filters: Filter[] = [];
+	private _cacheAsBitmap = false;
+	private _touchEnabled: boolean = DisplayObject.defaultTouchEnabled;
 
 	// 遮罩
-	internalMask?: DisplayObject;
-	internalMaskRect?: Rectangle;
-	internalScrollRect?: Rectangle;
-	maskedObject?: DisplayObject;
+	private _mask?: DisplayObject;
+	private _maskRect?: Rectangle;
+	private _scrollRect?: Rectangle;
+	protected _maskedObject?: DisplayObject;
 
 	// 渲染状态
-	renderMode?: RenderMode;
-	renderObjectType: RenderObjectType = RenderObjectType.NONE;
-	renderDirty = false;
-	cacheDirty = false;
-	displayList?: DisplayList;
+	private _renderMode?: RenderMode;
+	protected _renderObjectType: RenderObjectType = RenderObjectType.NONE;
+	protected _renderDirty = false;
+	protected _cacheDirty = false;
+	private _displayList?: DisplayList;
 
 	// 世界缓存（markDirty 更新，O(1) 读取）
-	worldAlpha = 1;
-	worldTint = 0xffffff;
-	tintRGB = 0;
+	private _worldAlpha = 1;
+	private _worldTint = 0xffffff;
+	private _tintRGB = 0;
 
 	// 排序
-	sortDirty = false;
-	lastSortedIndex = 0;
+	protected _sortDirty = false;
+	protected _lastSortedIndex = 0;
 
 	// bounds 缓存
-	_boundsDirty = true;
+	private _boundsDirty = true;
 	private readonly _cachedBounds = new Rectangle();
 
 	// 私有
@@ -187,6 +187,20 @@ export class DisplayObject extends EventDispatcher {
 
 	// ── Getters / Setters ─────────────────────────────────────────────────────
 
+	public get hasAddToStage(): boolean {
+		return this._hasAddToStage;
+	}
+	public set hasAddToStage(value: boolean) {
+		this._hasAddToStage = value;
+	}
+
+	public get children(): DisplayObject[] | undefined {
+		return this._children;
+	}
+	public set children(value: DisplayObject[] | undefined) {
+		this._children = value;
+	}
+
 	public get graphics(): Graphics | undefined {
 		return this._graphics;
 	}
@@ -199,10 +213,14 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public get parent(): DisplayObjectContainer | undefined {
-		return this.internalParent;
+		return this._parent;
 	}
 	public get stage(): Stage | undefined {
-		return this.internalStage;
+		return this._stage;
+	}
+
+	public get nestLevel(): number {
+		return this._nestLevel;
 	}
 
 	public get matrix(): Matrix {
@@ -213,14 +231,14 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public get x(): number {
-		return this.internalX;
+		return this._x;
 	}
 	public set x(value: number) {
 		this.setX(value);
 	}
 
 	public get y(): number {
-		return this.internalY;
+		return this._y;
 	}
 	public set y(value: number) {
 		this.setY(value);
@@ -262,17 +280,17 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public get width(): number {
-		return isNaN(this.explicitWidth) ? this.getOriginalBounds().width : this.explicitWidth;
+		return isNaN(this._explicitWidth) ? this.getOriginalBounds().width : this._explicitWidth;
 	}
 	public set width(value: number) {
-		this.explicitWidth = isNaN(value) ? NaN : value;
+		this._explicitWidth = isNaN(value) ? NaN : value;
 	}
 
 	public get height(): number {
-		return isNaN(this.explicitHeight) ? this.getOriginalBounds().height : this.explicitHeight;
+		return isNaN(this._explicitHeight) ? this.getOriginalBounds().height : this._explicitHeight;
 	}
 	public set height(value: number) {
-		this.explicitHeight = isNaN(value) ? NaN : value;
+		this._explicitHeight = isNaN(value) ? NaN : value;
 	}
 
 	public get measuredWidth(): number {
@@ -283,82 +301,157 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public get anchorOffsetX(): number {
-		return this.internalAnchorOffsetX;
+		return this._anchorOffsetX;
 	}
 	public set anchorOffsetX(value: number) {
 		this.setAnchorOffsetX(value);
 	}
 
 	public get anchorOffsetY(): number {
-		return this.internalAnchorOffsetY;
+		return this._anchorOffsetY;
 	}
 	public set anchorOffsetY(value: number) {
 		this.setAnchorOffsetY(value);
 	}
 
+	public get explicitWidth(): number {
+		return this._explicitWidth;
+	}
+	public set explicitWidth(value: number) {
+		this._explicitWidth = value;
+	}
+
+	public get explicitHeight(): number {
+		return this._explicitHeight;
+	}
+	public set explicitHeight(value: number) {
+		this._explicitHeight = value;
+	}
+
+	public get useTranslate(): boolean {
+		return this._useTranslate;
+	}
+
 	public get visible(): boolean {
-		return this.internalVisible;
+		return this._visible;
 	}
 	public set visible(value: boolean) {
 		this.setVisible(value);
 	}
 
 	public get cacheAsBitmap(): boolean {
-		return this.internalCacheAsBitmap;
+		return this._cacheAsBitmap;
 	}
 	public set cacheAsBitmap(value: boolean) {
-		this.internalCacheAsBitmap = value;
+		this._cacheAsBitmap = value;
 		this.setHasDisplayList(value);
 	}
 
 	public get filters(): Filter[] {
-		return this.internalFilters;
+		return this._filters;
 	}
 	public set filters(value: Filter[]) {
-		this.internalFilters = value ? [...value] : [];
+		this._filters = value ? [...value] : [];
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
 	public get alpha(): number {
-		return this.internalAlpha;
+		return this._alpha;
 	}
 	public set alpha(value: number) {
 		this.setAlpha(value);
 	}
 
+	public get worldAlpha(): number {
+		return this._worldAlpha;
+	}
+
+	public get worldTint(): number {
+		return this._worldTint;
+	}
+
+	public get tintRGB(): number {
+		return this._tintRGB;
+	}
+
 	public get touchEnabled(): boolean {
-		return this.internalTouchEnabled;
+		return this._touchEnabled;
 	}
 	public set touchEnabled(value: boolean) {
-		this.internalTouchEnabled = !!value;
+		this._touchEnabled = !!value;
 	}
 
 	public get scrollRect(): Rectangle | undefined {
-		return this.internalScrollRect;
+		return this._scrollRect;
 	}
 	public set scrollRect(value: Rectangle | undefined) {
 		this.setScrollRect(value);
 	}
 
 	public get blendMode(): string {
-		return numberToBlendMode(this.internalBlendMode);
+		return numberToBlendMode(this._blendMode);
 	}
 	public set blendMode(value: string) {
 		const mode = blendModeToNumber(value);
-		if (this.internalBlendMode === mode) {
+		if (this._blendMode === mode) {
 			return;
 		}
-		this.internalBlendMode = mode;
+		this._blendMode = mode;
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
+	public get internalBlendMode(): number {
+		return this._blendMode;
+	}
+
 	public get mask(): DisplayObject | Rectangle | undefined {
-		return this.internalMask ?? this.internalMaskRect;
+		return this._mask ?? this._maskRect;
 	}
 	public set mask(value: DisplayObject | Rectangle | undefined) {
 		this.setMask(value);
+	}
+
+	public get internalMask(): DisplayObject | undefined {
+		return this._mask;
+	}
+
+	public get internalMaskRect(): Rectangle | undefined {
+		return this._maskRect;
+	}
+
+	public get maskedObject(): DisplayObject | undefined {
+		return this._maskedObject;
+	}
+
+	public get renderObjectType(): RenderObjectType {
+		return this._renderObjectType;
+	}
+	public set renderObjectType(value: RenderObjectType) {
+		this._renderObjectType = value;
+	}
+
+	public get renderDirty(): boolean {
+		return this._renderDirty;
+	}
+	public set renderDirty(value: boolean) {
+		this._renderDirty = value;
+	}
+
+	public get cacheDirty(): boolean {
+		return this._cacheDirty;
+	}
+	public set cacheDirty(value: boolean) {
+		this._cacheDirty = value;
+	}
+
+	public get renderMode(): RenderMode | undefined {
+		return this._renderMode;
+	}
+
+	public get displayList(): DisplayList | undefined {
+		return this._displayList;
 	}
 
 	public get tint(): number {
@@ -366,7 +459,7 @@ export class DisplayObject extends EventDispatcher {
 	}
 	public set tint(value: number) {
 		this._tint = typeof value === 'number' && value >= 0 && value <= 0xffffff ? value : 0xffffff;
-		this.tintRGB = (this._tint >> 16) + (this._tint & 0xff00) + ((this._tint & 0xff) << 16);
+		this._tintRGB = (this._tint >> 16) + (this._tint & 0xff00) + ((this._tint & 0xff) << 16);
 		this.markDirty();
 	}
 
@@ -376,7 +469,7 @@ export class DisplayObject extends EventDispatcher {
 	public set zIndex(value: number) {
 		this._zIndex = value;
 		if (this.parent) {
-			this.parent.sortDirty = true;
+			this.parent._sortDirty = true;
 		}
 	}
 
@@ -387,16 +480,30 @@ export class DisplayObject extends EventDispatcher {
 		this._sortableChildren = value;
 	}
 
+	public get sortDirty(): boolean {
+		return this._sortDirty;
+	}
+	public set sortDirty(value: boolean) {
+		this._sortDirty = value;
+	}
+
+	public get lastSortedIndex(): number {
+		return this._lastSortedIndex;
+	}
+	public set lastSortedIndex(value: number) {
+		this._lastSortedIndex = value;
+	}
+
 	// ── Public methods ────────────────────────────────────────────────────────
 
 	public getBounds(resultRect?: Rectangle, calculateAnchor = true): Rectangle {
 		resultRect = this.getTransformedBoundsInternal(this, resultRect);
 		if (calculateAnchor) {
-			if (this.internalAnchorOffsetX !== 0) {
-				resultRect.x -= this.internalAnchorOffsetX;
+			if (this._anchorOffsetX !== 0) {
+				resultRect.x -= this._anchorOffsetX;
 			}
-			if (this.internalAnchorOffsetY !== 0) {
-				resultRect.y -= this.internalAnchorOffsetY;
+			if (this._anchorOffsetY !== 0) {
+				resultRect.y -= this._anchorOffsetY;
 			}
 		}
 		return resultRect;
@@ -425,7 +532,7 @@ export class DisplayObject extends EventDispatcher {
 		if (!bounds.contains(localX, localY)) {
 			return false;
 		}
-		const rect = this.internalScrollRect ?? this.internalMaskRect;
+		const rect = this._scrollRect ?? this._maskRect;
 		if (rect && !rect.contains(localX, localY)) {
 			return false;
 		}
@@ -437,7 +544,7 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	public sortChildren(): void {
-		this.sortDirty = false;
+		this._sortDirty = false;
 	}
 
 	public override dispatchEvent(event: Event): boolean {
@@ -457,7 +564,7 @@ export class DisplayObject extends EventDispatcher {
 			if (node.hasEventListener(type)) {
 				return true;
 			}
-			node = node.internalParent;
+			node = node._parent;
 		}
 		return false;
 	}
@@ -493,18 +600,18 @@ export class DisplayObject extends EventDispatcher {
 	// ── Internal methods (used by subclasses and framework) ───────────────────
 
 	setParent(parent: DisplayObjectContainer | undefined): void {
-		this.internalParent = parent;
+		this._parent = parent;
 	}
 
 	onAddToStage(stage: Stage, nestLevel: number): void {
-		this.internalStage = stage;
-		this.nestLevel = nestLevel;
-		this.hasAddToStage = true;
+		this._stage = stage;
+		this._nestLevel = nestLevel;
+		this._hasAddToStage = true;
 	}
 
 	onRemoveFromStage(): void {
-		this.nestLevel = 0;
-		this.internalStage = undefined;
+		this._nestLevel = 0;
+		this._stage = undefined;
 	}
 
 	getMatrix(): Matrix {
@@ -512,8 +619,8 @@ export class DisplayObject extends EventDispatcher {
 			this._matrixDirty = false;
 			this._matrix.updateScaleAndRotation(this._scaleX, this._scaleY, this._skewX, this._skewY);
 		}
-		this._matrix.tx = this.internalX;
-		this._matrix.ty = this.internalY;
+		this._matrix.tx = this._x;
+		this._matrix.ty = this._y;
 		return this._matrix;
 	}
 
@@ -523,10 +630,10 @@ export class DisplayObject extends EventDispatcher {
 		m.b = matrix.b;
 		m.c = matrix.c;
 		m.d = matrix.d;
-		this.internalX = matrix.tx;
-		this.internalY = matrix.ty;
+		this._x = matrix.tx;
+		this._y = matrix.ty;
 		this._matrixDirty = false;
-		this.useTranslate = !(m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1);
+		this._useTranslate = !(m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1);
 		if (needUpdateProperties) {
 			this._scaleX = m.getScaleX();
 			this._scaleY = m.getScaleY();
@@ -544,14 +651,14 @@ export class DisplayObject extends EventDispatcher {
 			this._concatenatedMatrix = new Matrix();
 		}
 		const matrix = this._concatenatedMatrix;
-		if (this.internalParent) {
-			this.internalParent.getConcatenatedMatrix().preMultiplyInto(this.getMatrix(), matrix);
+		if (this._parent) {
+			this._parent.getConcatenatedMatrix().preMultiplyInto(this.getMatrix(), matrix);
 		} else {
 			matrix.copyFrom(this.getMatrix());
 		}
-		const ox = this.internalAnchorOffsetX;
-		const oy = this.internalAnchorOffsetY;
-		const rect = this.internalScrollRect;
+		const ox = this._anchorOffsetX;
+		const oy = this._anchorOffsetY;
+		const rect = this._scrollRect;
 		if (rect) {
 			matrix.preMultiplyInto(sharedMatrix.setTo(1, 0, 0, 1, -rect.x - ox, -rect.y - oy), matrix);
 		} else if (ox !== 0 || oy !== 0) {
@@ -569,19 +676,19 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	setX(value: number): boolean {
-		if (this.internalX === value) {
+		if (this._x === value) {
 			return false;
 		}
-		this.internalX = value;
+		this._x = value;
 		this.markDirty();
 		return true;
 	}
 
 	setY(value: number): boolean {
-		if (this.internalY === value) {
+		if (this._y === value) {
 			return false;
 		}
-		this.internalY = value;
+		this._y = value;
 		this.markDirty();
 		return true;
 	}
@@ -643,70 +750,70 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	setAnchorOffsetX(value: number): void {
-		if (this.internalAnchorOffsetX === value) {
+		if (this._anchorOffsetX === value) {
 			return;
 		}
-		this.internalAnchorOffsetX = value;
+		this._anchorOffsetX = value;
 		this.markDirty();
 	}
 
 	setAnchorOffsetY(value: number): void {
-		if (this.internalAnchorOffsetY === value) {
+		if (this._anchorOffsetY === value) {
 			return;
 		}
-		this.internalAnchorOffsetY = value;
+		this._anchorOffsetY = value;
 		this.markDirty();
 	}
 
 	setVisible(value: boolean): void {
-		if (this.internalVisible === value) {
+		if (this._visible === value) {
 			return;
 		}
-		this.internalVisible = value;
+		this._visible = value;
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
 	setAlpha(value: number): void {
-		if (this.internalAlpha === value) {
+		if (this._alpha === value) {
 			return;
 		}
-		this.internalAlpha = value;
+		this._alpha = value;
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
 	setScrollRect(value: Rectangle | undefined): void {
-		if (!value && !this.internalScrollRect) {
+		if (!value && !this._scrollRect) {
 			return;
 		}
 		if (value) {
-			if (!this.internalScrollRect) {
-				this.internalScrollRect = new Rectangle();
+			if (!this._scrollRect) {
+				this._scrollRect = new Rectangle();
 			}
-			this.internalScrollRect.copyFrom(value);
+			this._scrollRect.copyFrom(value);
 		} else {
-			this.internalScrollRect = undefined;
+			this._scrollRect = undefined;
 		}
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
 	setHasDisplayList(value: boolean): void {
-		const hasDisplayList = !!this.displayList;
+		const hasDisplayList = !!this._displayList;
 		if (hasDisplayList === value) {
 			return;
 		}
 		if (value) {
 			const dl = DisplayList.create(this);
 			if (dl) {
-				this.displayList = dl;
-				this.cacheDirty = true;
+				this._displayList = dl;
+				this._cacheDirty = true;
 			}
 		} else {
-			if (this.displayList) {
-				DisplayList.release(this.displayList);
-				this.displayList = undefined;
+			if (this._displayList) {
+				DisplayList.release(this._displayList);
+				this._displayList = undefined;
 			}
 		}
 		// cacheAsBitmap toggle changes the instruction set structure:
@@ -717,37 +824,37 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	cacheDirtyUp(): void {
-		const p = this.internalParent;
-		if (p && !p.cacheDirty) {
-			p.cacheDirty = true;
+		const p = this._parent;
+		if (p && !p._cacheDirty) {
+			p._cacheDirty = true;
 			p._boundsDirty = true;
 			p.cacheDirtyUp();
 		}
 	}
 
 	renderDirtyUp(): void {
-		const p = this.internalParent;
-		if (p && !p.renderDirty) {
-			p.renderDirty = true;
+		const p = this._parent;
+		if (p && !p._renderDirty) {
+			p._renderDirty = true;
 			p.renderDirtyUp();
 		}
 	}
 
 	updateUseTransform(): void {
-		this.useTranslate = !(this._scaleX === 1 && this._scaleY === 1 && this._skewX === 0 && this._skewY === 0);
+		this._useTranslate = !(this._scaleX === 1 && this._scaleY === 1 && this._skewX === 0 && this._skewY === 0);
 	}
 
 	updateRenderMode(): void {
-		if (!this.internalVisible || this.internalAlpha <= 0 || this.maskedObject) {
-			this.renderMode = RenderMode.NONE;
-		} else if (this.internalFilters.length > 0) {
-			this.renderMode = RenderMode.FILTER;
-		} else if (this.internalBlendMode !== 0 || (this.internalMask && this.internalMask.internalStage)) {
-			this.renderMode = RenderMode.CLIP;
-		} else if (this.internalScrollRect || this.internalMaskRect) {
-			this.renderMode = RenderMode.SCROLLRECT;
+		if (!this._visible || this._alpha <= 0 || this._maskedObject) {
+			this._renderMode = RenderMode.NONE;
+		} else if (this._filters.length > 0) {
+			this._renderMode = RenderMode.FILTER;
+		} else if (this._blendMode !== 0 || (this._mask && this._mask._stage)) {
+			this._renderMode = RenderMode.CLIP;
+		} else if (this._scrollRect || this._maskRect) {
+			this._renderMode = RenderMode.SCROLLRECT;
 		} else {
-			this.renderMode = undefined;
+			this._renderMode = undefined;
 		}
 		// RenderMode change means the instruction set structure is stale.
 		DisplayObject._onStructureChange?.();
@@ -794,13 +901,13 @@ export class DisplayObject extends EventDispatcher {
 		const invertMatrix = root.getInvertedConcatenatedMatrix();
 		if ((invertMatrix.a === 0 || invertMatrix.d === 0) && (invertMatrix.b === 0 || invertMatrix.c === 0)) {
 			let target: DisplayObject = this;
-			const rootLevel = root.nestLevel;
+			const rootLevel = root._nestLevel;
 			matrix.identity();
-			while (target.nestLevel > rootLevel) {
-				const rect = target.internalScrollRect;
+			while (target._nestLevel > rootLevel) {
+				const rect = target._scrollRect;
 				if (rect) matrix.concat(sharedMatrix.setTo(1, 0, 0, 1, -rect.x, -rect.y));
 				matrix.concat(target.getMatrix());
-				target = target.internalParent!;
+				target = target._parent!;
 			}
 		} else {
 			invertMatrix.preMultiplyInto(matrix, matrix);
@@ -808,7 +915,7 @@ export class DisplayObject extends EventDispatcher {
 	}
 
 	hitTest(stageX: number, stageY: number): DisplayObject | undefined {
-		if (!this.internalVisible || this._scaleX === 0 || this._scaleY === 0) {
+		if (!this._visible || this._scaleX === 0 || this._scaleY === 0) {
 			return undefined;
 		}
 
@@ -822,11 +929,11 @@ export class DisplayObject extends EventDispatcher {
 		const localY = m.b * stageX + m.d * stageY + m.ty;
 		if (bounds.contains(localX, localY)) {
 			if (!this.children) {
-				const rect = this.internalScrollRect ?? this.internalMaskRect;
+				const rect = this._scrollRect ?? this._maskRect;
 				if (rect && !rect.contains(localX, localY)) {
 					return undefined;
 				}
-				if (this.internalMask && !this.internalMask.hitTest(stageX, stageY)) {
+				if (this._mask && !this._mask.hitTest(stageX, stageY)) {
 					return undefined;
 				}
 			}
@@ -842,7 +949,7 @@ export class DisplayObject extends EventDispatcher {
 		let current: DisplayObject | undefined = target;
 		while (current) {
 			list.push(current);
-			current = current.internalParent;
+			current = current._parent;
 		}
 		return [...[...list].reverse(), ...list];
 	}
@@ -878,68 +985,68 @@ export class DisplayObject extends EventDispatcher {
 			return;
 		}
 		if (value instanceof DisplayObject) {
-			if (value === this.internalMask) {
+			if (value === this._mask) {
 				return;
 			}
-			if (value.maskedObject) {
-				value.maskedObject.mask = undefined;
+			if (value._maskedObject) {
+				value._maskedObject.mask = undefined;
 			}
-			value.maskedObject = this;
-			this.internalMask = value;
-			this.internalMaskRect = undefined;
+			value._maskedObject = this;
+			this._mask = value;
+			this._maskRect = undefined;
 		} else if (value instanceof Rectangle) {
-			if (!this.internalMaskRect) {
-				this.internalMaskRect = new Rectangle();
+			if (!this._maskRect) {
+				this._maskRect = new Rectangle();
 			}
-			this.internalMaskRect.copyFrom(value);
-			if (this.internalMask) {
-				this.internalMask.maskedObject = undefined;
-				this.internalMask = undefined;
+			this._maskRect.copyFrom(value);
+			if (this._mask) {
+				this._mask._maskedObject = undefined;
+				this._mask = undefined;
 			}
 		} else {
-			if (this.internalMask) {
-				this.internalMask.maskedObject = undefined;
-				this.internalMask = undefined;
+			if (this._mask) {
+				this._mask._maskedObject = undefined;
+				this._mask = undefined;
 			}
-			this.internalMaskRect = undefined;
+			this._maskRect = undefined;
 		}
 		this.updateRenderMode();
 		this.markDirty();
 	}
 
 	markDirty(): void {
-		this.renderDirty = true;
+		this._renderDirty = true;
 		this._boundsDirty = true;
 
 		// Update cached world alpha and tint so _refreshLeafTransform can read
 		// them in O(1) without walking the parent chain.
-		let alpha = this.internalAlpha;
-		let tint = this.tintRGB;
-		let p = this.internalParent;
+		let alpha = this._alpha;
+		let tint = this._tintRGB;
+		let p = this._parent;
 		while (p) {
-			alpha *= p.internalAlpha;
-			if (p.tintRGB !== 0xffffff) {
-				tint = p.tintRGB;
+			alpha *= p._alpha;
+			if (p._tintRGB !== 0xffffff) {
+				tint = p._tintRGB;
 			}
-			p = p.internalParent;
+			p = p._parent;
 		}
-		this.worldAlpha = alpha;
-		this.worldTint = tint;
+		this._worldAlpha = alpha;
+		this._worldTint = tint;
 
 		// Notify the renderer that this object's data changed.
 		DisplayObject._onRenderableDirty?.(this);
-		const parent = this.internalParent;
-		if (parent && !parent.cacheDirty) {
-			parent.cacheDirty = true;
+		const parent = this._parent;
+		if (parent && !parent._cacheDirty) {
+			parent._cacheDirty = true;
 			parent.cacheDirtyUp();
 		}
-		if (parent && !parent.renderDirty) {
-			parent.renderDirty = true;
+		if (parent && !parent._renderDirty) {
+			parent._renderDirty = true;
 			parent.renderDirtyUp();
 		}
-		const masked = this.maskedObject;
-		if (masked && !masked.cacheDirty) {
-			masked.cacheDirty = true;
+		const masked = this._maskedObject;
+		if (masked && !masked._cacheDirty) {
+			masked._cacheDirty = true;
 			masked.cacheDirtyUp();
 		}
 	}

@@ -4,14 +4,20 @@ import { DisplayObject } from './DisplayObject.js';
 import type { Stage } from './Stage.js';
 
 export class DisplayObjectContainer extends DisplayObject {
-	// ── Declare fields ─────────────────────────────────────────────────────────
-
-	declare children: DisplayObject[];
-
 	// ── Static fields ─────────────────────────────────────────────────────────
 
 	static eventAddToStageList: DisplayObject[] = [];
 	static eventRemoveFromStageList: DisplayObject[] = [];
+
+	// ── Getters / Setters ─────────────────────────────────────────────────────────
+
+	/** Containers always have a children array (never undefined). */
+	public override get children(): DisplayObject[] {
+		return super.children!;
+	}
+	public override set children(value: DisplayObject[] | undefined) {
+		super.children = value;
+	}
 
 	// ── Instance fields ───────────────────────────────────────────────────────
 
@@ -50,7 +56,7 @@ export class DisplayObjectContainer extends DisplayObject {
 
 	public addChild(child: DisplayObject): DisplayObject {
 		let index = this.children.length;
-		if (child.internalParent === this) index--;
+		if (child.parent === this) index--;
 		return this.doAddChild(child, index);
 	}
 
@@ -59,7 +65,7 @@ export class DisplayObjectContainer extends DisplayObject {
 		const len = this.children.length;
 		if (index < 0 || index >= len) {
 			index = len;
-			if (child.internalParent === this) index--;
+			if (child.parent === this) index--;
 		}
 		return this.doAddChild(child, index);
 	}
@@ -70,7 +76,7 @@ export class DisplayObjectContainer extends DisplayObject {
 			if (current === this) {
 				return true;
 			}
-			current = current.internalParent;
+			current = current.parent;
 		}
 		return false;
 	}
@@ -208,17 +214,18 @@ export class DisplayObjectContainer extends DisplayObject {
 	}
 
 	override hitTest(stageX: number, stageY: number): DisplayObject | undefined {
-		if (!this.internalVisible) {
+		if (!this.visible) {
 			return undefined;
 		}
 		const m = this.getInvertedConcatenatedMatrix();
 		const localX = m.a * stageX + m.c * stageY + m.tx;
 		const localY = m.b * stageX + m.d * stageY + m.ty;
-		const rect = this.internalScrollRect ?? this.internalMaskRect;
+		const maskObj = this.mask;
+		const rect = this.scrollRect ?? (maskObj instanceof Rectangle ? maskObj : undefined);
 		if (rect && !rect.contains(localX, localY)) {
 			return undefined;
 		}
-		if (this.internalMask && !this.internalMask.hitTest(stageX, stageY)) {
+		if (maskObj instanceof DisplayObject && !maskObj.hitTest(stageX, stageY)) {
 			return undefined;
 		}
 
@@ -231,7 +238,7 @@ export class DisplayObjectContainer extends DisplayObject {
 			target = child.hitTest(stageX, stageY);
 			if (target) {
 				found = true;
-				if (target.internalTouchEnabled) break;
+				if (target.touchEnabled) break;
 				target = undefined;
 			}
 		}
@@ -250,7 +257,7 @@ export class DisplayObjectContainer extends DisplayObject {
 	// ── Private methods ───────────────────────────────────────────────────────
 
 	private doAddChild(child: DisplayObject, index: number): DisplayObject {
-		const host = child.internalParent;
+		const host = child.parent;
 		if (host === this) {
 			this.doSetChildIndex(child, index);
 			return child;
@@ -262,17 +269,17 @@ export class DisplayObjectContainer extends DisplayObject {
 		this.children.splice(index, 0, child);
 		child.setParent(this);
 
-		if (this.internalStage) {
-			child.onAddToStage(this.internalStage, this.nestLevel + 1);
+		if (this.stage) {
+			child.onAddToStage(this.stage, this.nestLevel + 1);
 		}
 
 		child.dispatchEventWith(Event.ADDED, true);
 
-		if (this.internalStage) {
+		if (this.stage) {
 			const list = DisplayObjectContainer.eventAddToStageList;
 			while (list.length) {
 				const added = list.shift()!;
-				if (added.internalStage) {
+				if (added.stage) {
 					added.dispatchEventWith(Event.ADDED_TO_STAGE);
 				}
 			}
@@ -292,7 +299,7 @@ export class DisplayObjectContainer extends DisplayObject {
 		this.childRemoved(child, index);
 		child.dispatchEventWith(Event.REMOVED, true);
 
-		if (this.internalStage) {
+		if (this.stage) {
 			child.onRemoveFromStage();
 			const list = DisplayObjectContainer.eventRemoveFromStageList;
 			while (list.length) {

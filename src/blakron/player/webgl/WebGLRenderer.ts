@@ -230,20 +230,20 @@ export class WebGLRenderer {
 
 			if (child.useTranslate) {
 				const m = child.getMatrix();
-				ox = offsetX + child.internalX;
-				oy = offsetY + child.internalY;
+				ox = offsetX + child.x;
+				oy = offsetY + child.y;
 				savedMatrix = Matrix.create();
 				savedMatrix.copyFrom(buffer.globalMatrix);
 				buffer.transform(m.a, m.b, m.c, m.d, ox, oy);
-				ox = -child.internalAnchorOffsetX;
-				oy = -child.internalAnchorOffsetY;
+				ox = -child.anchorOffsetX;
+				oy = -child.anchorOffsetY;
 			} else {
-				ox = offsetX + child.internalX - child.internalAnchorOffsetX;
-				oy = offsetY + child.internalY - child.internalAnchorOffsetY;
+				ox = offsetX + child.x - child.anchorOffsetX;
+				oy = offsetY + child.y - child.anchorOffsetY;
 			}
 
 			const prevAlpha = buffer.globalAlpha;
-			if (child.internalAlpha !== 1) buffer.globalAlpha *= child.internalAlpha;
+			if (child.worldAlpha !== 1) buffer.globalAlpha *= child.worldAlpha;
 
 			const prevTint = buffer.globalTintColor;
 			if (child.tintRGB !== 0xffffff) buffer.globalTintColor = child.tintRGB;
@@ -359,7 +359,7 @@ export class WebGLRenderer {
 		offsetX: number,
 		offsetY: number,
 	): void {
-		const filters = obj.internalFilters;
+		const filters = obj.filters;
 		if (!filters.length) {
 			this._buildInstructions(obj, set, buffer, offsetX, offsetY);
 			return;
@@ -394,12 +394,12 @@ export class WebGLRenderer {
 		offsetX: number,
 		offsetY: number,
 	): void {
-		const rect = obj.internalScrollRect ?? obj.internalMaskRect;
+		const rect = obj.scrollRect ?? obj.internalMaskRect;
 		if (!rect || rect.isEmpty()) return;
 
 		let ox = offsetX,
 			oy = offsetY;
-		if (obj.internalScrollRect) {
+		if (obj.scrollRect) {
 			ox -= rect.x;
 			oy -= rect.y;
 		}
@@ -854,20 +854,20 @@ export class WebGLRenderer {
 
 			if (child.useTranslate) {
 				const m = child.getMatrix();
-				ox = offsetX + child.internalX;
-				oy = offsetY + child.internalY;
+				ox = offsetX + child.x;
+				oy = offsetY + child.y;
 				savedMatrix = Matrix.create();
 				savedMatrix.copyFrom(buffer.globalMatrix);
 				buffer.transform(m.a, m.b, m.c, m.d, ox, oy);
-				ox = -child.internalAnchorOffsetX;
-				oy = -child.internalAnchorOffsetY;
+				ox = -child.anchorOffsetX;
+				oy = -child.anchorOffsetY;
 			} else {
-				ox = offsetX + child.internalX - child.internalAnchorOffsetX;
-				oy = offsetY + child.internalY - child.internalAnchorOffsetY;
+				ox = offsetX + child.x - child.anchorOffsetX;
+				oy = offsetY + child.y - child.anchorOffsetY;
 			}
 
 			const prevAlpha = buffer.globalAlpha;
-			if (child.internalAlpha !== 1) buffer.globalAlpha *= child.internalAlpha;
+			if (child.worldAlpha !== 1) buffer.globalAlpha *= child.worldAlpha;
 			const prevTint = buffer.globalTintColor;
 			if (child.tintRGB !== 0xffffff) buffer.globalTintColor = child.tintRGB;
 
@@ -929,7 +929,7 @@ export class WebGLRenderer {
 	 */
 	public markRenderableDirty(obj: DisplayObject): void {
 		// Walk up to find the nearest RenderGroup ancestor (if any).
-		let p = obj.internalParent;
+		let p = obj.parent;
 		while (p) {
 			if (p instanceof DisplayObjectContainer && p.isRenderGroup) {
 				const groupSet = this._renderGroupSets.get(p);
@@ -938,7 +938,7 @@ export class WebGLRenderer {
 					return;
 				}
 			}
-			p = p.internalParent;
+			p = p.parent;
 		}
 		// No RenderGroup ancestor — route to the root set.
 		if (!this._instructionSet.structureDirty) this._instructionSet.markRenderableDirty(obj);

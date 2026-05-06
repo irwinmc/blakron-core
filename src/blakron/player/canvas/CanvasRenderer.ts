@@ -163,21 +163,21 @@ export class CanvasRenderer {
 
 			if (child.useTranslate) {
 				const m = child.getMatrix();
-				childOffsetX = offsetX + child.internalX;
-				childOffsetY = offsetY + child.internalY;
+				childOffsetX = offsetX + child.x;
+				childOffsetY = offsetY + child.y;
 				ctx.save();
 				ctx.transform(m.a, m.b, m.c, m.d, childOffsetX, childOffsetY);
-				childOffsetX = -child.internalAnchorOffsetX;
-				childOffsetY = -child.internalAnchorOffsetY;
+				childOffsetX = -child.anchorOffsetX;
+				childOffsetY = -child.anchorOffsetY;
 			} else {
-				childOffsetX = offsetX + child.internalX - child.internalAnchorOffsetX;
-				childOffsetY = offsetY + child.internalY - child.internalAnchorOffsetY;
+				childOffsetX = offsetX + child.x - child.anchorOffsetX;
+				childOffsetY = offsetY + child.y - child.anchorOffsetY;
 			}
 
 			let prevAlpha: number | undefined;
-			if (child.internalAlpha !== 1) {
+			if (child.worldAlpha !== 1) {
 				prevAlpha = ctx.globalAlpha;
-				ctx.globalAlpha *= child.internalAlpha;
+				ctx.globalAlpha *= child.worldAlpha;
 			}
 
 			if (child.renderMode === RenderMode.FILTER) {
@@ -206,9 +206,9 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		const rect = displayObject.internalScrollRect ?? displayObject.internalMaskRect;
+		const rect = displayObject.scrollRect ?? displayObject.internalMaskRect;
 		if (!rect || rect.isEmpty()) return 0;
-		if (displayObject.internalScrollRect) {
+		if (displayObject.scrollRect) {
 			offsetX -= rect.x;
 			offsetY -= rect.y;
 		}
@@ -227,7 +227,7 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		const filters = displayObject.internalFilters;
+		const filters = displayObject.filters;
 		if (!filters.length) return this.drawDisplayObject(displayObject, ctx, offsetX, offsetY);
 
 		const bounds = displayObject.getOriginalBounds();
@@ -278,7 +278,7 @@ export class CanvasRenderer {
 			let drawCalls = 0;
 			if (displayObject.internalMask) {
 				drawCalls += this.drawWithClip(displayObject, ctx, offsetX, offsetY);
-			} else if (displayObject.internalScrollRect || displayObject.internalMaskRect) {
+			} else if (displayObject.scrollRect || displayObject.internalMaskRect) {
 				drawCalls += this.drawWithScrollRect(displayObject, ctx, offsetX, offsetY);
 			} else {
 				drawCalls += this.drawDisplayObject(displayObject, ctx, offsetX, offsetY);
@@ -300,7 +300,7 @@ export class CanvasRenderer {
 		let drawCalls = 0;
 		if (displayObject.internalMask) {
 			drawCalls += this.drawWithClip(displayObject, offCtx, -bounds.x, -bounds.y);
-		} else if (displayObject.internalScrollRect || displayObject.internalMaskRect) {
+		} else if (displayObject.scrollRect || displayObject.internalMaskRect) {
 			drawCalls += this.drawWithScrollRect(displayObject, offCtx, -bounds.x, -bounds.y);
 		} else {
 			drawCalls += this.drawDisplayObject(displayObject, offCtx, -bounds.x, -bounds.y);
@@ -337,7 +337,7 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		const scrollRect = displayObject.internalScrollRect ?? displayObject.internalMaskRect;
+		const scrollRect = displayObject.scrollRect ?? displayObject.internalMaskRect;
 		const mask = displayObject.internalMask;
 		const hasBlendMode = displayObject.internalBlendMode !== 0;
 
