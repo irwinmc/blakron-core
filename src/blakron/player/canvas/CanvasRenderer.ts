@@ -5,6 +5,7 @@ import { Sprite } from '../../display/Sprite.js';
 import { Mesh } from '../../display/Mesh.js';
 import { Graphics, setGraphicsHitTest } from '../../display/Graphics.js';
 import { PathCommandType, type GraphicsCommand } from '../../display/GraphicsPath.js';
+import { Texture } from '../../display/texture/Texture.js';
 import { Matrix } from '../../geom/Matrix.js';
 import { Rectangle } from '../../geom/Rectangle.js';
 import { BlurFilter } from '../../filters/BlurFilter.js';
@@ -12,11 +13,10 @@ import { ColorMatrixFilter } from '../../filters/ColorMatrixFilter.js';
 import { GlowFilter } from '../../filters/GlowFilter.js';
 import { DropShadowFilter } from '../../filters/DropShadowFilter.js';
 import { TextField } from '../../text/TextField.js';
-import { Texture } from '../../display/texture/Texture.js';
 import { HorizontalAlign } from '../../text/enums/HorizontalAlign.js';
 import { VerticalAlign } from '../../text/enums/VerticalAlign.js';
 import { TextFieldType } from '../../text/enums/TextFieldType.js';
-import { getFontString, measureBaselineOffset, measureAscentOffset } from '../../text/TextMeasurer.js';
+import { getFontString } from '../../text/TextMeasurer.js';
 import { RenderBuffer, hitTestBuffer } from './RenderBuffer.js';
 
 const CAPS_MAP: Record<string, CanvasLineCap> = { none: 'butt', square: 'square', round: 'round' };
@@ -620,53 +620,24 @@ export class CanvasRenderer {
 			verticalOffset = Math.max(0, height - totalTextHeight);
 		}
 
-		// ── Baseline offset for alphabetic rendering ──────────────────────────
-		// Using textBaseline='alphabetic' so that the baseline position is computed
-		// from consistent actualBoundingBox metrics (not fontBoundingBoxAscent which
-		// varies across browsers/OS when the font is substituted, e.g. Arial → SF Pro
-		// on iOS).
-		//
-		// For verticalAlign='middle': baseline = lineTop + lineHeight/2 + (abbA - abbD)/2
-		//   so that the glyph visual center lands at lineHeight/2.
-		// For other alignments: baseline = lineTop + abbA (glyph top = line top).
-		let baselineOffset = 0;
-		{
-			// Find first non-empty element to measure
-			let sampleText = '';
-			let sampleSize = tf.size;
-			let sampleFont = tf.fontFamily;
-			let sampleBold = tf.bold;
-			let sampleItalic = tf.italic;
-			outer: for (const line of lines) {
-				for (const el of line.elements) {
-					if (el.text) {
-						sampleText = el.text;
-						sampleSize = el.style?.size ?? tf.size;
-						sampleFont = el.style?.fontFamily ?? tf.fontFamily;
-						sampleBold = el.style?.bold ?? tf.bold;
-						sampleItalic = el.style?.italic ?? tf.italic;
-						break outer;
-					}
-				}
-			}
-			if (tf.verticalAlign === VerticalAlign.MIDDLE) {
-				baselineOffset = measureBaselineOffset(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
-			} else {
-				baselineOffset = measureAscentOffset(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
-			}
-		}
-
-		// ── ScrollV offset: accumulate actual line heights instead of fixed formula ──
+		// ── ScrollV offset ────────────────────────────────────────────────────
 		const scrollOffset = tf.getScrollYOffset();
 
-		// ── Draw lines ────────────────────────────────────────────────────────
+		// ── Draw lines (Egret-style: textBaseline='middle', y at line-height center) ──
+		// Following Egret's TextField.drawText():
+		//   drawY advances by h/2 before drawing, then h/2 + lineSpacing after.
+		//   Each element's y = drawY + (lineHeight - elementSize) / 2.
+		//   With textBaseline='middle', the browser handles vertical centering automatically.
 		let drawY = verticalOffset - scrollOffset;
 		let drawCalls = 0;
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			if (drawY + line.height < 0 || drawY > height) {
-				drawY += line.height + lineSpacing;
+			const h = line.height;
+			drawY += h / 2;
+
+			if (drawY + h / 2 < 0 || drawY - h / 2 > height) {
+				drawY += h / 2 + lineSpacing;
 				continue;
 			}
 
@@ -691,9 +662,10 @@ export class CanvasRenderer {
 
 				const fontStr = getFontString(fontSize, fontFamily, bold, italic);
 				ctx.font = fontStr;
-				ctx.textBaseline = 'alphabetic';
+				ctx.textBaseline = 'middle';
+				ctx.textAlign = 'left';
 
-				const textY = drawY + baselineOffset;
+				const textY = drawY + (h - fontSize) / 2;
 
 				// Stroke
 				if (stroke > 0) {
@@ -712,7 +684,7 @@ export class CanvasRenderer {
 				lineX += el.width;
 			}
 
-			drawY += line.height + lineSpacing;
+			drawY += h / 2 + lineSpacing;
 		}
 
 		// ── INPUT cursor ──────────────────────────────────────────────────────
@@ -721,7 +693,7 @@ export class CanvasRenderer {
 			const caretIndex = tf.caretIndex;
 			const fontStr = getFontString(tf.size, tf.fontFamily, tf.bold, tf.italic);
 			ctx.font = fontStr;
-			ctx.textBaseline = 'alphabetic';
+			ctx.textBaseline = 'middle';
 
 			// Calculate cursor x by measuring text up to caretIndex
 			let cursorX = 0;

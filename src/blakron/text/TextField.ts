@@ -4,7 +4,7 @@ import { Rectangle } from '../geom/Rectangle.js';
 import { Event } from '../events/Event.js';
 import { TouchEvent } from '../events/TouchEvent.js';
 import { TextEvent } from '../events/TextEvent.js';
-import { measureText, getFontString, measureBaselineOffset, measureAscentOffset } from './TextMeasurer.js';
+import { measureText, getFontString } from './TextMeasurer.js';
 import type { ITextElement, ILineElement, IWTextElement } from './types/ITextElement.js';
 import { HorizontalAlign } from './enums/HorizontalAlign.js';
 import { VerticalAlign } from './enums/VerticalAlign.js';
@@ -745,37 +745,8 @@ export class TextField extends DisplayObject {
 		// ScrollV offset
 		const scrollOffset = this.getScrollYOffset();
 
-		// Baseline offset (mirrors CanvasRenderer.renderTextField)
-		// With textBaseline='alphabetic', baselineOffset shifts from line-top to baseline position.
-		// For hit testing, we need to account for this offset so the localY is in line-top space.
-		let baselineOffset = 0;
-		{
-			let sampleText = '';
-			let sampleSize = this._fontSize;
-			let sampleFont = this._fontFamily;
-			let sampleBold = this._bold;
-			let sampleItalic = this._italic;
-			outer: for (const line of lines) {
-				for (const el of line.elements) {
-					if (el.text) {
-						sampleText = el.text;
-						sampleSize = el.style?.size ?? this._fontSize;
-						sampleFont = el.style?.fontFamily ?? this._fontFamily;
-						sampleBold = el.style?.bold ?? this._bold;
-						sampleItalic = el.style?.italic ?? this._italic;
-						break outer;
-					}
-				}
-			}
-			if (this._verticalAlign === VerticalAlign.MIDDLE) {
-				baselineOffset = measureBaselineOffset(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
-			} else {
-				baselineOffset = measureAscentOffset(sampleText, sampleFont, sampleSize, sampleBold, sampleItalic);
-			}
-		}
-
 		// Adjust y into text-local space (line-top coordinates)
-		const localY = y - verticalOffset - baselineOffset + scrollOffset;
+		const localY = y - verticalOffset + scrollOffset;
 
 		let lineY = 0;
 		for (const line of lines) {
