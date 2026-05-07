@@ -70,22 +70,22 @@ export class TextField extends DisplayObject {
 
 	public constructor() {
 		super();
-		this.renderObjectType = RenderObjectType.TEXT;
+		this.$renderObjectType = RenderObjectType.TEXT;
 		this.invalidateFontString();
 	}
 
 	// Width/Height affect line-breaking, so invalidate text when they change.
 	public override set width(value: number) {
 		const v = isNaN(value) ? NaN : value;
-		if (this.explicitWidth === v) return;
-		this.explicitWidth = v;
+		if (this.$explicitWidth === v) return;
+		this.$explicitWidth = v;
 		this.invalidateText();
 	}
 
 	public override set height(value: number) {
 		const v = isNaN(value) ? NaN : value;
-		if (this.explicitHeight === v) return;
-		this.explicitHeight = v;
+		if (this.$explicitHeight === v) return;
+		this.$explicitHeight = v;
 		this.invalidateText();
 	}
 
@@ -158,7 +158,7 @@ export class TextField extends DisplayObject {
 		if (this._textColor !== value) {
 			this._textColor = value;
 			this._inputController?.setColor(value);
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -168,7 +168,7 @@ export class TextField extends DisplayObject {
 	public set strokeColor(value: number) {
 		if (this._strokeColor !== value) {
 			this._strokeColor = value;
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -178,7 +178,7 @@ export class TextField extends DisplayObject {
 	public set stroke(value: number) {
 		if (this._stroke !== value) {
 			this._stroke = value;
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -225,8 +225,8 @@ export class TextField extends DisplayObject {
 			}
 			this.touchEnabled = true;
 			// Set default size if not explicitly set, matching old Egret behaviour
-			if (isNaN(this.explicitWidth)) this.width = 100;
-			if (isNaN(this.explicitHeight)) this.height = 30;
+			if (isNaN(this.$explicitWidth)) this.width = 100;
+			if (isNaN(this.$explicitHeight)) this.height = 30;
 			if (this.stage) {
 				this._inputController.addStageText();
 			}
@@ -241,7 +241,7 @@ export class TextField extends DisplayObject {
 			}
 			this.touchEnabled = false;
 		}
-		this.markDirty();
+		this.$markDirty();
 	}
 
 	public get inputType(): TextFieldInputType {
@@ -291,7 +291,7 @@ export class TextField extends DisplayObject {
 		value = Math.max(value, 1);
 		if (this._scrollV !== value) {
 			this._scrollV = value;
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -355,7 +355,7 @@ export class TextField extends DisplayObject {
 	public set border(value: boolean) {
 		if (this._border !== value) {
 			this._border = value;
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -365,7 +365,7 @@ export class TextField extends DisplayObject {
 	public set borderColor(value: number) {
 		if (this._borderColor !== value) {
 			this._borderColor = value;
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -375,7 +375,7 @@ export class TextField extends DisplayObject {
 	public set background(value: boolean) {
 		if (this._background !== value) {
 			this._background = value;
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -385,7 +385,7 @@ export class TextField extends DisplayObject {
 	public set backgroundColor(value: number) {
 		if (this._backgroundColor !== value) {
 			this._backgroundColor = value;
-			this.markDirty();
+			this.$markDirty();
 		}
 	}
 
@@ -490,8 +490,8 @@ export class TextField extends DisplayObject {
 	/** @internal Called by InputController when typing state changes. */
 	setIsTyping(value: boolean): void {
 		this._isTyping = value;
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	public getLineHeight(): number {
@@ -500,26 +500,26 @@ export class TextField extends DisplayObject {
 
 	// ── Internal methods ──────────────────────────────────────────────────────
 
-	override onAddToStage(stage: Stage, nestLevel: number): void {
-		super.onAddToStage(stage, nestLevel);
+	override $onAddToStage(stage: Stage, $nestLevel: number): void {
+		super.$onAddToStage(stage, $nestLevel);
 		if (this._type === TextFieldType.INPUT && this._inputController) {
 			this._inputController.addStageText();
 		}
 		this.addEventListener(TouchEvent.TOUCH_TAP, this.onTapHandler as (e: Event) => void);
 	}
 
-	override onRemoveFromStage(): void {
-		super.onRemoveFromStage();
+	override $onRemoveFromStage(): void {
+		super.$onRemoveFromStage();
 		if (this._inputController) {
 			this._inputController.removeStageText();
 		}
 		this.removeEventListener(TouchEvent.TOUCH_TAP, this.onTapHandler as (e: Event) => void);
 	}
 
-	override measureContentBounds(bounds: Rectangle): void {
+	override $measureContentBounds(bounds: Rectangle): void {
 		this.ensureLines();
-		const w = !isNaN(this.explicitWidth) ? this.explicitWidth : this._textWidth;
-		const h = !isNaN(this.explicitHeight) ? this.explicitHeight : this.textHeight;
+		const w = !isNaN(this.$explicitWidth) ? this.$explicitWidth : this._textWidth;
+		const h = !isNaN(this.$explicitHeight) ? this.$explicitHeight : this.textHeight;
 		bounds.setTo(0, 0, w, h);
 	}
 
@@ -529,8 +529,8 @@ export class TextField extends DisplayObject {
 		this._textDirty = true;
 		this._linesArr = undefined;
 		this.invalidateFontString();
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	private invalidateFontString(): void {
@@ -558,18 +558,18 @@ export class TextField extends DisplayObject {
 	/** Number of fully-visible lines in the current explicit height (mirrors Egret's $getScrollNum). */
 	private getScrollNum(): number {
 		if (!this._multiline) return 1;
-		if (isNaN(this.explicitHeight)) return this._numLines;
+		if (isNaN(this.$explicitHeight)) return this._numLines;
 		const lineH = this._fontSize + this._lineSpacing;
 		if (lineH <= 0) return this._numLines;
-		let scrollNum = Math.floor(this.explicitHeight / lineH);
-		const leftH = this.explicitHeight - lineH * scrollNum;
+		let scrollNum = Math.floor(this.$explicitHeight / lineH);
+		const leftH = this.$explicitHeight - lineH * scrollNum;
 		if (leftH > this._fontSize / 2) scrollNum++;
 		return Math.max(1, scrollNum);
 	}
 
 	private calculateLines(): ILineElement[] {
 		const elements = this._textFlow ?? [{ text: this.getDisplayText() }];
-		const maxWidth = !isNaN(this.explicitWidth) ? this.explicitWidth : NaN;
+		const maxWidth = !isNaN(this.$explicitWidth) ? this.$explicitWidth : NaN;
 		const isInput = this._type === TextFieldType.INPUT;
 		const lines: ILineElement[] = [];
 
@@ -724,8 +724,8 @@ export class TextField extends DisplayObject {
 	private getTextElementAt(x: number, y: number): ITextElement | undefined {
 		this.ensureLines();
 		const lines = this._linesArr ?? [];
-		const width = !isNaN(this.explicitWidth) ? this.explicitWidth : this._textWidth;
-		const height = !isNaN(this.explicitHeight) ? this.explicitHeight : this.textHeight;
+		const width = !isNaN(this.$explicitWidth) ? this.$explicitWidth : this._textWidth;
+		const height = !isNaN(this.$explicitHeight) ? this.$explicitHeight : this.textHeight;
 
 		// Compute total text height for vertical alignment offset
 		let totalTextHeight = 0;

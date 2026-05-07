@@ -20,15 +20,15 @@ export class BitmapText extends DisplayObject {
 	// Width/Height affect line-breaking, so invalidate text when they change.
 	public override set width(value: number) {
 		const v = isNaN(value) ? NaN : value;
-		if (this.explicitWidth === v) return;
-		this.explicitWidth = v;
+		if (this.$explicitWidth === v) return;
+		this.$explicitWidth = v;
 		this._invalidate();
 	}
 
 	public override set height(value: number) {
 		const v = isNaN(value) ? NaN : value;
-		if (this.explicitHeight === v) return;
-		this.explicitHeight = v;
+		if (this.$explicitHeight === v) return;
+		this.$explicitHeight = v;
 		this._invalidate();
 	}
 	private _smoothing = true;
@@ -103,7 +103,7 @@ export class BitmapText extends DisplayObject {
 	public set smoothing(value: boolean) {
 		if (this._smoothing === value) return;
 		this._smoothing = value;
-		this.markDirty();
+		this.$markDirty();
 	}
 
 	public get textWidth(): number {
@@ -115,7 +115,7 @@ export class BitmapText extends DisplayObject {
 		return this._textHeight;
 	}
 
-	override measureContentBounds(bounds: Rectangle): void {
+	override $measureContentBounds(bounds: Rectangle): void {
 		this._ensureLines();
 		if (this._textLines.length === 0) {
 			bounds.setEmpty();
@@ -151,8 +151,8 @@ export class BitmapText extends DisplayObject {
 
 	private _invalidate(): void {
 		this._textLinesChanged = true;
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	private _ensureLines(): string[] {
@@ -167,9 +167,9 @@ export class BitmapText extends DisplayObject {
 		const font = this._font;
 		if (!this._text || !font) return this._textLines;
 
-		const hasWidthSet = !isNaN(this.explicitWidth);
-		const fieldWidth = this.explicitWidth;
-		const fieldHeight = this.explicitHeight;
+		const hasWidthSet = !isNaN(this.$explicitWidth);
+		const fieldWidth = this.$explicitWidth;
+		const fieldHeight = this.$explicitHeight;
 		const emptyHeight = font.getFirstCharHeight();
 		const emptyWidth = Math.ceil(emptyHeight * BitmapText.EMPTY_FACTOR);
 		const textArr = this._text.split(/(?:\r\n|\r|\n)/);

@@ -50,8 +50,8 @@ describe('Bitmap', () => {
 		vi.restoreAllMocks();
 	});
 
-	it('renderObjectType is BITMAP', () => {
-		expect(new Bitmap().renderObjectType).toBe(RenderObjectType.BITMAP);
+	it('$renderObjectType is BITMAP', () => {
+		expect(new Bitmap().$renderObjectType).toBe(RenderObjectType.BITMAP);
 	});
 
 	it('default property values', () => {
@@ -82,9 +82,9 @@ describe('Bitmap', () => {
 	it('texture setter no-ops on same texture', () => {
 		const tex = mockTexture();
 		const bm = new Bitmap(tex);
-		bm.renderDirty = false;
+		bm.$renderDirty = false;
 		bm.texture = tex;
-		expect(bm.renderDirty).toBe(false);
+		expect(bm.$renderDirty).toBe(false);
 	});
 
 	it('setting texture to undefined clears image data', () => {
@@ -92,7 +92,7 @@ describe('Bitmap', () => {
 		bm.texture = undefined;
 		expect(bm.texture).toBeUndefined();
 		expect(bm.bitmapData).toBeUndefined();
-		expect(bm.renderDirty).toBe(true);
+		expect(bm.$renderDirty).toBe(true);
 	});
 
 	it('smoothing follows Bitmap.defaultSmoothing', () => {
@@ -103,30 +103,30 @@ describe('Bitmap', () => {
 
 	it('smoothing no-ops on same value', () => {
 		const bm = new Bitmap();
-		bm.renderDirty = false;
+		bm.$renderDirty = false;
 		bm.smoothing = true;
-		expect(bm.renderDirty).toBe(false);
+		expect(bm.$renderDirty).toBe(false);
 	});
 
-	it('fillMode setter marks renderDirty', () => {
+	it('fillMode setter marks $renderDirty', () => {
 		const bm = new Bitmap();
 		bm.fillMode = BitmapFillMode.REPEAT;
 		expect(bm.fillMode).toBe(BitmapFillMode.REPEAT);
-		expect(bm.renderDirty).toBe(true);
+		expect(bm.$renderDirty).toBe(true);
 	});
 
 	it('fillMode no-ops on same value', () => {
 		const bm = new Bitmap();
-		bm.renderDirty = false;
+		bm.$renderDirty = false;
 		bm.fillMode = BitmapFillMode.SCALE;
-		expect(bm.renderDirty).toBe(false);
+		expect(bm.$renderDirty).toBe(false);
 	});
 
-	it('scale9Grid setter marks renderDirty', () => {
+	it('scale9Grid setter marks $renderDirty', () => {
 		const bm = new Bitmap();
 		bm.scale9Grid = new Rectangle(10, 10, 44, 44);
 		expect(bm.scale9Grid).toBeDefined();
-		expect(bm.renderDirty).toBe(true);
+		expect(bm.$renderDirty).toBe(true);
 	});
 
 	it('scale9Grid can be cleared', () => {
@@ -149,11 +149,11 @@ describe('Bitmap', () => {
 		expect(bm.width).toBe(200);
 	});
 
-	it('width setter marks renderDirty', () => {
+	it('width setter marks $renderDirty', () => {
 		const bm = new Bitmap();
-		bm.renderDirty = false;
+		bm.$renderDirty = false;
 		bm.width = 300;
-		expect(bm.renderDirty).toBe(true);
+		expect(bm.$renderDirty).toBe(true);
 	});
 
 	it('width setter rejects negative', () => {
@@ -166,46 +166,46 @@ describe('Bitmap', () => {
 	it('width setter no-ops on same value', () => {
 		const bm = new Bitmap();
 		bm.width = 100;
-		bm.renderDirty = false;
+		bm.$renderDirty = false;
 		bm.width = 100;
-		expect(bm.renderDirty).toBe(false);
+		expect(bm.$renderDirty).toBe(false);
 	});
 
-	it('measureContentBounds uses texture size', () => {
+	it('$measureContentBounds uses texture size', () => {
 		const bm = new Bitmap(mockTexture({ textureWidth: 200, textureHeight: 150 }));
 		const bounds = new Rectangle();
-		bm['measureContentBounds'](bounds);
+		bm['$measureContentBounds'](bounds);
 		expect(bounds.width).toBe(200);
 		expect(bounds.height).toBe(150);
 	});
 
-	it('measureContentBounds uses explicit width/height', () => {
+	it('$measureContentBounds uses explicit width/height', () => {
 		const bm = new Bitmap(mockTexture());
 		bm.width = 300;
 		bm.height = 200;
 		const bounds = new Rectangle();
-		bm['measureContentBounds'](bounds);
+		bm['$measureContentBounds'](bounds);
 		expect(bounds.width).toBe(300);
 	});
 
-	it('hitTest works without pixelHitTest', () => {
+	it('$hitTest works without pixelHitTest', () => {
 		const bm = new Bitmap(mockTexture({ textureWidth: 100, textureHeight: 100 }));
-		expect(bm.hitTest(50, 50)).toBe(bm);
+		expect(bm.$hitTest(50, 50)).toBe(bm);
 	});
 
-	it('hitTest with pixelHitTest calls callback', () => {
+	it('$hitTest with pixelHitTest calls callback', () => {
 		const bm = new Bitmap(mockTexture({ textureWidth: 100, textureHeight: 100 }));
 		bm.pixelHitTest = true;
 		const fn = vi.fn().mockReturnValue(true);
 		setBitmapPixelHitTest(fn);
-		expect(bm.hitTest(50, 50)).toBe(bm);
+		expect(bm.$hitTest(50, 50)).toBe(bm);
 		expect(fn).toHaveBeenCalledWith(bm, expect.any(Number), expect.any(Number));
 	});
 
-	it('hitTest with pixelHitTest returns undefined on false callback', () => {
+	it('$hitTest with pixelHitTest returns undefined on false callback', () => {
 		const bm = new Bitmap(mockTexture({ textureWidth: 100, textureHeight: 100 }));
 		bm.pixelHitTest = true;
 		setBitmapPixelHitTest(() => false);
-		expect(bm.hitTest(50, 50)).toBeUndefined();
+		expect(bm.$hitTest(50, 50)).toBeUndefined();
 	});
 });

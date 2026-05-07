@@ -118,29 +118,29 @@ export class CanvasRenderer {
 		let drawCalls = 0;
 
 		// DisplayList cache (cacheAsBitmap)
-		const displayList = displayObject.displayList;
-		if (displayList && !_isStage) {
-			if (displayObject.cacheDirty || displayObject.renderDirty) {
-				if (displayList.updateSurfaceSize()) {
-					displayList.renderBuffer.clear();
+		const $displayList = displayObject.$displayList;
+		if ($displayList && !_isStage) {
+			if (displayObject.$cacheDirty || displayObject.$renderDirty) {
+				if ($displayList.updateSurfaceSize()) {
+					$displayList.renderBuffer.clear();
 					this.drawDisplayObject(
 						displayObject,
-						displayList.renderBuffer.context,
-						displayList.offsetX,
-						displayList.offsetY,
+						$displayList.renderBuffer.context,
+						$displayList.offsetX,
+						$displayList.offsetY,
 						true,
 					);
-					displayList.updateBitmapData();
+					$displayList.updateBitmapData();
 				}
-				displayObject.cacheDirty = false;
-				displayObject.renderDirty = false;
+				displayObject.$cacheDirty = false;
+				displayObject.$renderDirty = false;
 			}
-			// Draw cached result and skip children
-			if (displayList.bitmapData?.source) {
+			// Draw cached result and skip $children
+			if ($displayList.bitmapData?.source) {
 				ctx.drawImage(
-					displayList.bitmapData.source as CanvasImageSource,
-					offsetX - displayList.offsetX,
-					offsetY - displayList.offsetY,
+					$displayList.bitmapData.source as CanvasImageSource,
+					offsetX - $displayList.offsetX,
+					offsetY - $displayList.offsetY,
 				);
 				drawCalls++;
 			}
@@ -150,47 +150,47 @@ export class CanvasRenderer {
 		// Draw self
 		drawCalls += this.renderSelf(displayObject, ctx, offsetX, offsetY);
 
-		// Draw children
-		const children = displayObject.children;
-		if (!children) return drawCalls;
+		// Draw $children
+		const $children = displayObject.$children;
+		if (!$children) return drawCalls;
 
-		for (let i = 0; i < children.length; i++) {
-			const child = children[i];
-			if (child.renderMode === RenderMode.NONE) continue;
+		for (let i = 0; i < $children.length; i++) {
+			const child = $children[i];
+			if (child.$renderMode === RenderMode.NONE) continue;
 
 			let childOffsetX: number;
 			let childOffsetY: number;
 
-			if (child.useTranslate) {
-				const m = child.getMatrix();
-				childOffsetX = offsetX + child.internalX;
-				childOffsetY = offsetY + child.internalY;
+			if (child.$useTranslate) {
+				const m = child.$getMatrix();
+				childOffsetX = offsetX + child.$x;
+				childOffsetY = offsetY + child.$y;
 				ctx.save();
 				ctx.transform(m.a, m.b, m.c, m.d, childOffsetX, childOffsetY);
-				childOffsetX = -child.internalAnchorOffsetX;
-				childOffsetY = -child.internalAnchorOffsetY;
+				childOffsetX = -child.$anchorOffsetX;
+				childOffsetY = -child.$anchorOffsetY;
 			} else {
-				childOffsetX = offsetX + child.internalX - child.internalAnchorOffsetX;
-				childOffsetY = offsetY + child.internalY - child.internalAnchorOffsetY;
+				childOffsetX = offsetX + child.$x - child.$anchorOffsetX;
+				childOffsetY = offsetY + child.$y - child.$anchorOffsetY;
 			}
 
 			let prevAlpha: number | undefined;
-			if (child.internalAlpha !== 1) {
+			if (child.$alpha !== 1) {
 				prevAlpha = ctx.globalAlpha;
-				ctx.globalAlpha *= child.internalAlpha;
+				ctx.globalAlpha *= child.$alpha;
 			}
 
-			if (child.renderMode === RenderMode.FILTER) {
+			if (child.$renderMode === RenderMode.FILTER) {
 				drawCalls += this.drawWithFilter(child, ctx, childOffsetX, childOffsetY);
-			} else if (child.renderMode === RenderMode.SCROLLRECT) {
+			} else if (child.$renderMode === RenderMode.SCROLLRECT) {
 				drawCalls += this.drawWithScrollRect(child, ctx, childOffsetX, childOffsetY);
-			} else if (child.renderMode === RenderMode.CLIP) {
+			} else if (child.$renderMode === RenderMode.CLIP) {
 				drawCalls += this.drawWithClip(child, ctx, childOffsetX, childOffsetY);
 			} else {
 				drawCalls += this.drawDisplayObject(child, ctx, childOffsetX, childOffsetY);
 			}
 
-			if (child.useTranslate) {
+			if (child.$useTranslate) {
 				ctx.restore();
 			} else if (prevAlpha !== undefined) {
 				ctx.globalAlpha = prevAlpha;
@@ -206,9 +206,9 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		const rect = displayObject.internalScrollRect ?? displayObject.internalMaskRect;
+		const rect = displayObject.$scrollRect ?? displayObject.$maskRect;
 		if (!rect || rect.isEmpty()) return 0;
-		if (displayObject.internalScrollRect) {
+		if (displayObject.$scrollRect) {
 			offsetX -= rect.x;
 			offsetY -= rect.y;
 		}
@@ -227,10 +227,10 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		const filters = displayObject.internalFilters;
+		const filters = displayObject.$filters;
 		if (!filters.length) return this.drawDisplayObject(displayObject, ctx, offsetX, offsetY);
 
-		const bounds = displayObject.getOriginalBounds();
+		const bounds = displayObject.$getOriginalBounds();
 		if (bounds.width <= 0 || bounds.height <= 0) return 0;
 
 		// Build CSS filter string for GPU-accelerated filters.
@@ -267,7 +267,7 @@ export class CanvasRenderer {
 			}
 		}
 
-		const hasBlendMode = displayObject.internalBlendMode !== 0;
+		const hasBlendMode = displayObject.$blendMode !== 0;
 
 		// ── Fast path: all filters expressible as CSS ─────────────────────────
 		if (!hasCpuFilter && cssFilters.length > 0) {
@@ -276,9 +276,9 @@ export class CanvasRenderer {
 			if (hasBlendMode) ctx.globalCompositeOperation = displayObject.blendMode as GlobalCompositeOperation;
 
 			let drawCalls = 0;
-			if (displayObject.internalMask) {
+			if (displayObject.$mask) {
 				drawCalls += this.drawWithClip(displayObject, ctx, offsetX, offsetY);
-			} else if (displayObject.internalScrollRect || displayObject.internalMaskRect) {
+			} else if (displayObject.$scrollRect || displayObject.$maskRect) {
 				drawCalls += this.drawWithScrollRect(displayObject, ctx, offsetX, offsetY);
 			} else {
 				drawCalls += this.drawDisplayObject(displayObject, ctx, offsetX, offsetY);
@@ -298,9 +298,9 @@ export class CanvasRenderer {
 		if (cssFilters.length > 0) offCtx.filter = cssFilters.join(' ');
 
 		let drawCalls = 0;
-		if (displayObject.internalMask) {
+		if (displayObject.$mask) {
 			drawCalls += this.drawWithClip(displayObject, offCtx, -bounds.x, -bounds.y);
-		} else if (displayObject.internalScrollRect || displayObject.internalMaskRect) {
+		} else if (displayObject.$scrollRect || displayObject.$maskRect) {
 			drawCalls += this.drawWithScrollRect(displayObject, offCtx, -bounds.x, -bounds.y);
 		} else {
 			drawCalls += this.drawDisplayObject(displayObject, offCtx, -bounds.x, -bounds.y);
@@ -337,9 +337,9 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		const scrollRect = displayObject.internalScrollRect ?? displayObject.internalMaskRect;
-		const mask = displayObject.internalMask;
-		const hasBlendMode = displayObject.internalBlendMode !== 0;
+		const scrollRect = displayObject.$scrollRect ?? displayObject.$maskRect;
+		const mask = displayObject.$mask;
+		const hasBlendMode = displayObject.$blendMode !== 0;
 
 		if (hasBlendMode) {
 			ctx.globalCompositeOperation = displayObject.blendMode as GlobalCompositeOperation;
@@ -355,7 +355,7 @@ export class CanvasRenderer {
 		// DisplayObject mask: render content and mask to offscreen buffers,
 		// composite with 'destination-in' to produce the masked result.
 		if (mask) {
-			const bounds = displayObject.getOriginalBounds();
+			const bounds = displayObject.$getOriginalBounds();
 			if (bounds.width <= 0 || bounds.height <= 0) {
 				if (scrollRect) ctx.restore();
 				if (hasBlendMode) ctx.globalCompositeOperation = 'source-over';
@@ -373,8 +373,8 @@ export class CanvasRenderer {
 
 			// Render mask shape to the same buffer using destination-in
 			contentCtx.globalCompositeOperation = 'destination-in';
-			const maskMatrix = mask.getConcatenatedMatrix();
-			const parentMatrix = displayObject.getConcatenatedMatrix();
+			const maskMatrix = mask.$getConcatenatedMatrix();
+			const parentMatrix = displayObject.$getConcatenatedMatrix();
 			// Transform mask relative to the content's local space
 			contentCtx.save();
 			const invA = parentMatrix.a,
@@ -431,7 +431,7 @@ export class CanvasRenderer {
 		offsetX: number,
 		offsetY: number,
 	): number {
-		switch (displayObject.renderObjectType) {
+		switch (displayObject.$renderObjectType) {
 			case RenderObjectType.MESH:
 				return this.renderMesh(displayObject as Mesh, ctx, offsetX, offsetY);
 			case RenderObjectType.BITMAP:
@@ -509,7 +509,7 @@ export class CanvasRenderer {
 			if (graphics.canvasCacheDirty || !graphics.offscreenCanvas) {
 				// Measure bounds to size the offscreen canvas
 				const bounds = new Rectangle();
-				graphics.measureContentBounds(bounds);
+				graphics.$measureContentBounds(bounds);
 				const cw = Math.ceil(bounds.width) || 1;
 				const ch = Math.ceil(bounds.height) || 1;
 
@@ -573,8 +573,8 @@ export class CanvasRenderer {
 		// text content to avoid the double-text artefact.
 		const inputFocused = tf.type === TextFieldType.INPUT && tf.isTyping;
 
-		const width = !isNaN(tf.explicitWidth) ? tf.explicitWidth : tf.textWidth;
-		const height = !isNaN(tf.explicitHeight) ? tf.explicitHeight : tf.textHeight;
+		const width = !isNaN(tf.$explicitWidth) ? tf.$explicitWidth : tf.textWidth;
+		const height = !isNaN(tf.$explicitHeight) ? tf.$explicitHeight : tf.textHeight;
 		if (width <= 0 || height <= 0) return 0;
 
 		ctx.save();
@@ -738,7 +738,7 @@ export class CanvasRenderer {
 				rotation: number;
 				alpha: number;
 				blendMode: number;
-				getMatrix(regX: number, regY: number): Matrix;
+				$getMatrix(regX: number, regY: number): Matrix;
 			}[];
 			texture: Texture;
 			numParticles: number;
@@ -762,7 +762,7 @@ export class CanvasRenderer {
 
 		for (let i = 0; i < ps.numParticles; i++) {
 			const particle = ps.particles[i];
-			const matrix = particle.getMatrix(regX, regY);
+			const matrix = particle.$getMatrix(regX, regY);
 
 			ctx.save();
 			ctx.globalAlpha *= particle.alpha;

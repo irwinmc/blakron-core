@@ -85,7 +85,7 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	 */
 	public executeScrollRectPush(inst: MaskPushInstruction, buffer: WebGLRenderBuffer): boolean {
 		const { renderable } = inst;
-		const rect = renderable.internalScrollRect ?? renderable.internalMaskRect;
+		const rect = renderable.$scrollRect ?? renderable.$maskRect;
 		if (!rect || rect.isEmpty()) {
 			return false;
 		}
@@ -140,10 +140,10 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 		renderer: { _drawDisplayObject(obj: DisplayObject, buf: WebGLRenderBuffer, ox: number, oy: number): number },
 	): WebGLRenderBuffer | undefined {
 		const { renderable } = inst;
-		const scrollRect = renderable.internalScrollRect ?? renderable.internalMaskRect;
+		const scrollRect = renderable.$scrollRect ?? renderable.$maskRect;
 
-		// Simple case: no mask object, no children — stencil/scissor only.
-		if (!renderable.internalMask && (!renderable.children || renderable.children.length === 0)) {
+		// Simple case: no mask object, no $children — stencil/scissor only.
+		if (!renderable.$mask && (!renderable.$children || renderable.$children.length === 0)) {
 			if (scrollRect) {
 				buffer.context.pushMask(
 					scrollRect.x + inst.offsetX,
@@ -155,7 +155,7 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 			return undefined;
 		}
 
-		const bounds = renderable.getOriginalBounds();
+		const bounds = renderable.$getOriginalBounds();
 		if (bounds.width <= 0 || bounds.height <= 0) {
 			return undefined;
 		}
@@ -178,10 +178,10 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 	): void {
 		const { renderable, push } = inst;
 		const { offsetX, offsetY } = push;
-		const scrollRect = renderable.internalScrollRect ?? renderable.internalMaskRect;
-		const hasBlend = renderable.internalBlendMode !== 0;
+		const scrollRect = renderable.$scrollRect ?? renderable.$maskRect;
+		const hasBlend = renderable.$blendMode !== 0;
 		const blendOp = hasBlend
-			? ({ 0: 'source-over', 1: 'lighter', 2: 'destination-out' }[renderable.internalBlendMode] ?? 'source-over')
+			? ({ 0: 'source-over', 1: 'lighter', 2: 'destination-out' }[renderable.$blendMode] ?? 'source-over')
 			: 'source-over';
 
 		if (!displayBuffer) {
@@ -192,20 +192,20 @@ export class MaskPipe implements RenderPipe<DisplayObject> {
 			return;
 		}
 
-		const bounds = renderable.getOriginalBounds();
+		const bounds = renderable.$getOriginalBounds();
 		const bx = bounds.x;
 		const by = bounds.y;
 		const bw = bounds.width;
 		const bh = bounds.height;
 
 		// Apply the mask object (if any) to the displayBuffer via destination-in.
-		const mask = renderable.internalMask;
+		const mask = renderable.$mask;
 		if (mask) {
 			const maskBuffer = WGLBuf.create(buffer.context, bw, bh);
 			maskBuffer.context.pushBuffer(maskBuffer);
 			const maskMatrix = Matrix.create();
-			maskMatrix.copyFrom(mask.getConcatenatedMatrix());
-			mask.getConcatenatedMatrixAt(renderable, maskMatrix);
+			maskMatrix.copyFrom(mask.$getConcatenatedMatrix());
+			mask.$getConcatenatedMatrixAt(renderable, maskMatrix);
 			maskMatrix.translate(-bx, -by);
 			maskBuffer.setTransform(
 				maskMatrix.a,

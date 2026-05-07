@@ -4,13 +4,13 @@ import { Event } from '../src/blakron/events/Event.js';
 import { EventDispatcher } from '../src/blakron/events/EventDispatcher.js';
 
 describe('TouchEvent', () => {
-	it('localX/localY fall back to stageX/stageY when target lacks getInvertedConcatenatedMatrix', () => {
+	it('localX/localY fall back to stageX/stageY when target lacks $getInvertedConcatenatedMatrix', () => {
 		const e = new TouchEvent('touchMove', false, false, 100, 200);
-		// Dispatch to an EventDispatcher (no getInvertedConcatenatedMatrix)
+		// Dispatch to an EventDispatcher (no $getInvertedConcatenatedMatrix)
 		const d = new EventDispatcher();
 		d.dispatchEvent(e);
 
-		// Since EventDispatcher doesn't have getInvertedConcatenatedMatrix,
+		// Since EventDispatcher doesn't have $getInvertedConcatenatedMatrix,
 		// localX/Y should equal stageX/Y
 		expect(e.localX).toBe(100);
 		expect(e.localY).toBe(200);

@@ -122,7 +122,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		const filters = inst.filters;
 		if (!filters.length) return undefined;
 
-		const bounds = inst.renderable.getOriginalBounds();
+		const bounds = inst.renderable.$getOriginalBounds();
 		if (bounds.width <= 0 || bounds.height <= 0) return undefined;
 
 		// Inline ColorMatrix optimisation: no offscreen buffer needed.
@@ -130,12 +130,12 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		// so the GL FBO + viewport/projection are in a known-good state before
 		// the leaf draw commands are queued.  Without this, the colorTransform
 		// draw may execute against a stale FBO left by a previous filter pass.
-		if (!inst.renderable.internalMask && filters.length === 1 && filters[0] instanceof ColorMatrixFilter) {
-			const hasBlend = inst.renderable.internalBlendMode !== 0;
+		if (!inst.renderable.$mask && filters.length === 1 && filters[0] instanceof ColorMatrixFilter) {
+			const hasBlend = inst.renderable.$blendMode !== 0;
 			if (hasBlend) {
 				inst.savedBlendMode = buffer.context.currentBlendMode;
 				buffer.context.setGlobalCompositeOperation(
-					BLEND_MODES[inst.renderable.internalBlendMode] ?? 'source-over',
+					BLEND_MODES[inst.renderable.$blendMode] ?? 'source-over',
 				);
 			}
 			// Flush pending batched commands so the GL state is clean, then
@@ -184,8 +184,8 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 	): void {
 		const { renderable, push } = inst;
 		const filters = push.filters;
-		const hasBlend = renderable.internalBlendMode !== 0;
-		const blendOp = BLEND_MODES[renderable.internalBlendMode] ?? 'source-over';
+		const hasBlend = renderable.$blendMode !== 0;
+		const blendOp = BLEND_MODES[renderable.$blendMode] ?? 'source-over';
 
 		// Inline ColorMatrix path — clear the filter flag and pop the buffer
 		// that was pushed in executePush to balance the stack.
@@ -200,7 +200,7 @@ export class FilterPipe implements RenderPipe<DisplayObject> {
 		// Deactivate the offscreen buffer, restoring the main buffer as active.
 		offscreen.context.popBuffer();
 
-		const bounds = renderable.getOriginalBounds();
+		const bounds = renderable.$getOriginalBounds();
 		const bx = bounds.x;
 		const by = bounds.y;
 

@@ -22,7 +22,7 @@ export const scenes: SceneDescriptor[] = [
 		maxCount: 2000,
 		build(container: unknown, count: number, factory?: SceneFactory): () => void {
 			const c = container as any;
-			const children: unknown[] = [];
+			const $children: unknown[] = [];
 			for (let i = 0; i < count; i++) {
 				let bmp: any;
 				if (factory) {
@@ -36,13 +36,13 @@ export const scenes: SceneDescriptor[] = [
 					bmp.y = Math.random() * 560;
 					c.addChild?.(bmp);
 				}
-				children.push(bmp);
+				$children.push(bmp);
 			}
 			return () => {
 				if (factory) {
-					children.forEach(ch => factory.removeChild(container, ch));
+					$children.forEach(ch => factory.removeChild(container, ch));
 				} else {
-					children.forEach(ch => c.removeChild?.(ch));
+					$children.forEach(ch => c.removeChild?.(ch));
 				}
 			};
 		},
@@ -55,7 +55,7 @@ export const scenes: SceneDescriptor[] = [
 		maxCount: 2000,
 		build(container: unknown, count: number, factory?: SceneFactory): () => void {
 			const c = container as any;
-			const children: unknown[] = [];
+			const $children: unknown[] = [];
 			const numTextures = 8;
 			const perTex = Math.floor(count / numTextures);
 			for (let t = 0; t < numTextures; t++) {
@@ -72,14 +72,14 @@ export const scenes: SceneDescriptor[] = [
 						bmp.y = Math.random() * 560;
 						c.addChild?.(bmp);
 					}
-					children.push(bmp);
+					$children.push(bmp);
 				}
 			}
 			return () => {
 				if (factory) {
-					children.forEach(ch => factory.removeChild(container, ch));
+					$children.forEach(ch => factory.removeChild(container, ch));
 				} else {
-					children.forEach(ch => c.removeChild?.(ch));
+					$children.forEach(ch => c.removeChild?.(ch));
 				}
 			};
 		},
@@ -92,7 +92,7 @@ export const scenes: SceneDescriptor[] = [
 		maxCount: 200,
 		build(container: unknown, count: number, factory?: SceneFactory): () => void {
 			const c = container as any;
-			const children: unknown[] = [];
+			const $children: unknown[] = [];
 			for (let i = 0; i < count; i++) {
 				let shape: any;
 				if (factory) {
@@ -106,13 +106,13 @@ export const scenes: SceneDescriptor[] = [
 					shape.y = Math.floor(i / 10) * 75 + 10;
 					c.addChild?.(shape);
 				}
-				children.push(shape);
+				$children.push(shape);
 			}
 			return () => {
 				if (factory) {
-					children.forEach(ch => factory.removeChild(container, ch));
+					$children.forEach(ch => factory.removeChild(container, ch));
 				} else {
-					children.forEach(ch => c.removeChild?.(ch));
+					$children.forEach(ch => c.removeChild?.(ch));
 				}
 			};
 		},
@@ -217,7 +217,7 @@ export const scenes: SceneDescriptor[] = [
 			buildTree(container, 0);
 
 			return () => {
-				// Remove only direct children of the root container; nested cleanup cascades
+				// Remove only direct $children of the root container; nested cleanup cascades
 				if (factory) {
 					// Remove the top-level sprites added to container
 					for (let i = 0; i < branchFactor; i++) {

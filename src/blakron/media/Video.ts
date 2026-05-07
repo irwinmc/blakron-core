@@ -107,7 +107,7 @@ export class Video extends DisplayObject {
 	}
 	public override set width(value: number) {
 		this._widthSet = value;
-		this.renderDirty = true;
+		this.$renderDirty = true;
 	}
 
 	public override get height(): number {
@@ -115,7 +115,7 @@ export class Video extends DisplayObject {
 	}
 	public override set height(value: number) {
 		this._heightSet = value;
-		this.renderDirty = true;
+		this.$renderDirty = true;
 	}
 
 	// ── Public methods ────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ export class Video extends DisplayObject {
 
 	// ── Internal methods ──────────────────────────────────────────────────────
 
-	override measureContentBounds(bounds: Rectangle): void {
+	override $measureContentBounds(bounds: Rectangle): void {
 		const w = this.getPlayWidth();
 		const h = this.getPlayHeight();
 		if (w > 0 && h > 0) bounds.setTo(0, 0, w, h);
@@ -226,8 +226,8 @@ export class Video extends DisplayObject {
 				this._posterData = loader.data;
 				this._posterData.width = this.getPlayWidth() || loader.data.width;
 				this._posterData.height = this.getPlayHeight() || loader.data.height;
-				this.renderDirty = true;
-				this.markDirty();
+				this.$renderDirty = true;
+				this.$markDirty();
 			}
 		});
 		loader.load(url);

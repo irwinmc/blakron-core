@@ -6,13 +6,13 @@ import { Point } from '../src/blakron/geom/Point.js';
 
 /**
  * Integration tests for spatial methods:
- * - hitTest / hitTestPoint
+ * - $hitTest / hitTestPoint
  * - getBounds / getTransformedBounds
  * - globalToLocal / localToGlobal
- * - getConcatenatedMatrix / getInvertedConcatenatedMatrix
+ * - $getConcatenatedMatrix / $getInvertedConcatenatedMatrix
  */
 
-// A minimal "concrete" DisplayObject that declares content bounds via measureContentBounds
+// A minimal "concrete" DisplayObject that declares content bounds via $measureContentBounds
 class Box extends DisplayObject {
 	private _w: number;
 	private _h: number;
@@ -23,54 +23,54 @@ class Box extends DisplayObject {
 		this._h = h;
 	}
 
-	override measureContentBounds(bounds: Rectangle): void {
+	override $measureContentBounds(bounds: Rectangle): void {
 		bounds.setTo(0, 0, this._w, this._h);
 	}
 }
 
 describe('DisplayObject — spatial operations', () => {
-	// ── hitTest ────────────────────────────────────────────────────────────
+	// ── $hitTest ────────────────────────────────────────────────────────────
 
-	it('hitTest returns self when point is within bounds', () => {
+	it('$hitTest returns self when point is within bounds', () => {
 		const obj = new Box(100, 100);
-		const result = obj.hitTest(50, 50);
+		const result = obj.$hitTest(50, 50);
 		expect(result).toBe(obj);
 	});
 
-	it('hitTest returns undefined when point is outside bounds', () => {
+	it('$hitTest returns undefined when point is outside bounds', () => {
 		const obj = new Box(100, 100);
-		expect(obj.hitTest(150, 50)).toBeUndefined();
-		expect(obj.hitTest(-1, 50)).toBeUndefined();
-		expect(obj.hitTest(50, 150)).toBeUndefined();
+		expect(obj.$hitTest(150, 50)).toBeUndefined();
+		expect(obj.$hitTest(-1, 50)).toBeUndefined();
+		expect(obj.$hitTest(50, 150)).toBeUndefined();
 	});
 
-	it('hitTest transforms stage coords according to position', () => {
+	it('$hitTest transforms stage coords according to position', () => {
 		const obj = new Box(100, 100);
 		obj.x = 100;
 		obj.y = 50;
-		expect(obj.hitTest(150, 75)).toBe(obj); // local (50, 25)
-		expect(obj.hitTest(50, 50)).toBeUndefined(); // local (-50, 0) — outside
+		expect(obj.$hitTest(150, 75)).toBe(obj); // local (50, 25)
+		expect(obj.$hitTest(50, 50)).toBeUndefined(); // local (-50, 0) — outside
 	});
 
-	it('hitTest with scaling', () => {
+	it('$hitTest with scaling', () => {
 		const obj = new Box(100, 100);
 		obj.scaleX = 2;
 		obj.scaleY = 2;
 		// bounds are now effectively 200x200
-		expect(obj.hitTest(150, 50)).toBe(obj);
-		expect(obj.hitTest(250, 50)).toBeUndefined();
+		expect(obj.$hitTest(150, 50)).toBe(obj);
+		expect(obj.$hitTest(250, 50)).toBeUndefined();
 	});
 
-	it('hitTest returns undefined when invisible', () => {
+	it('$hitTest returns undefined when invisible', () => {
 		const obj = new Box(100, 100);
 		obj.visible = false;
-		expect(obj.hitTest(50, 50)).toBeUndefined();
+		expect(obj.$hitTest(50, 50)).toBeUndefined();
 	});
 
-	it('hitTest returns undefined when scale is 0', () => {
+	it('$hitTest returns undefined when scale is 0', () => {
 		const obj = new Box(100, 100);
 		obj.scaleX = 0;
-		expect(obj.hitTest(50, 50)).toBeUndefined();
+		expect(obj.$hitTest(50, 50)).toBeUndefined();
 	});
 
 	// ── hitTestPoint ───────────────────────────────────────────────────────
@@ -199,42 +199,42 @@ describe('DisplayObject — spatial operations', () => {
 		expect(back.y).toBeCloseTo(stageY, 5);
 	});
 
-	// ── getConcatenatedMatrix ──────────────────────────────────────────────
+	// ── $getConcatenatedMatrix ──────────────────────────────────────────────
 
-	it('getConcatenatedMatrix for root object matches own matrix', () => {
+	it('$getConcatenatedMatrix for root object matches own matrix', () => {
 		const obj = new Box(100, 100);
 		obj.x = 10;
 		obj.y = 20;
-		const m = obj.getConcatenatedMatrix();
+		const m = obj.$getConcatenatedMatrix();
 		expect(m.tx).toBe(10);
 		expect(m.ty).toBe(20);
 	});
 
-	it('getConcatenatedMatrix accumulates parent transforms', () => {
+	it('$getConcatenatedMatrix accumulates parent transforms', () => {
 		const root = new DisplayObjectContainer();
 		const child = new Box(100, 100);
 		root.addChild(child);
 		root.x = 100;
 		child.x = 50;
 
-		const m = child.getConcatenatedMatrix();
+		const m = child.$getConcatenatedMatrix();
 		expect(m.tx).toBe(150); // 100 + 50
 	});
 
-	it('getConcatenatedMatrix includes anchor offset', () => {
+	it('$getConcatenatedMatrix includes anchor offset', () => {
 		const obj = new Box(100, 100);
 		obj.x = 100;
 		obj.anchorOffsetX = 30;
-		const m = obj.getConcatenatedMatrix();
+		const m = obj.$getConcatenatedMatrix();
 		expect(m.tx).toBe(70); // 100 - 30
 	});
 
-	// ── getInvertedConcatenatedMatrix ──────────────────────────────────────
+	// ── $getInvertedConcatenatedMatrix ──────────────────────────────────────
 
-	it('getInvertedConcatenatedMatrix inverts the concatenated matrix', () => {
+	it('$getInvertedConcatenatedMatrix inverts the concatenated matrix', () => {
 		const obj = new Box(100, 100);
 		obj.x = 100;
-		const inv = obj.getInvertedConcatenatedMatrix();
+		const inv = obj.$getInvertedConcatenatedMatrix();
 		const p = inv.transformPoint(150, 50);
 		expect(p.x).toBeCloseTo(50, 10);
 		expect(p.y).toBeCloseTo(50, 10);
@@ -242,10 +242,10 @@ describe('DisplayObject — spatial operations', () => {
 
 	// ── cached bounds ──────────────────────────────────────────────────────
 
-	it('getOriginalBounds caches result until marked dirty', () => {
+	it('$getOriginalBounds caches result until marked dirty', () => {
 		const obj = new Box(100, 100);
-		const b1 = obj.getOriginalBounds();
-		const b2 = obj.getOriginalBounds();
+		const b1 = obj.$getOriginalBounds();
+		const b2 = obj.$getOriginalBounds();
 		expect(b1).toBe(b2); // cached — same reference
 	});
 });

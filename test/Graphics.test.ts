@@ -16,7 +16,7 @@ describe('Graphics', () => {
 		expect(g.commands.length).toBe(1);
 		expect(g.commands[0].type).toBe(PathCommandType.DrawRect);
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.x).toBe(10);
 		expect(bounds.y).toBe(20);
 		expect(bounds.width).toBe(100);
@@ -27,7 +27,7 @@ describe('Graphics', () => {
 		const g = new Graphics();
 		g.drawCircle(50, 50, 30);
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.x).toBeLessThanOrEqual(50 - 30);
 		expect(bounds.y).toBeLessThanOrEqual(50 - 30);
 		expect(bounds.width).toBeGreaterThanOrEqual(60);
@@ -38,7 +38,7 @@ describe('Graphics', () => {
 		const g = new Graphics();
 		g.drawEllipse(0, 0, 100, 50);
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.width).toBeGreaterThanOrEqual(100);
 		expect(bounds.height).toBeGreaterThanOrEqual(50);
 	});
@@ -48,7 +48,7 @@ describe('Graphics', () => {
 		g.moveTo(0, 0);
 		g.lineTo(100, 200);
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.x).toBe(0);
 		expect(bounds.y).toBe(0);
 		expect(bounds.width).toBe(100);
@@ -78,7 +78,7 @@ describe('Graphics', () => {
 		g.moveTo(50, 50);
 		g.lineTo(100, 50);
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.y).toBeLessThan(50);
 		expect(bounds.height).toBeGreaterThan(0);
 	});
@@ -89,7 +89,7 @@ describe('Graphics', () => {
 		g.clear();
 		expect(g.commands.length).toBe(0);
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.isEmpty()).toBe(true);
 	});
 
@@ -113,7 +113,7 @@ describe('Graphics', () => {
 		g.moveTo(0, 0);
 		g.curveTo(50, 100, 100, 0);
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.height).toBeGreaterThan(0);
 		expect(bounds.width).toBe(100);
 	});
@@ -186,10 +186,10 @@ describe('Graphics', () => {
 		expect(g.commands[0].type).toBe(PathCommandType.BeginGradientFill);
 	});
 
-	it('empty graphics measureContentBounds returns empty rect', () => {
+	it('empty graphics $measureContentBounds returns empty rect', () => {
 		const g = new Graphics();
 		const bounds = new Rectangle();
-		g.measureContentBounds(bounds);
+		g.$measureContentBounds(bounds);
 		expect(bounds.isEmpty()).toBe(true);
 	});
 

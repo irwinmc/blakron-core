@@ -107,15 +107,15 @@ export class TouchEvent extends Event {
 	private computeLocalXY(): void {
 		this._targetChanged = false;
 		const target = this.target as
-			| { getInvertedConcatenatedMatrix?(): { transformPoint(x: number, y: number, out: Point): void } }
+			| { $getInvertedConcatenatedMatrix?(): { transformPoint(x: number, y: number, out: Point): void } }
 			| undefined;
-		if (!target?.getInvertedConcatenatedMatrix) {
+		if (!target?.$getInvertedConcatenatedMatrix) {
 			this._localX = this._stageX;
 			this._localY = this._stageY;
 			return;
 		}
 		const out = { x: 0, y: 0 } as Point;
-		target.getInvertedConcatenatedMatrix().transformPoint(this._stageX, this._stageY, out);
+		target.$getInvertedConcatenatedMatrix().transformPoint(this._stageX, this._stageY, out);
 		this._localX = out.x;
 		this._localY = out.y;
 	}

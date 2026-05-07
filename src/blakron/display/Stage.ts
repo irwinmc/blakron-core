@@ -20,8 +20,8 @@ export class Stage extends DisplayObjectContainer {
 
 	public constructor() {
 		super();
-		this.internalStage = this;
-		this.nestLevel = 1;
+		this.$stage = this;
+		this.$nestLevel = 1;
 	}
 
 	// ── Getters / Setters ─────────────────────────────────────────────────────

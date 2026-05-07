@@ -93,7 +93,7 @@ type AnyInstruction =
  *   Walk the InstructionSet and dispatch each instruction to its pipe.
  *   No scene-graph traversal happens here.
  *
- * When only data changes (renderDirty but not structureDirty):
+ * When only data changes ($renderDirty but not structureDirty):
  *   Call pipe.updateRenderable() for each dirty object, then execute.
  */
 export class WebGLRenderer {
@@ -181,8 +181,8 @@ export class WebGLRenderer {
 		// Reset to identity — clean slate for next frame.
 		buffer.setTransform(1, 0, 0, 1, 0, 0);
 
-		// Root renderDirty is consumed after a full render pass.
-		displayObject.renderDirty = false;
+		// Root $renderDirty is consumed after a full render pass.
+		displayObject.$renderDirty = false;
 
 		this._nestLevel--;
 		if (this._nestLevel === 0) {
@@ -206,8 +206,8 @@ export class WebGLRenderer {
 		isStage = false,
 	): void {
 		// cacheAsBitmap — treat as a single opaque leaf; render offscreen lazily.
-		const displayList = displayObject.displayList;
-		if (displayList && !isStage) {
+		const $displayList = displayObject.$displayList;
+		if ($displayList && !isStage) {
 			// Emit a synthetic BitmapInstruction backed by the DisplayList cache.
 			// The execute phase will refresh the cache if dirty.
 			const inst = this._makeCacheInstruction(displayObject, offsetX, offsetY, buffer);
@@ -218,35 +218,35 @@ export class WebGLRenderer {
 		// Emit self instruction (Bitmap / Shape / Sprite / Mesh).
 		this._buildLeaf(displayObject, set, buffer, offsetX, offsetY);
 
-		const children = displayObject.children;
-		if (!children || children.length === 0) return;
+		const $children = displayObject.$children;
+		if (!$children || $children.length === 0) return;
 
-		for (const child of children) {
-			if (child.renderMode === RenderMode.NONE) continue;
+		for (const child of $children) {
+			if (child.$renderMode === RenderMode.NONE) continue;
 
 			// Compute child transform.
 			let ox: number, oy: number;
 			let savedMatrix: Matrix | undefined;
 
-			if (child.useTranslate) {
-				const m = child.getMatrix();
-				ox = offsetX + child.internalX;
-				oy = offsetY + child.internalY;
+			if (child.$useTranslate) {
+				const m = child.$getMatrix();
+				ox = offsetX + child.$x;
+				oy = offsetY + child.$y;
 				savedMatrix = Matrix.create();
 				savedMatrix.copyFrom(buffer.globalMatrix);
 				buffer.transform(m.a, m.b, m.c, m.d, ox, oy);
-				ox = -child.internalAnchorOffsetX;
-				oy = -child.internalAnchorOffsetY;
+				ox = -child.$anchorOffsetX;
+				oy = -child.$anchorOffsetY;
 			} else {
-				ox = offsetX + child.internalX - child.internalAnchorOffsetX;
-				oy = offsetY + child.internalY - child.internalAnchorOffsetY;
+				ox = offsetX + child.$x - child.$anchorOffsetX;
+				oy = offsetY + child.$y - child.$anchorOffsetY;
 			}
 
 			const prevAlpha = buffer.globalAlpha;
-			if (child.internalAlpha !== 1) buffer.globalAlpha *= child.internalAlpha;
+			if (child.$alpha !== 1) buffer.globalAlpha *= child.$alpha;
 
 			const prevTint = buffer.globalTintColor;
-			if (child.tintRGB !== 0xffffff) buffer.globalTintColor = child.tintRGB;
+			if (child.$tintRGB !== 0xffffff) buffer.globalTintColor = child.$tintRGB;
 
 			// Emit effect wrappers then recurse.
 			// RenderGroup: build the subtree into its own InstructionSet and
@@ -254,7 +254,7 @@ export class WebGLRenderer {
 			if (child instanceof DisplayObjectContainer && child.isRenderGroup) {
 				this._buildRenderGroup(child, set, buffer, ox, oy);
 			} else {
-				switch (child.renderMode) {
+				switch (child.$renderMode) {
 					case RenderMode.FILTER:
 						this._buildFilter(child, set, buffer, ox, oy);
 						break;
@@ -278,7 +278,7 @@ export class WebGLRenderer {
 		}
 	}
 
-	// Emit a leaf instruction for a single DisplayObject (no children).
+	// Emit a leaf instruction for a single DisplayObject (no $children).
 	private _buildLeaf(
 		obj: DisplayObject,
 		set: InstructionSet,
@@ -288,7 +288,7 @@ export class WebGLRenderer {
 	): void {
 		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
 
-		switch (obj.renderObjectType) {
+		switch (obj.$renderObjectType) {
 			case RenderObjectType.MESH:
 				set.addLeaf({
 					renderPipeId: 'mesh',
@@ -359,7 +359,7 @@ export class WebGLRenderer {
 		offsetX: number,
 		offsetY: number,
 	): void {
-		const filters = obj.internalFilters;
+		const filters = obj.$filters;
 		if (!filters.length) {
 			this._buildInstructions(obj, set, buffer, offsetX, offsetY);
 			return;
@@ -394,12 +394,12 @@ export class WebGLRenderer {
 		offsetX: number,
 		offsetY: number,
 	): void {
-		const rect = obj.internalScrollRect ?? obj.internalMaskRect;
+		const rect = obj.$scrollRect ?? obj.$maskRect;
 		if (!rect || rect.isEmpty()) return;
 
 		let ox = offsetX,
 			oy = offsetY;
-		if (obj.internalScrollRect) {
+		if (obj.$scrollRect) {
 			ox -= rect.x;
 			oy -= rect.y;
 		}
@@ -461,8 +461,8 @@ export class WebGLRenderer {
 		offsetY: number,
 		buffer: WebGLRenderBuffer,
 	): DisplayListCacheInstruction | undefined {
-		const displayList = obj.displayList;
-		if (!displayList) return undefined;
+		const $displayList = obj.$displayList;
+		if (!$displayList) return undefined;
 		const transform = this._snapshotTransform(buffer, offsetX, offsetY);
 		return {
 			renderPipeId: 'displayListCache',
@@ -524,7 +524,7 @@ export class WebGLRenderer {
 	 * current concatenated matrix and cached world alpha/tint.
 	 */
 	private _refreshLeafTransform(obj: DisplayObject, inst: LeafInstruction): void {
-		const cm = obj.getConcatenatedMatrix();
+		const cm = obj.$getConcatenatedMatrix();
 		const t = inst.transform;
 		t.a = cm.a;
 		t.b = cm.b;
@@ -534,8 +534,8 @@ export class WebGLRenderer {
 		t.ty = cm.ty;
 		t.offsetX = 0;
 		t.offsetY = 0;
-		t.alpha = obj.worldAlpha;
-		t.tint = obj.worldTint;
+		t.alpha = obj.$worldAlpha;
+		t.tint = obj.$worldTint;
 	}
 
 	/** Check if a display object now has graphics content that warrants an instruction. */
@@ -619,7 +619,7 @@ export class WebGLRenderer {
 					const offscreen = this._filterPipe.executePush(push, activeBuffer);
 					offscreenStack.push(offscreen);
 					if (offscreen) {
-						this._setOffscreenOrigin(offscreen, push.renderable.getOriginalBounds(), pushT);
+						this._setOffscreenOrigin(offscreen, push.renderable.$getOriginalBounds(), pushT);
 						activeBuffer = offscreen;
 					}
 					break;
@@ -648,7 +648,7 @@ export class WebGLRenderer {
 						const displayBuffer = this._maskPipe.executeClipPush(push, activeBuffer, this);
 						offscreenStack.push(displayBuffer);
 						if (displayBuffer) {
-							this._setOffscreenOrigin(displayBuffer, push.renderable.getOriginalBounds(), pushT);
+							this._setOffscreenOrigin(displayBuffer, push.renderable.$getOriginalBounds(), pushT);
 							activeBuffer = displayBuffer;
 						}
 					}
@@ -713,36 +713,36 @@ export class WebGLRenderer {
 		offsetX: number,
 		offsetY: number,
 	): void {
-		const displayList = obj.displayList;
-		if (!displayList) return;
+		const $displayList = obj.$displayList;
+		if (!$displayList) return;
 
-		if (obj.cacheDirty || obj.renderDirty) {
-			if (displayList.updateSurfaceSize()) {
-				displayList.renderBuffer.clear();
+		if (obj.$cacheDirty || obj.$renderDirty) {
+			if ($displayList.updateSurfaceSize()) {
+				$displayList.renderBuffer.clear();
 				this._canvasRenderer.renderToContext(
 					obj,
-					displayList.renderBuffer.context,
-					displayList.offsetX,
-					displayList.offsetY,
+					$displayList.renderBuffer.context,
+					$displayList.offsetX,
+					$displayList.offsetY,
 				);
-				displayList.updateBitmapData();
+				$displayList.updateBitmapData();
 			}
-			obj.cacheDirty = false;
-			obj.renderDirty = false;
+			obj.$cacheDirty = false;
+			obj.$renderDirty = false;
 			// Structure may have changed inside the cached subtree — mark dirty
 			// so next frame rebuilds if the cache is invalidated.
 		}
 
-		if (!displayList.bitmapData?.source) return;
+		if (!$displayList.bitmapData?.source) return;
 
-		const bd = displayList.bitmapData;
-		const w = displayList.renderBuffer.width;
-		const h = displayList.renderBuffer.height;
+		const bd = $displayList.bitmapData;
+		const w = $displayList.renderBuffer.width;
+		const h = $displayList.renderBuffer.height;
 		// offsetX/Y already in globalMatrix via _applyTransform.
 		if (offsetX !== 0 || offsetY !== 0) {
 			buffer.globalMatrix.append(1, 0, 0, 1, offsetX, offsetY);
 		}
-		buffer.context.drawImage(bd, 0, 0, w, h, -displayList.offsetX, -displayList.offsetY, w, h, w, h, false);
+		buffer.context.drawImage(bd, 0, 0, w, h, -$displayList.offsetX, -$displayList.offsetY, w, h, w, h, false);
 		if (offsetX !== 0 || offsetY !== 0) {
 			buffer.globalMatrix.append(1, 0, 0, 1, -offsetX, -offsetY);
 		}
@@ -770,7 +770,7 @@ export class WebGLRenderer {
 			buffer.globalMatrix.append(1, 0, 0, 1, offsetX, offsetY);
 		}
 
-		switch (obj.renderObjectType) {
+		switch (obj.$renderObjectType) {
 			case RenderObjectType.MESH: {
 				const inst: MeshInstruction = { renderPipeId: 'mesh', renderable: obj as Mesh, offsetX: 0, offsetY: 0 };
 				this._meshPipe.execute(inst, buffer);
@@ -843,33 +843,33 @@ export class WebGLRenderer {
 			buffer.globalMatrix.append(1, 0, 0, 1, -offsetX, -offsetY);
 		}
 
-		const children = obj.children;
-		if (!children) return drawCalls;
+		const $children = obj.$children;
+		if (!$children) return drawCalls;
 
-		for (const child of children) {
-			if (child.renderMode === RenderMode.NONE) continue;
+		for (const child of $children) {
+			if (child.$renderMode === RenderMode.NONE) continue;
 
 			let ox: number, oy: number;
 			let savedMatrix: Matrix | undefined;
 
-			if (child.useTranslate) {
-				const m = child.getMatrix();
-				ox = offsetX + child.internalX;
-				oy = offsetY + child.internalY;
+			if (child.$useTranslate) {
+				const m = child.$getMatrix();
+				ox = offsetX + child.$x;
+				oy = offsetY + child.$y;
 				savedMatrix = Matrix.create();
 				savedMatrix.copyFrom(buffer.globalMatrix);
 				buffer.transform(m.a, m.b, m.c, m.d, ox, oy);
-				ox = -child.internalAnchorOffsetX;
-				oy = -child.internalAnchorOffsetY;
+				ox = -child.$anchorOffsetX;
+				oy = -child.$anchorOffsetY;
 			} else {
-				ox = offsetX + child.internalX - child.internalAnchorOffsetX;
-				oy = offsetY + child.internalY - child.internalAnchorOffsetY;
+				ox = offsetX + child.$x - child.$anchorOffsetX;
+				oy = offsetY + child.$y - child.$anchorOffsetY;
 			}
 
 			const prevAlpha = buffer.globalAlpha;
-			if (child.internalAlpha !== 1) buffer.globalAlpha *= child.internalAlpha;
+			if (child.$alpha !== 1) buffer.globalAlpha *= child.$alpha;
 			const prevTint = buffer.globalTintColor;
-			if (child.tintRGB !== 0xffffff) buffer.globalTintColor = child.tintRGB;
+			if (child.$tintRGB !== 0xffffff) buffer.globalTintColor = child.$tintRGB;
 
 			drawCalls += this._directDraw(child, buffer, ox, oy);
 
@@ -929,7 +929,7 @@ export class WebGLRenderer {
 	 */
 	public markRenderableDirty(obj: DisplayObject): void {
 		// Walk up to find the nearest RenderGroup ancestor (if any).
-		let p = obj.internalParent;
+		let p = obj.$parent;
 		while (p) {
 			if (p instanceof DisplayObjectContainer && p.isRenderGroup) {
 				const groupSet = this._renderGroupSets.get(p);
@@ -938,7 +938,7 @@ export class WebGLRenderer {
 					return;
 				}
 			}
-			p = p.internalParent;
+			p = p.$parent;
 		}
 		// No RenderGroup ancestor — route to the root set.
 		if (!this._instructionSet.structureDirty) this._instructionSet.markRenderableDirty(obj);

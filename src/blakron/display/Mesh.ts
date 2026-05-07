@@ -22,7 +22,7 @@ export class Mesh extends Bitmap {
 
 	public constructor(value?: Texture) {
 		super(value);
-		this.renderObjectType = RenderObjectType.MESH;
+		this.$renderObjectType = RenderObjectType.MESH;
 	}
 
 	// ── Public methods ────────────────────────────────────────────────────────
@@ -33,13 +33,13 @@ export class Mesh extends Bitmap {
 	 */
 	public updateVertices(): void {
 		this._verticesDirty = true;
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	// ── Internal methods ──────────────────────────────────────────────────────
 
-	override measureContentBounds(bounds: Rectangle): void {
+	override $measureContentBounds(bounds: Rectangle): void {
 		if (this._verticesDirty) {
 			this._verticesDirty = false;
 			if (this.vertices.length) {
@@ -63,5 +63,5 @@ export class Mesh extends Bitmap {
 		bounds.copyFrom(this._bounds);
 	}
 
-	// TODO: updateRenderNode() — implement mesh rendering when renderer layer is available
+	// TODO: $updateRenderNode() — implement mesh rendering when renderer layer is available
 }

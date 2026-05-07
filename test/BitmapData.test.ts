@@ -60,9 +60,9 @@ describe('BitmapData', () => {
 		BitmapData.addDisplayObject(obj, bd);
 
 		// Invalidate should mark the object dirty
-		obj.renderDirty = false;
+		obj.$renderDirty = false;
 		BitmapData.invalidate(bd);
-		expect(obj.renderDirty).toBe(true);
+		expect(obj.$renderDirty).toBe(true);
 	});
 
 	it('removeDisplayObject unregisters display object', () => {
@@ -70,16 +70,16 @@ describe('BitmapData', () => {
 		const obj = mockDisplayObject();
 		BitmapData.addDisplayObject(obj, bd);
 
-		obj.renderDirty = false;
+		obj.$renderDirty = false;
 		BitmapData.invalidate(bd);
-		expect(obj.renderDirty).toBe(true);
+		expect(obj.$renderDirty).toBe(true);
 
 		// After removal, invalidate should not affect it
 		BitmapData.removeDisplayObject(obj, bd);
-		obj.renderDirty = false;
+		obj.$renderDirty = false;
 		BitmapData.invalidate(bd);
 		// After remove, the list may still exist but be empty — should not throw
-		expect(obj.renderDirty).toBe(false);
+		expect(obj.$renderDirty).toBe(false);
 	});
 
 	// ── multiple display objects on same BitmapData ───────────────────────
@@ -91,12 +91,12 @@ describe('BitmapData', () => {
 		BitmapData.addDisplayObject(obj1, bd);
 		BitmapData.addDisplayObject(obj2, bd);
 
-		obj1.renderDirty = false;
-		obj2.renderDirty = false;
+		obj1.$renderDirty = false;
+		obj2.$renderDirty = false;
 		BitmapData.invalidate(bd);
 
-		expect(obj1.renderDirty).toBe(true);
-		expect(obj2.renderDirty).toBe(true);
+		expect(obj1.$renderDirty).toBe(true);
+		expect(obj2.$renderDirty).toBe(true);
 	});
 
 	// ── dispose ───────────────────────────────────────────────────────────

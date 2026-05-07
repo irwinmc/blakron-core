@@ -92,8 +92,8 @@ export class BitmapData extends HashObject {
 			return;
 		}
 		for (const node of list) {
-			node.renderDirty = true;
-			node.markDirty();
+			node.$renderDirty = true;
+			node.$markDirty();
 		}
 	}
 
@@ -106,8 +106,8 @@ export class BitmapData extends HashObject {
 			return;
 		}
 		for (const node of list) {
-			node.renderDirty = true;
-			node.markDirty();
+			node.$renderDirty = true;
+			node.$markDirty();
 		}
 		BitmapData._displayList.delete(bitmapData.hashCode);
 	}

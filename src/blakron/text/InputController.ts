@@ -73,7 +73,7 @@ export class InputController {
 	}
 
 	public focus(active = false): void {
-		if (!this._text.internalVisible) return;
+		if (!this._text.$visible) return;
 		if (this._isFocus) return;
 
 		const stage = this._text.stage;

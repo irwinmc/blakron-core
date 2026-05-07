@@ -4,7 +4,7 @@ import { DisplayObjectContainer } from '../src/blakron/display/DisplayObjectCont
 import { Event } from '../src/blakron/events/Event.js';
 
 describe('DisplayObjectContainer', () => {
-	it('starts with zero children', () => {
+	it('starts with zero $children', () => {
 		const c = new DisplayObjectContainer();
 		expect(c.numChildren).toBe(0);
 	});
@@ -163,7 +163,7 @@ describe('DisplayObjectContainer', () => {
 		expect(fn).toHaveBeenCalledOnce();
 	});
 
-	it('_onContainerStructureChange fires on add/remove', () => {
+	it('$onContainerStructureChange fires on add/remove', () => {
 		const fn = vi.fn();
 		const unsub = DisplayObjectContainer.addContainerStructureChangeListener(fn);
 		const parent = new DisplayObjectContainer();

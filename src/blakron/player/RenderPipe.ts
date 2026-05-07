@@ -9,7 +9,7 @@ import type { InstructionSet } from './webgl/InstructionSet.js';
  * Lifecycle per frame:
  *   1. If InstructionSet.structureDirty:
  *        pipe.addToInstructionSet(obj, set)   — build instruction from scratch
- *   2. Else if obj.renderDirty:
+ *   2. Else if obj.$renderDirty:
  *        pipe.updateRenderable(obj)            — patch GPU data only
  *   3. Always:
  *        pipe.execute(instruction, ...)        — issue the actual draw call

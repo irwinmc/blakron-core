@@ -47,7 +47,7 @@ interface TextCache {
  * 5. Draw the texture via `buffer.context.drawTexture()`, scaling back down
  *    by `canvasScale` so the on-screen size is correct.
  *
- * The cache is invalidated when `tf.renderDirty` is true or when the
+ * The cache is invalidated when `tf.$renderDirty` is true or when the
  * dimensions / DPR change.
  */
 export class TextPipe implements RenderPipe<TextField> {
@@ -88,7 +88,7 @@ export class TextPipe implements RenderPipe<TextField> {
 	}
 
 	public updateRenderable(_tf: TextField): void {
-		// Cache invalidation is driven by tf.renderDirty,
+		// Cache invalidation is driven by tf.$renderDirty,
 		// which is checked at execute time — nothing to pre-upload here.
 	}
 
@@ -121,8 +121,8 @@ export class TextPipe implements RenderPipe<TextField> {
 		}
 
 		// ── 1. Compute logical dimensions ────────────────────────────────────
-		const logicalW = Math.ceil(!isNaN(tf.explicitWidth) ? tf.explicitWidth : tf.textWidth);
-		const logicalH = Math.ceil(!isNaN(tf.explicitHeight) ? tf.explicitHeight : tf.textHeight);
+		const logicalW = Math.ceil(!isNaN(tf.$explicitWidth) ? tf.$explicitWidth : tf.textWidth);
+		const logicalH = Math.ceil(!isNaN(tf.$explicitHeight) ? tf.$explicitHeight : tf.textHeight);
 		if (logicalW <= 0 || logicalH <= 0) {
 			return;
 		}
@@ -173,7 +173,7 @@ export class TextPipe implements RenderPipe<TextField> {
 
 		// Dirty when: text content changed, dimensions changed, or DPR changed.
 		const needsRebuild =
-			tf.renderDirty || cache.textureWidth !== pixelW || cache.textureHeight !== pixelH || scaleChanged;
+			tf.$renderDirty || cache.textureWidth !== pixelW || cache.textureHeight !== pixelH || scaleChanged;
 
 		if (needsRebuild) {
 			// Resize the offscreen canvas if needed.

@@ -49,7 +49,7 @@ export class ParticlePipe implements RenderPipe<DisplayObject> {
 				rotation: number;
 				alpha: number;
 				blendMode: number;
-				getMatrix(regX: number, regY: number): Matrix;
+				$getMatrix(regX: number, regY: number): Matrix;
 			}[];
 			texture: TextureClass;
 			numParticles: number;
@@ -73,7 +73,7 @@ export class ParticlePipe implements RenderPipe<DisplayObject> {
 
 		for (let i = 0; i < ps.numParticles; i++) {
 			const particle = ps.particles[i];
-			const matrix = particle.getMatrix(regX, regY);
+			const matrix = particle.$getMatrix(regX, regY);
 
 			buffer.globalMatrix.copyFrom(savedMatrix);
 			buffer.globalMatrix.append(matrix.a, matrix.b, matrix.c, matrix.d, matrix.tx, matrix.ty);

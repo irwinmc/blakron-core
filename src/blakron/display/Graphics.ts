@@ -282,7 +282,7 @@ export class Graphics extends HashObject {
 
 	// ── Internal methods ──────────────────────────────────────────────────────
 
-	measureContentBounds(bounds: Rectangle): void {
+	$measureContentBounds(bounds: Rectangle): void {
 		if (this._minX === Infinity) {
 			bounds.setEmpty();
 		} else {
@@ -290,14 +290,14 @@ export class Graphics extends HashObject {
 		}
 	}
 
-	hitTest(localX: number, localY: number): boolean {
+	$hitTest(localX: number, localY: number): boolean {
 		if (!graphicsHitTest || this.commands.length === 0) {
 			return false;
 		}
 		return graphicsHitTest(this, localX, localY);
 	}
 
-	onRemoveFromStage(): void {
+	$onRemoveFromStage(): void {
 		// Do not clear commands — the Shape may be re-added to the display list
 		// and needs its graphics to remain intact for re-rendering.
 	}
@@ -323,9 +323,9 @@ export class Graphics extends HashObject {
 		if (!this.targetDisplay) {
 			return;
 		}
-		this.targetDisplay.cacheDirty = true;
-		this.targetDisplay.renderDirty = true;
-		this.targetDisplay.markDirty();
+		this.targetDisplay.$cacheDirty = true;
+		this.targetDisplay.$renderDirty = true;
+		this.targetDisplay.$markDirty();
 	}
 
 	private extendBoundsByPoint(x: number, y: number): void {

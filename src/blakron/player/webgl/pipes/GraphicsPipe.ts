@@ -134,7 +134,7 @@ export class GraphicsPipe implements RenderPipe<DisplayObject> {
 
 		const bounds = _scratchBounds;
 		bounds.setEmpty();
-		graphics.measureContentBounds(bounds);
+		graphics.$measureContentBounds(bounds);
 		const w = Math.ceil(bounds.width);
 		const h = Math.ceil(bounds.height);
 		if (w <= 0 || h <= 0) {

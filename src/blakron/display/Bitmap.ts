@@ -44,7 +44,7 @@ export class Bitmap extends DisplayObject {
 
 	public constructor(value?: Texture) {
 		super();
-		this.renderObjectType = RenderObjectType.BITMAP;
+		this.$renderObjectType = RenderObjectType.BITMAP;
 		if (value) {
 			this.setTexture(value);
 		}
@@ -67,7 +67,7 @@ export class Bitmap extends DisplayObject {
 			return;
 		}
 		this._smoothing = value;
-		this.markDirty();
+		this.$markDirty();
 	}
 
 	public get fillMode(): BitmapFillMode {
@@ -78,8 +78,8 @@ export class Bitmap extends DisplayObject {
 			return;
 		}
 		this._fillMode = value;
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	public get scale9Grid(): Rectangle | undefined {
@@ -87,8 +87,8 @@ export class Bitmap extends DisplayObject {
 	}
 	public set scale9Grid(value: Rectangle | undefined) {
 		this._scale9Grid = value;
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	public get pixelHitTest(): boolean {
@@ -99,57 +99,57 @@ export class Bitmap extends DisplayObject {
 	}
 
 	public override get width(): number {
-		return isNaN(this._explicitBitmapWidth) ? this.getContentBounds().width : this._explicitBitmapWidth;
+		return isNaN(this._explicitBitmapWidth) ? this.$getContentBounds().width : this._explicitBitmapWidth;
 	}
 	public override set width(value: number) {
 		if (value < 0 || value === this._explicitBitmapWidth) {
 			return;
 		}
 		this._explicitBitmapWidth = value;
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	public override get height(): number {
-		return isNaN(this._explicitBitmapHeight) ? this.getContentBounds().height : this._explicitBitmapHeight;
+		return isNaN(this._explicitBitmapHeight) ? this.$getContentBounds().height : this._explicitBitmapHeight;
 	}
 	public override set height(value: number) {
 		if (value < 0 || value === this._explicitBitmapHeight) {
 			return;
 		}
 		this._explicitBitmapHeight = value;
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	// ── Internal methods ──────────────────────────────────────────────────────
 
-	override onAddToStage(stage: Stage, nestLevel: number): void {
-		super.onAddToStage(stage, nestLevel);
+	override $onAddToStage(stage: Stage, $nestLevel: number): void {
+		super.$onAddToStage(stage, $nestLevel);
 		if (this._texture?.bitmapData) {
 			BitmapData.addDisplayObject(this, this._texture.bitmapData);
 		}
 	}
 
-	override onRemoveFromStage(): void {
-		super.onRemoveFromStage();
+	override $onRemoveFromStage(): void {
+		super.$onRemoveFromStage();
 		if (this._texture?.bitmapData) {
 			BitmapData.removeDisplayObject(this, this._texture.bitmapData);
 		}
 	}
 
-	override measureContentBounds(bounds: Rectangle): void {
+	override $measureContentBounds(bounds: Rectangle): void {
 		const w = !isNaN(this._explicitBitmapWidth) ? this._explicitBitmapWidth : this.textureWidth;
 		const h = !isNaN(this._explicitBitmapHeight) ? this._explicitBitmapHeight : this.textureHeight;
 		bounds.setTo(0, 0, w, h);
 	}
 
-	override hitTest(stageX: number, stageY: number): DisplayObject | undefined {
-		const target = super.hitTest(stageX, stageY);
+	override $hitTest(stageX: number, stageY: number): DisplayObject | undefined {
+		const target = super.$hitTest(stageX, stageY);
 		if (!target || !this._pixelHitTest) {
 			return target;
 		}
-		const m = this.getInvertedConcatenatedMatrix();
+		const m = this.$getInvertedConcatenatedMatrix();
 		const localX = m.a * stageX + m.c * stageY + m.tx;
 		const localY = m.b * stageX + m.d * stageY + m.ty;
 		return bitmapPixelHitTest?.(this, localX, localY) === false ? undefined : target;
@@ -167,7 +167,7 @@ export class Bitmap extends DisplayObject {
 		if (value) {
 			this.refreshImageData();
 			// When already on stage, update BitmapData reference counting.
-			if (this.internalStage) {
+			if (this.$stage) {
 				if (old?.bitmapData && old.bitmapData !== value.bitmapData) {
 					BitmapData.removeDisplayObject(this, old.bitmapData);
 				}
@@ -182,8 +182,8 @@ export class Bitmap extends DisplayObject {
 			this.clearImageData();
 		}
 
-		this.renderDirty = true;
-		this.markDirty();
+		this.$renderDirty = true;
+		this.$markDirty();
 	}
 
 	private refreshImageData(): void {

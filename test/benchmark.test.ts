@@ -282,17 +282,17 @@ describe('SceneRegistry', () => {
 	});
 
 	it('sprite-batch build 函数使用 mock factory 正常运行并返回 cleanup', () => {
-		const children: unknown[] = [];
+		const $children: unknown[] = [];
 		const factory = {
 			createBitmap: () => ({ x: 0, y: 0, rotation: 0, alpha: 1 }),
 			createShape: () => ({ x: 0, y: 0 }),
 			createSprite: () => ({ x: 0, y: 0 }),
 			addChild: (_parent: unknown, child: unknown) => {
-				children.push(child);
+				$children.push(child);
 			},
 			removeChild: (_parent: unknown, child: unknown) => {
-				const idx = children.indexOf(child);
-				if (idx !== -1) children.splice(idx, 1);
+				const idx = $children.indexOf(child);
+				if (idx !== -1) $children.splice(idx, 1);
 			},
 			addEventListener: () => {},
 			removeEventListener: () => {},
@@ -300,9 +300,9 @@ describe('SceneRegistry', () => {
 		const container = {};
 		const scene = getScene('sprite-batch')!;
 		const cleanup = (scene.build as any)(container, 10, factory);
-		expect(children).toHaveLength(10);
+		expect($children).toHaveLength(10);
 		cleanup();
-		expect(children).toHaveLength(0);
+		expect($children).toHaveLength(0);
 	});
 });
 

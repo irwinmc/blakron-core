@@ -24,7 +24,7 @@ export class Capabilities {
 	 * Current render mode, set by Player after WebGL initialisation.
 	 * One of: "webgl" | "canvas"
 	 */
-	public static renderMode: string = 'unknown';
+	public static $renderMode: string = 'unknown';
 
 	/** Blakron engine version, injected at build time via package.json. */
 	public static readonly engineVersion: string = '0.2.4';

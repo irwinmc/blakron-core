@@ -29,7 +29,7 @@ export class RenderTexture extends Texture {
 			return false;
 		}
 
-		const bounds = clipBounds ?? displayObject.getOriginalBounds();
+		const bounds = clipBounds ?? displayObject.$getOriginalBounds();
 		if (bounds.width === 0 || bounds.height === 0) {
 			return false;
 		}

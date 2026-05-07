@@ -55,7 +55,7 @@ export class DisplayList {
 	 * Returns false if the object has zero size.
 	 */
 	public updateSurfaceSize(): boolean {
-		const bounds = this.root.getOriginalBounds();
+		const bounds = this.root.$getOriginalBounds();
 		const w = Math.max(1, Math.ceil(bounds.width));
 		const h = Math.max(1, Math.ceil(bounds.height));
 		this.offsetX = -bounds.x;

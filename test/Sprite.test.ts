@@ -5,16 +5,16 @@ import { RenderObjectType } from '../src/blakron/display/DisplayObject.js';
 import { Rectangle } from '../src/blakron/geom/Rectangle.js';
 
 describe('Sprite', () => {
-	it('renderObjectType is SPRITE', () => {
+	it('$renderObjectType is SPRITE', () => {
 		const s = new Sprite();
-		expect(s.renderObjectType).toBe(RenderObjectType.SPRITE);
+		expect(s.$renderObjectType).toBe(RenderObjectType.SPRITE);
 	});
 
 	it('content bounds include graphics', () => {
 		const s = new Sprite();
 		s.graphics.drawRect(10, 20, 100, 50);
 		const bounds = new Rectangle();
-		s['measureContentBounds'](bounds);
+		s['$measureContentBounds'](bounds);
 		expect(bounds.width).toBeGreaterThanOrEqual(100);
 	});
 
@@ -34,10 +34,10 @@ describe('Sprite', () => {
 		expect(s.getChildAt(1)).toBe(b);
 	});
 
-	it('onRemoveFromStage does not clear graphics commands', () => {
+	it('$onRemoveFromStage does not clear graphics commands', () => {
 		const s = new Sprite();
 		s.graphics.drawRect(0, 0, 100, 100);
-		s['onRemoveFromStage']();
+		s['$onRemoveFromStage']();
 		expect(s.graphics.commands.length).toBe(1);
 	});
 });

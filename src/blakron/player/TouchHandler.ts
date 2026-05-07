@@ -108,7 +108,7 @@ export class TouchHandler {
 	// ── Private methods ───────────────────────────────────────────────────────
 
 	private findTarget(stageX: number, stageY: number): DisplayObject {
-		return this._stage.hitTest(stageX, stageY) ?? this._stage;
+		return this._stage.$hitTest(stageX, stageY) ?? this._stage;
 	}
 
 	private getStageCoords(clientX: number, clientY: number): { x: number; y: number } {

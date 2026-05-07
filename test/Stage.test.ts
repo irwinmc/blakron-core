@@ -40,7 +40,7 @@ describe('Stage', () => {
 		expect(fn).not.toHaveBeenCalled();
 	});
 
-	it('is a DisplayObjectContainer (can hold children)', () => {
+	it('is a DisplayObjectContainer (can hold $children)', () => {
 		const stage = new Stage();
 		const child = new DisplayObject();
 		stage.addChild(child);
