@@ -139,7 +139,7 @@ export class EventDispatcher extends HashObject implements IEventDispatcher {
 		this._notifyLevel++;
 		for (let i = 0; i < list.length; i++) {
 			const entry = list[i];
-			entry.listener(event);
+			entry.listener.call(this, event);
 			if (entry.once) ONCE_LIST.push(entry);
 			if (event.isPropagationImmediateStopped) break;
 		}
